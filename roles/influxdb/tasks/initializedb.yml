@@ -1,0 +1,230 @@
+---
+###############################################################################
+# Initialize a new influxdb instance
+# If the database was already setup up, then it will fail at the very first task.
+# will then
+#
+# This produces a file in the playbook data sub-directory of
+#
+
+- name: Check InfluxDB configuration and setup components
+  block:
+    - name: Check if InfluxDB is configured
+      become: true
+      no_log: "{{ mylab_nolog | default(true) }}"
+      ansible.builtin.command:
+        cmd: /usr/bin/influx config ls --json
+      register: influxdb_config
+      changed_when: false
+
+    - name: Set the influxdb_configured fact
+      ansible.builtin.set_fact:
+        influxdb_configured: "{{ influxdb_config.stdout != '{}' }}"
+
+    # Only proceed with setup if not configured
+    - name: Setup InfluxDB if not configured
+      when: not influxdb_configured
+      block:
+        - name: Generate random password if set to 'generated'
+          no_log: "{{ mylab_nolog | default(true) }}"
+          ansible.builtin.set_fact:
+            influxdb_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=14, chars=['ascii_letters', 'digits'], seed=ansible_hostname) }}"
+          when: influxdb_password == "generated"
+
+        - name: Initialize InfluxDB
+          # no_log: "{{ mylab_nolog | default(true) }}"
+          become: true
+          ansible.builtin.command:
+            cmd: >-
+              /usr/bin/influx setup
+              --org {{ influxdb_org }}
+              --bucket {{ influxdb_bucket }}co
+              --username {{ influxdb_username }}
+              --password {{ influxdb_password }}
+              --force
+          register: setup_result
+          failed_when: setup_result.rc != 0
+          changed_when: true
+
+        # ...............................................................................
+        # Check and create buckets using loop
+        - name: List existing buckets
+          become: true
+          ansible.builtin.command:
+            cmd: influx bucket list --json
+          register: bucket_list
+          failed_when: bucket_list.rc != 0
+          changed_when: false
+
+        - name: Create buckets if not exist
+          become: true
+          ansible.builtin.command:
+            cmd: influx bucket create -n {{ item }}
+          loop: "{{ influxdb_buckets }}"
+          when: "item not in (bucket_list.stdout | from_json | json_query('[].name'))"
+          register: bucket_results
+          failed_when: bucket_results.rc != 0
+          changed_when: true
+
+        # ...............................................................................
+        # Before creating tokens,  get the bucket id's
+        - name: Get the bucket IDs
+          become: true
+          ansible.builtin.command:
+            cmd: influx bucket list --json
+          register: bucket_list_result
+          changed_when: false
+
+        - name: Debug bucket list
+          ansible.builtin.debug:
+            var: bucket_list_result.stdout
+            verbosity: 2
+
+        - name: Set bucket IDs fact
+          ansible.builtin.set_fact:
+            bucket_info: "{{ bucket_list_result.stdout | from_json }}"
+
+        # ...............................................................................
+        # Check and create tokens
+        - name: Get existing auth tokens
+          no_log: "{{ mylab_nolog | default(true) }}"
+          become: true
+          ansible.builtin.command: "/usr/bin/influx auth list --json"
+          register: auth_list
+          failed_when: auth_list.rc != 0
+          changed_when: false
+
+        - name: Parse auth list
+          ansible.builtin.set_fact:
+            existing_auths: "{{ auth_list.stdout | from_json | json_query('[].description') }}"
+
+        - name: Create role-based tokens if not exist
+          # no_log: "{{ mylab_nolog | default(true) }}"
+          become: true
+          ansible.builtin.command:
+            cmd: >-
+              influx auth create
+              --org {{ influxdb_org }}
+              {% if item.role == 'admin' %}--all-access
+              {% elif item.role == 'operator' %}--operator
+              {% elif item.role == 'writer' %}--write-bucket {{ (bucket_info | selectattr('name', 'equalto', item.bucket) | list | first).id }}
+              {% elif item.role == 'reader' %}--read-bucket {{ (bucket_info | selectattr('name', 'equalto', item.bucket) | list | first).id }}
+              {% endif %}
+              --description {{ item.description }}
+              --json
+          loop:
+            - { role: "admin", description: "admin" }
+            - {
+                role: "writer",
+                description: "telegraf-writer",
+                bucket: "telegraf",
+              }
+            - {
+                role: "reader",
+                description: "metrics-reader",
+                bucket: "metrics",
+              }
+            - { role: "operator", description: "system-operator" }
+          when: "item.description not in existing_auths"
+          register: token_results
+          failed_when: token_results.rc != 0
+          changed_when: true
+
+        # ...............................................................................
+        # Save configuration information
+        - name: Update auth list after changes
+          no_log: "{{ mylab_nolog | default(true) }}"
+          ansible.builtin.command: "/usr/bin/influx auth list --json"
+          become: true
+          register: final_auth_list
+          failed_when: final_auth_list.rc != 0
+          changed_when: false
+
+        - name: Create simplified auth dictionary
+          no_log: "{{ mylab_nolog | default(true) }}"
+          ansible.builtin.set_fact:
+            influxdb_auth_list: "{{ final_auth_list.stdout | from_json | json_query('[].{id: id, description: description, token: token}') }}"
+
+        - name: Save tokens to local file
+          when: not ( influxdb_test | default(false) )
+          become: false
+          ansible.builtin.copy:
+            content: "{{ influxdb_auth_list | to_nice_yaml }}"
+            dest: '{{ project_root }}/data/influx-tokens-{{ ansible_hostname }}-{{ lookup(''pipe'', ''date "+%Y%m%d-%H%M%S"'') }}.yml'
+            owner: "{{ lookup('env', 'USER') }}"
+            mode: "0600"
+          delegate_to: localhost
+
+        - name: Save web UI credentials to local file
+          when: not ( influxdb_test | default(false) )
+          become: false
+          ansible.builtin.copy:
+            content: |
+              # Created: {{ lookup('pipe', 'date "+%Y-%m-%d %H:%M:%S"') }}
+              Username: {{ influxdb_username }}
+              password: {{ influxdb_password }}
+            dest: '{{ project_root }}/data/influx-webui-access-{{ ansible_hostname }}-{{ lookup(''pipe'', ''date "+%Y%m%d-%H%M%S"'') }}.txt'
+            owner: "{{ lookup('env', 'USER') }}"
+            mode: "0600"
+          delegate_to: localhost
+
+      rescue:
+        - name: Handle setup failure
+          ansible.builtin.fail:
+            msg: "Failed to setup InfluxDB: {{ setup_result.stderr if setup_result is defined else 'Unknown error' }}"
+          when: setup_result is defined and setup_result.rc != 0
+
+        - name: Handle other failures
+          ansible.builtin.fail:
+            msg: "Failed to complete InfluxDB setup: Check logs for details"
+
+########################################################################################
+# Use the influxdb auth list
+#
+- name: Use the auth list to setup local telegraf and print current setup
+  block:
+    - name: Get auth list from influxdb
+      no_log: "{{ mylab_nolog | default(true) }}"
+      ansible.builtin.command: "/usr/bin/influx auth list --json"
+      become: true
+      register: cmd_result
+      failed_when: cmd_result.rc != 0
+      changed_when: false
+
+    - name: Create simplified auth dictionary
+      no_log: "{{ mylab_nolog | default(true) }}"
+      ansible.builtin.set_fact:
+        influxdb_auth_list: "{{ cmd_result.stdout | from_json | json_query('[].{id: id, description: description, token: token}') }}"
+
+    - name: Find operator token from auth list
+      no_log: "{{ mylab_nolog | default(true) }}"
+      ansible.builtin.set_fact:
+        influxdb_operators_token: "{{ influxdb_auth_list | json_query('[?description==`system-operator`].token') | first }}"
+
+    - name: Create a token file in the local data directory
+      when: not ( influxdb_test | default(false) )
+      become: false
+      ansible.builtin.copy:
+        content: "{{ influxdb_auth_list | to_nice_yaml }}"
+        dest: "{{ project_root }}/data/influx-tokens-{{ ansible_hostname }}.yml"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+      delegate_to: localhost
+
+    - name: Create influx password file in the local data directory
+      when: not ( influxdb_test | default(false) )
+      become: false
+      ansible.builtin.copy:
+        content: "\nUsername: {{ influxdb_username }}\n password: {{ influxdb_password }} \n"
+        dest: "{{ project_root }}/data/influx-webui-access-{{ ansible_hostname }}.txt"
+        owner: "{{ lookup('env', 'USER') }}"
+        mode: "0600"
+      delegate_to: localhost
+
+  rescue:
+    - name: Failed to get the auth list!!!
+      ansible.builtin.debug:
+        msg: "Telegraf cannot be setup via ansible.\n The script cannot access SSL and/or some other weird setup."
+
+    - name: End Play
+      ansible.builtin.meta: end_play

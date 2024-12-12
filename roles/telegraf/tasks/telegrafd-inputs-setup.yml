@@ -1,0 +1,76 @@
+---
+# ........................................
+# These are the default inputs....no output!
+#
+- name: Clear the telegraf.d configuration files
+  become: true
+  ansible.builtin.file:
+    path: /etc/telegraf/telegraf.d
+    owner: root
+    group: root
+    mode: "0755"
+    state: absent
+
+- name: Copy telegraf.d configuration files
+  become: true
+  ansible.builtin.copy:
+    src: telegraf.d
+    dest: /etc/telegraf/
+    owner: root
+    group: root
+    mode: "0755"
+  notify:
+    - Restart telegraf
+
+# ..............................................
+# Specialized inputs
+#
+- name: Collect apache stats
+  become: true
+  when: influxdb_apache
+  ansible.builtin.copy:
+    src: apache.conf
+    dest: /etc/telegraf/telegraf.d/apache.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Collect memcache stats
+  become: true
+  when: influxdb_memcache
+  ansible.builtin.copy:
+    src: memcache.conf
+    dest: /etc/telegraf/telegraf.d/memcache.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Collect redis stats
+  become: true
+  ansible.builtin.copy:
+    src: redis.conf
+    dest: /etc/telegraf/telegraf.d/redis.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: influxdb_redis
+
+- name: Collect mariadb stats
+  become: true
+  ansible.builtin.copy:
+    src: mariadb.conf
+    dest: /etc/telegraf/telegraf.d/mariadb.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: influxdb_mariadb
+
+- name: Collect influxdb stats
+  become: true
+  ansible.builtin.copy:
+    src: oss-metrics.conf
+    dest: /etc/telegraf/telegraf.d/oss-metrics.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: influxdb_oss_metrics

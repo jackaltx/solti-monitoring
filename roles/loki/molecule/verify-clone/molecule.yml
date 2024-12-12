@@ -1,0 +1,38 @@
+dependency:
+  name: galaxy
+
+driver:
+  name: default
+
+platforms:
+  - name: clone-test
+    vmid: "9100"
+    template: "debian-12-template"
+    node: "${PROXMOX_NODE}"
+
+provisioner:
+  name: ansible
+  log: true
+  inventory:
+    group_vars:
+      all:
+        proxmox_vmid: 9100
+    host_vars:
+      clone-test:
+        ansible_host: "192.168.101.90"
+        ansible_connection: ssh
+        ansible_user: "${USER}"
+        loki_test: true
+
+scenario:
+  name: verify-clone
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
+
+verifier:
+  name: ansible

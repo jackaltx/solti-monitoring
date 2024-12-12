@@ -1,0 +1,12 @@
+---
+# defaults file for nfs-client
+
+mount_nfs_share: false
+
+cluster_nfs_mounts:
+  none:
+    src: 127.0.0.1:/not-a-share
+    path: /mnt/not-a-mount
+    opts: rw,noatime,bg,rsize=131072,wsize=131072,hard,intr,timeo=150,retrans=3
+    state: ephemeral
+    fstype: nfs4

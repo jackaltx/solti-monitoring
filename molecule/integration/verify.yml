@@ -1,0 +1,160 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  # vars:
+  #   project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+
+  tasks:
+    - name: Verify InfluxDB is running
+      ansible.builtin.service_facts:
+
+    - name: Assert InfluxDB service status
+      ansible.builtin.assert:
+        that:
+          - "'influxdb.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb.service'].state == 'running'"
+          - "ansible_facts.services['influxdb.service'].status == 'enabled'"
+
+    - name: Verify Telegraf is running
+      ansible.builtin.assert:
+        that:
+          - "'telegraf.service' in ansible_facts.services"
+          - "ansible_facts.services['telegraf.service'].state == 'running'"
+          - "ansible_facts.services['telegraf.service'].status == 'enabled'"
+
+    - name: Check InfluxDB port
+      ansible.builtin.wait_for:
+        port: 8086
+        timeout: 30
+        state: started
+
+    - name: Wait for Telegraf to establish connection
+      command: ss -tpn '( dst :8086 )'
+      register: ss_output
+      until: "'telegraf' in ss_output.stdout"
+      retries: 12 # Will try for 2 minutes
+      delay: 10 # 10 seconds between retries
+      changed_when: false
+
+      # ......................................................................................
+    - name: Verify Telegraf connection to InfluxDB exists
+      ansible.builtin.assert:
+        that:
+          - "'telegraf' in ss_output.stdout"
+        fail_msg: "No connection found from Telegraf to InfluxDB"
+
+    - name: Get Telegraf file handles
+      ansible.builtin.shell: "lsof -p $(pidof telegraf)"
+      register: lsof_output
+      changed_when: false
+
+    - name: Verify Telegraf setup
+      ansible.builtin.assert:
+        that:
+          - "'telegraf' in lsof_output.stdout"
+          - "'/usr/bin/telegraf' in lsof_output.stdout"
+          - "'TCP localhost' in lsof_output.stdout"
+          - "'localhost:8086 (ESTABLISHED)' in lsof_output.stdout"
+        fail_msg: |
+          Telegraf process verification failed:
+          {{ lsof_output.stdout }}
+
+    # ......................................................................................
+    - name: Check Telegraf logs for successful writes
+      ansible.builtin.command: journalctl -u telegraf --since "1 minute ago" -n 50 --no-pager
+      register: telegraf_logs
+      changed_when: false
+
+    - name: Verify no write errors in Telegraf logs
+      ansible.builtin.assert:
+        that:
+          - "'error writing' not in telegraf_logs.stdout"
+        fail_msg: "Found write errors in Telegraf logs"
+
+    # ......................................................................................
+    # New InfluxDB specific checks
+    - name: Check InfluxDB health
+      uri:
+        url: "http://localhost:8086/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      failed_when: health_check.json.status != "pass"
+
+    - name: Verify InfluxDB API is ready
+      uri:
+        url: "http://localhost:8086/ping"
+        method: GET
+        status_code: 204
+      register: ping_check
+
+    - name: Get InfluxDB version
+      command: influx version
+      register: influx_version
+      changed_when: false
+
+    - name: Get bucket information
+      command: influx bucket list --name telegraf
+      register: bucket_info
+      changed_when: false
+
+    - name: Check InfluxDB write permissions
+      command: influx write --bucket telegraf --precision s "test,tag=molecule value=1"
+      register: write_test
+      changed_when: false
+
+    - name: Verify data can be queried
+      command: >
+        influx query 'from(bucket:"telegraf")
+        |> range(start: -1m)
+        |> filter(fn: (r) => r["_measurement"] == "test")'
+      register: query_test
+      changed_when: false
+
+    - name: Display InfluxDB status
+      debug:
+        msg:
+          - "InfluxDB Version: {{ influx_version.stdout }}"
+          - "Bucket Info: {{ bucket_info.stdout }}"
+          - "Write Test: {{ write_test.rc == 0 }}"
+          - "Query Test: {{ query_test.rc == 0 }}"
+
+    - name: Save integration test results
+      become: false
+      ansible.builtin.copy:
+        content: |
+          === Monitor Stack Integration Test Results ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          Service Status:
+          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+
+          InfluxDB Status:
+          - Version: {{ influx_version.stdout }}
+          - Health Check: {{ health_check.json.status }}
+          - API Status: {{ ping_check.status == 204 }}
+          - Write Test Success: {{ write_test.rc == 0 }}
+          - Query Test Success: {{ query_test.rc == 0 }}
+          {% if bucket_info.stdout | length > 0 %}
+          - Bucket Information:
+            {{ bucket_info.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endif %}
+
+          Telegraf Integration:
+          - Connection Status: Established
+          - Network Connections:
+            {{ ss_output.stdout_lines | to_nice_yaml | indent(8) }}
+          - Process Information:
+            {{ lsof_output.stdout_lines | to_nice_yaml | indent(8) }}
+
+          Recent Log Activity:
+          {% if 'error writing' in telegraf_logs.stdout %}
+          !!! ERRORS DETECTED IN LOGS !!!
+          {% endif %}
+          Last 50 log entries:
+            {{ telegraf_logs.stdout_lines | to_nice_yaml | indent(8) }}
+        dest: "{{ project_root }}/verify_output/metrics_collection_integration_results.yml"
+        mode: "0644"
+      delegate_to: localhost

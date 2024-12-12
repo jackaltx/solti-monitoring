@@ -1,0 +1,42 @@
+# SNMP Target configuration
+loki.target.snmp "udm" {
+  addresses = ["192.168.1.1"]  # Replace with your UDM's IP
+  interval = "30s"
+  timeout = "10s"
+  version = "v2c"
+  community = "public"
+  
+  module {
+    name = "if_mib"
+    walk = [
+      "1.3.6.1.2.1.2.2.1.10",  # Interface inbound traffic
+      "1.3.6.1.2.1.2.2.1.16",  # Interface outbound traffic
+      "1.3.6.1.2.1.2.2.1.8",   # Interface operational status
+      "1.3.6.1.2.1.2.2.1.3"    # Interface type
+    ]
+  }
+
+  module {
+    name = "system"
+    walk = [
+      "1.3.6.1.2.1.1.3",       # System uptime
+      "1.3.6.1.2.1.25.2.3.1.6" # Memory usage
+    ]
+  }
+
+  # Forward metrics to Loki
+  forward_to = [loki.write.monitor0.receiver]
+}
+
+# Add labels and processing rules
+loki.relabel "udm_metrics" {
+  forward_to = []
+  rule {
+    source_labels = ["__name__"]
+    target_label = "metric"
+  }
+  rule {
+    source_labels = ["ifDescr"]
+    target_label = "interface"
+  }
+}

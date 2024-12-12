@@ -1,0 +1,238 @@
+local.file_match "system" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/*log",
+		host        = "angela",
+		hostname    = "angela",
+		job         = "varlogs",
+	}]
+}
+
+loki.source.file "system" {
+	targets               = local.file_match.system.targets
+	forward_to            = [loki.write.default.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "apache_vhost_access" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/apache2/other_vhosts_access.log",
+		host        = "angela",
+		job         = "apache",
+		label       = "httpd_access",
+	}]
+}
+
+loki.process "apache_vhost_access" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.regex {
+		expression = "^(?P<vhost>\\S+):(?P<vport>\\d+) (?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+	}
+
+	stage.labels {
+		values = {
+			action      = null,
+			ip          = null,
+			path        = null,
+			referer     = null,
+			status_code = null,
+			useragent   = null,
+			vhost       = null,
+			vport       = null,
+		}
+	}
+
+	stage.match {
+		selector = "{action=\"GET\", path=\"/datalogstatus.php\",referer=\"https://angela.lavnet.net:8080/index.php\"}"
+		action   = "drop"
+	}
+
+	stage.label_drop {
+		values = ["ip", "useragent", "path", "referer"]
+	}
+}
+
+loki.source.file "apache_vhost_access" {
+	targets               = local.file_match.apache_vhost_access.targets
+	forward_to            = [loki.process.apache_vhost_access.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "apache_access" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/apache2/access.log",
+		host        = "angela",
+		job         = "apache",
+		label       = "httpd_access",
+		vhost       = "SystemRoot",
+	}]
+}
+
+loki.process "apache_access" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.regex {
+		expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+	}
+
+	stage.labels {
+		values = {
+			action      = null,
+			ip          = null,
+			path        = null,
+			referer     = null,
+			status_code = null,
+			useragent   = null,
+		}
+	}
+
+	stage.match {
+		selector = "{ip=\"::1\", action=\"GET\", useragent=\"Go-http-client/1.1\"}"
+		action   = "drop"
+	}
+
+	stage.match {
+		selector = "{ip=\"::1\", action=\"GET\", useragent=\"Mozilla/5.0 (ISPConfig monitor)\"}"
+		action   = "drop"
+	}
+
+	stage.label_drop {
+		values = ["ip", "useragent", "path", "referer"]
+	}
+}
+
+loki.source.file "apache_access" {
+	targets               = local.file_match.apache_access.targets
+	forward_to            = [loki.process.apache_access.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "apache_error" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/ispconfig/httpd/*/error.log",
+		host        = "angela",
+		job         = "apache",
+		label       = "httpd_error",
+	}, {
+		__address__ = "localhost",
+		__path__    = "/var/log/apache2/error.log",
+		host        = "angela",
+		job         = "apache",
+		label       = "httpd_error",
+	}]
+}
+
+loki.source.file "apache_error" {
+	targets               = local.file_match.apache_error.targets
+	forward_to            = [loki.write.default.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "bind" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/bind/*.log",
+		host        = "angela",
+		job         = "bind",
+	}]
+}
+
+loki.source.file "bind" {
+	targets               = local.file_match.bind.targets
+	forward_to            = [loki.write.default.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "acme" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/ispconfig/acme.log",
+		host        = "angela",
+		job         = "acme",
+	}]
+}
+
+loki.source.file "acme" {
+	targets               = local.file_match.acme.targets
+	forward_to            = [loki.write.default.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+local.file_match "fail2ban" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/fail2ban.log",
+		app         = "fail2ban",
+		env         = "test-env",
+		instance    = "angela",
+	}]
+}
+
+loki.process "fail2ban" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.multiline {
+		firstline     = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
+		max_lines     = 0
+		max_wait_time = "0s"
+	}
+
+	stage.regex {
+		expression = "^(?s)(?P<time>\\S+? \\S+?) (fail2ban\\.)(?P<component>\\S+)\\s* \\[(?P<pid>\\S+)\\]: (?P<priority>\\S+)\\s* (?P<message>.*?)$"
+	}
+
+	stage.timestamp {
+		source = "time"
+		format = "2006-01-02 15:04:05.000"
+	}
+
+	stage.labels {
+		values = {
+			component = null,
+			priority  = null,
+		}
+	}
+
+	stage.output {
+		source = "message"
+	}
+
+	stage.match {
+		selector = "{job=\"fail2ban\"} |~ \"\\\\\\\\[\\\\\\\\S+\\\\\\\\] .*\""
+
+		stage.regex {
+			expression = "(\\[(?P<jail>\\S+)\\] )?(?P<message>.*?)$"
+		}
+
+		stage.labels {
+			values = {
+				jail = null,
+			}
+		}
+
+		stage.output {
+			source = "message"
+		}
+	}
+
+	stage.label_drop {
+		values = ["filename"]
+	}
+}
+
+loki.source.file "fail2ban" {
+	targets               = local.file_match.fail2ban.targets
+	forward_to            = [loki.process.fail2ban.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://10.9.0.7:3100/loki/api/v1/push"
+	}
+	external_labels = {}
+}

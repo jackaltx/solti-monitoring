@@ -1,0 +1,197 @@
+- name: Verify
+  hosts: all
+  become: true
+  # vars:
+  #   project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+
+  tasks:
+    # Gather OS Information
+    - name: Get detailed OS information
+      ansible.builtin.setup:
+        gather_subset:
+          - distribution
+          - pkg_mgr
+          - service_mgr
+          - kernel
+
+    - name: Get package manager details
+      ansible.builtin.command: "{{ item }}"
+      register: pkg_mgr_info
+      loop:
+        - "apt policy"
+        - "apt-cache policy"
+        - "apt-config dump"
+      when: ansible_pkg_mgr == "apt"
+      changed_when: false
+
+    - name: Get systemd version
+      ansible.builtin.command: systemctl --version
+      register: systemd_version
+      changed_when: false
+
+    - name: Include defaults
+      ansible.builtin.include_vars:
+        file: "{{ project_root }}/ProvisionCollection/telegraf/defaults/main.yml"
+
+    ######################################################################
+    # telegraf Verification Tasks
+    - name: Check if telegraf service is running
+      ansible.builtin.service_facts:
+
+    - name: Assert telegraf is running and enabled
+      ansible.builtin.assert:
+        that:
+          - "'telegraf.service' in ansible_facts.services"
+          - "ansible_facts.services['telegraf.service'].state == 'running'"
+          - "ansible_facts.services['telegraf.service'].status == 'enabled'"
+
+    - name: Get telegraf version
+      ansible.builtin.command: telegraf --version
+      register: telegraf_version
+      changed_when: false
+
+    - name: Check telegraf configuration
+      ansible.builtin.stat:
+        path: "{{ telegraf_config }}"
+      register: config_stat
+
+    - name: Assert config exists and has correct permissions
+      ansible.builtin.assert:
+        that:
+          - "config_stat.stat.exists"
+          - "config_stat.stat.mode == '0644'"
+
+    - name: Check telegraf env configuration
+      ansible.builtin.stat:
+        path: "{{ telegraf_default_env }}"
+      register: config_stat
+
+    - name: Assert config exists and has correct permissions
+      ansible.builtin.assert:
+        that:
+          - "config_stat.stat.exists"
+          - "config_stat.stat.mode == '0640'"
+
+    - name: Create local data directory for test results
+      become: false
+      ansible.builtin.file:
+        path: "{{ project_root }}/verify_output"
+        state: directory
+      delegate_to: localhost
+
+    ################################################################################
+    # Save test results
+    - block:
+        - name: Save verification results
+          become: false
+          ansible.builtin.copy:
+            content: |
+              === Telegraf Molecule Test Results ===
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              System Information:
+              ------------------
+              OS Family: {{ ansible_os_family }}
+              Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})
+              Kernel: {{ ansible_kernel }}
+              Architecture: {{ ansible_architecture }}
+              Python Version: {{ ansible_python_version }}
+
+              Package Management:
+              ------------------
+              Package Manager: {{ ansible_pkg_mgr }}
+              Package Format: {{ ansible_pkg_mgr_name | default('unknown') }}
+              {% if ansible_pkg_mgr == "apt" %}
+              APT Sources:
+              {{ pkg_mgr_info.results[0].stdout | indent(2) }}
+              {% endif %}
+
+              Service Management:
+              ------------------
+              Service Manager: {{ ansible_service_mgr }}
+              Systemd Version: {{ systemd_version.stdout_lines[0] }}
+
+              Resource Information:
+              -------------------
+              Total Memory: {{ ansible_memtotal_mb }}MB
+              CPU Cores: {{ ansible_processor_cores }}
+              CPU Count: {{ ansible_processor_count }}
+
+              Network Information:
+              ------------------
+              Hostname: {{ ansible_hostname }}
+              Domain: {{ ansible_domain }}
+              Default IPv4: {{ ansible_default_ipv4.address | default('N/A') }}
+
+              Storage Information:
+              ------------------
+              Boot Device: {{ ansible_devices[ansible_boot_device | default('sda')].model | default('unknown') }}
+              Root Partition: {{ ansible_mounts | selectattr('mount', 'equalto', '/') | list | first }}
+
+              telegraf Information:
+              ----------------
+              Version Information:
+              {{ telegraf_version.stdout }}
+
+              Service Status:
+              Running: {{ ansible_facts.services['telegraf.service'].state == 'running' }}
+              Enabled: {{ ansible_facts.services['telegraf.service'].status == 'enabled' }}
+
+              Configuration:
+              Config File: {{ telegraf_config }} ({{ config_stat.stat.exists }})
+              Config Mode: {{ config_stat.stat.mode }}
+
+              Environment Variables:
+              --------------------
+              Path: {{ ansible_env.PATH }}
+              Shell: {{ ansible_env.SHELL }}
+              User: {{ ansible_env.USER }}
+
+              Security Information:
+              -------------------
+              SELinux: {{ ansible_selinux.status | default('disabled') }}
+              AppArmor: {{ ansible_apparmor.status | default('disabled') }}
+
+            dest: "{{ project_root }}/verify_output/telegraf_verify_results.yml"
+            mode: "0644"
+          delegate_to: localhost
+
+        - name: Create report summary
+          become: false
+          ansible.builtin.copy:
+            content: |
+              # Quick Summary
+              - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              - Kernel: {{ ansible_kernel }}
+              - Package Manager: {{ ansible_pkg_mgr }}
+              - Service Manager: {{ ansible_service_mgr }}
+              - telegraf Status: {{ 'Running' if ansible_facts.services['telegraf.service'].state == 'running' else 'Not Running' }}
+              - Configuration: {{ telegraf_config }}
+
+              Last Update: {{ ansible_date_time.iso8601 }}
+            dest: "{{ project_root }}/verify_output/telegraf_verify_summary.md"
+            mode: "0640"
+          delegate_to: localhost
+
+      rescue:
+        - name: Save error information on verification failure
+          ansible.builtin.copy:
+            content: |
+              === telegraf Verification Errors ===
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              System Information:
+              OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              Kernel: {{ ansible_kernel }}
+
+              Errors:
+              Service Status: {{ ansible_facts.services['telegraf.service'] | default('Service not found') }}
+              Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
+              Version Check: {{ telegraf_version.stderr if telegraf_version.stderr is defined else 'N/A' }}
+            dest: "{{ project_root }}/verify_output/telegraf_verify_errors.yml"
+            mode: "0640"
+          delegate_to: localhost
+
+        - name: Fail with verification error message
+          ansible.builtin.fail:
+            msg: "Telegraf verification failed. Check errors in verify_output directory."

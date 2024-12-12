@@ -1,0 +1,303 @@
+---
+# molecule/verify-clone/verify.yml
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+
+  tasks:
+    ########################################################
+    # Gather OS Information
+    #
+
+    - name: Get detailed OS information
+      ansible.builtin.setup:
+        gather_subset:
+          - distribution
+          - pkg_mgr
+          - service_mgr
+          - kernel
+
+    - name: Get package manager details
+      ansible.builtin.command: "{{ item }}"
+      register: pkg_mgr_info
+      loop:
+        - "apt policy"
+        - "apt-cache policy"
+        - "apt-config dump"
+      when: ansible_pkg_mgr == "apt"
+      changed_when: false
+
+    - name: Get systemd version
+      ansible.builtin.command: systemctl --version
+      register: systemd_version
+      changed_when: false
+
+    - name: Include defaults
+      ansible.builtin.include_vars:
+        file: "{{ project_root }}/ProvisionCollection/influxdb/defaults/main.yml"
+
+    ##################################################################
+    # Standard InfluxDB verification tasks
+    #
+
+    - name: Check if InfluxDB service is running
+      ansible.builtin.service_facts:
+
+    - name: Assert InfluxDB is running and enabled
+      ansible.builtin.assert:
+        that:
+          - "'influxdb.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb.service'].state == 'running'"
+          - "ansible_facts.services['influxdb.service'].status == 'enabled'"
+
+    - name: Verify InfluxDB is listening on port 8086
+      ansible.builtin.wait_for:
+        port: 8086
+        timeout: 10
+        state: started
+
+    - name: Get InfluxDB version
+      ansible.builtin.command: influx version
+      register: influx_version
+      changed_when: false
+
+    - name: Check InfluxDB configuration
+      ansible.builtin.stat:
+        path: /etc/influxdb/config.toml
+      register: config_stat
+
+    - name: Assert config exists and has correct permissions
+      ansible.builtin.assert:
+        that:
+          - "config_stat.stat.exists"
+          - "config_stat.stat.mode == '0644'"
+
+    - name: Check InfluxDB storage directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: storage_stat
+      loop:
+        - "{{ influxdb_data_path }}/engine"
+        - "{{ influxdb_data_path }}/influxd.bolt"
+
+    ############################################################
+    # Gather Linux OS details on Alloy
+
+    - name: Get Alloy process information with lsof
+      ansible.builtin.command: lsof -p $(pidof alloy)
+      register: lsof_output
+      changed_when: false
+
+    - name: Get Alloy network connections
+      ansible.builtin.command: lsof -i -P -n -p $(pidof alloy)
+      register: network_info
+      changed_when: false
+
+    - name: Check Alloy in journal
+      ansible.builtin.command: journalctl -u alloy --since "1 hour ago" -n 50 --no-pager
+      register: journal_output
+      changed_when: false
+
+    - name: Assert Alloy network and file checks
+      ansible.builtin.assert:
+        that:
+          - "'TCP *:12345' in network_info.stdout" # Custom port from alloy_custom_args
+          - "'/etc/alloy' in lsof_output.stdout" # Config directory
+          - "'alloy.service' in journal_output.stdout" # Service in journal
+        fail_msg: |
+          Alloy service verification failed:
+          Network info:
+          {{ network_info.stdout }}
+
+          Process info:
+          {{ lsof_output.stdout }}
+
+          Journal info:
+          {{ journal_output.stdout }}
+
+    ############################################################
+    #
+    #  Reports
+    #
+
+    - name: Create local data directory for test results
+      become: false
+      ansible.builtin.file:
+        path: "{{ project_root }}/verify_output"
+        state: directory
+      delegate_to: localhost
+
+    - name: Save results block
+      block:
+        # ..................................................................
+        - name: Save verification results
+          become: false
+          ansible.builtin.copy:
+            content: |
+              === InfluxDB Molecule Test Results ===
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              System Information:
+              ------------------
+              OS Family: {{ ansible_os_family }}
+              Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})
+              Kernel: {{ ansible_kernel }}
+              Architecture: {{ ansible_architecture }}
+              Python Version: {{ ansible_python_version }}
+
+              Package Management:
+              ------------------
+              Package Manager: {{ ansible_pkg_mgr }}
+              Package Format: {{ ansible_pkg_mgr_name | default('unknown') }}
+              {% if ansible_pkg_mgr == "apt" %}
+              APT Sources:
+              {{ pkg_mgr_info.results[0].stdout | indent(2) }}
+              {% endif %}
+
+              Service Management:
+              ------------------
+              Service Manager: {{ ansible_service_mgr }}
+              Systemd Version: {{ systemd_version.stdout_lines[0] }}
+
+              Resource Information:
+              -------------------
+              Total Memory: {{ ansible_memtotal_mb }}MB
+              CPU Cores: {{ ansible_processor_cores }}
+              CPU Count: {{ ansible_processor_count }}
+
+              Network Information:
+              ------------------
+              Hostname: {{ ansible_hostname }}
+              Domain: {{ ansible_domain }}
+              Default IPv4: {{ ansible_default_ipv4.address | default('N/A') }}
+
+              Storage Information:
+              ------------------
+              Boot Device: {{ ansible_devices[ansible_boot_device | default('sda')].model | default('unknown') }}
+              Root Partition: {{ ansible_mounts | selectattr('mount', 'equalto', '/') | list | first }}
+
+              InfluxDB Information:
+              -------------------
+              Version Information:
+              {{ influx_version.stdout }}
+
+              Service Status:
+              Running: {{ ansible_facts.services['influxdb.service'].state == 'running' }}
+              Enabled: {{ ansible_facts.services['influxdb.service'].status == 'enabled' }}
+
+              Configuration:
+              Config File: /etc/influxdb/config.toml ({{ config_stat.stat.exists }})
+              Config Mode: {{ config_stat.stat.mode }}
+
+              Storage Paths:
+              Engine: {{ influxdb_data_path }}/engine ({{ storage_stat.results[0].stat.exists }})
+              Bolt DB: {{ influxdb_data_path }}/influxd.bolt ({{ storage_stat.results[1].stat.exists }})
+
+              Environment Variables:
+              --------------------
+              Path: {{ ansible_env.PATH }}
+              Shell: {{ ansible_env.SHELL }}
+              User: {{ ansible_env.USER }}
+
+              Security Information:
+              -------------------
+              SELinux: {{ ansible_selinux.status | default('disabled') }}
+              AppArmor: {{ ansible_apparmor.status | default('disabled') }}
+
+              Database Status:
+              --------------
+              {% if influxdb_configured is defined %}
+              Database Configured: {{ influxdb_configured }}
+              {% endif %}
+
+              Authentication:
+              -------------
+              {% if influxdb_auth_list is defined %}
+              Auth Tokens: {{ influxdb_auth_list | length }} configured
+              {% endif %}
+
+            dest: "{{ project_root }}/verify_output/influxdb_verify_results.yml"
+            mode: "0644"
+          delegate_to: localhost
+
+        # ..............................................................................
+        # TODO evaluate this for value
+        - name: Create report summary
+          become: false
+          ansible.builtin.copy:
+            content: |
+              # Quick Summary
+              - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              - Kernel: {{ ansible_kernel }}
+              - Package Manager: {{ ansible_pkg_mgr }}
+              - Service Manager: {{ ansible_service_mgr }}
+              - InfluxDB Status: {{ 'Running' if ansible_facts.services['influxdb.service'].state == 'running' else 'Not Running' }}
+              - Storage Location: {{ influxdb_data_path }}
+              {% if influxdb_configured is defined %}
+              - Database Config: {{ 'Configured' if influxdb_configured else 'Not Configured' }}
+              {% endif %}
+
+              Last Update: {{ ansible_date_time.iso8601 }}
+            dest: "{{ project_root }}/verify_output/influxdb_verify_summary.md"
+            mode: "0644"
+          delegate_to: localhost
+
+        # ..............................................................................
+        - name: Add runtime details to verification results
+          become: false
+          ansible.builtin.copy:
+            content: |
+              Runtime Information:
+              ------------------
+              Network Connections:
+              {{ network_info.stdout_lines | to_nice_yaml | indent(2) }}
+
+              File Handles:
+              {{ lsof_output.stdout_lines | to_nice_yaml | indent(2) }}
+
+              Recent Journal Entries:
+              {{ journal_output.stdout_lines | to_nice_yaml | indent(2) }}
+
+            dest: "{{ project_root }}/verify_output/alloy_runtime_details.yml"
+            mode: "0644"
+          delegate_to: localhost
+
+        - name: Update report summary with runtime status
+          become: false
+          ansible.builtin.copy:
+            content: |
+              # Runtime Status
+              - Listening Ports: {{ network_info.stdout_lines | select('match', '.*:(\\d+).*') | list | join(', ') }}
+              - Journal Logging: {{ 'Active' if journal_output.stdout_lines | length > 0 else 'No recent entries' }}
+              - Working Directory: {{ lsof_output.stdout_lines | select('match', '.*cwd.*') | list | first | default('Unknown') }}
+
+              Last Check: {{ ansible_date_time.iso8601 }}
+            dest: "{{ project_root }}/verify_output/alloy_runtime_summary.md"
+            mode: "0644"
+          delegate_to: localhost
+
+      rescue:
+        - name: Save error information on verification failure
+          ansible.builtin.copy:
+            content: |
+              === InfluxDB Verification Errors ===
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              System Information:
+              OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              Kernel: {{ ansible_kernel }}
+
+              Errors:
+              Service Status: {{ ansible_facts.services['influxdb.service'] | default('Service not found') }}
+              Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
+              Version Check: {{ influx_version.stderr if influx_version.stderr is defined else 'N/A' }}
+              Storage Check: {{ storage_stat.msg if storage_stat.failed is defined else 'N/A' }}
+            dest: "{{ project_root }}/verify_output/influxdb_verify_errors.yml"
+            mode: "0644"
+          delegate_to: localhost
+
+        - name: Fail with verification error message
+          ansible.builtin.fail:
+            msg: "InfluxDB verification failed. Check errors in verify_output directory."

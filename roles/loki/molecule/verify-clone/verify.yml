@@ -1,0 +1,268 @@
+---
+# molecule/verify-clone/verify.yml
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+
+  tasks:
+    # Gather OS Information
+    - name: Get detailed OS information
+      ansible.builtin.setup:
+        gather_subset:
+          - distribution
+          - pkg_mgr
+          - service_mgr
+          - kernel
+
+    - name: Get package manager details
+      ansible.builtin.command: "{{ item }}"
+      register: pkg_mgr_info
+      loop:
+        - "apt policy"
+        - "apt-cache policy"
+        - "apt-config dump"
+      when: ansible_pkg_mgr == "apt"
+      changed_when: false
+
+    - name: Get systemd version
+      ansible.builtin.command: systemctl --version
+      register: systemd_version
+      changed_when: false
+
+    - name: Include defaults
+      ansible.builtin.include_vars:
+        file: "{{ project_root }}/ProvisionCollection/loki/defaults/main.yml"
+
+    - name: Check if Loki service is running
+      ansible.builtin.service_facts:
+
+    - name: Assert Loki is running
+      ansible.builtin.assert:
+        that:
+          - "'loki.service' in ansible_facts.services"
+          - "ansible_facts.services['loki.service'].state == 'running'"
+          - "ansible_facts.services['loki.service'].status == 'enabled'"
+
+    - name: Verify Loki is listening on port 3100
+      ansible.builtin.wait_for:
+        port: 3100
+        timeout: 10
+
+    - name: Get Loki version
+      ansible.builtin.command: loki --version
+      register: loki_version
+      changed_when: false
+
+    - name: Check Loki configuration
+      ansible.builtin.stat:
+        path: /etc/loki/config.yml
+      register: config_stat
+
+    - name: Assert config exists and has correct permissions
+      ansible.builtin.assert:
+        that:
+          - "config_stat.stat.exists"
+          - "config_stat.stat.mode == '0644'"
+
+    - name: Check Loki storage directories exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: storage_stat
+      loop:
+        - /var/lib/loki/chunks
+        - /var/lib/loki/rules
+
+    - name: Assert storage directories exist
+      ansible.builtin.assert:
+        that:
+          - "storage_stat.results[0].stat.exists"
+          - "storage_stat.results[1].stat.exists"
+      when: loki_test | bool
+
+    - name: Save verification results
+      become: false
+      ansible.builtin.copy:
+        content: |
+          === Loki Molecule Test Results ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          System Information:
+          ------------------
+          OS Family: {{ ansible_os_family }}
+          Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})
+          Kernel: {{ ansible_kernel }}
+          Architecture: {{ ansible_architecture }}
+          Python Version: {{ ansible_python_version }}
+
+          Package Management:
+          ------------------
+          Package Manager: {{ ansible_pkg_mgr }}
+          Package Format: {{ ansible_pkg_mgr_name | default('unknown') }}
+          {% if ansible_pkg_mgr == "apt" %}
+          APT Sources:
+          {{ pkg_mgr_info.results[0].stdout | indent(2) }}
+          {% endif %}
+
+          Service Management:
+          ------------------
+          Service Manager: {{ ansible_service_mgr }}
+          Systemd Version: {{ systemd_version.stdout_lines[0] }}
+
+          Resource Information:
+          -------------------
+          Total Memory: {{ ansible_memtotal_mb }}MB
+          CPU Cores: {{ ansible_processor_cores }}
+          CPU Count: {{ ansible_processor_count }}
+
+          Network Information:
+          ------------------
+          Hostname: {{ ansible_hostname }}
+          Domain: {{ ansible_domain }}
+          Default IPv4: {{ ansible_default_ipv4.address | default('N/A') }}
+
+          Storage Information:
+          ------------------
+          Boot Device: {{ ansible_devices[ansible_boot_device | default('sda')].model | default('unknown') }}
+          Root Partition: {{ ansible_mounts | selectattr('mount', 'equalto', '/') | list | first }}
+
+          Loki Information:
+          ----------------
+          Version Information:
+          {{ loki_version.stdout }}
+
+          Service Status:
+          Running: {{ ansible_facts.services['loki.service'].state == 'running' }}
+          Enabled: {{ ansible_facts.services['loki.service'].status == 'enabled' }}
+
+          Configuration:
+          Config File: /etc/loki/config.yml ({{ config_stat.stat.exists }})
+          Config Mode: {{ config_stat.stat.mode }}
+
+          Storage Paths:
+          Chunks: /var/lib/loki/chunks ({{ storage_stat.results[0].stat.exists }})
+          Rules: /var/lib/loki/rules ({{ storage_stat.results[1].stat.exists }})
+
+          Environment Variables:
+          --------------------
+          Path: {{ ansible_env.PATH }}
+          Shell: {{ ansible_env.SHELL }}
+          User: {{ ansible_env.USER }}
+
+          Security Information:
+          -------------------
+          SELinux: {{ ansible_selinux.status | default('disabled') }}
+          AppArmor: {{ ansible_apparmor.status | default('disabled') }}
+
+        dest: "{{ project_root }}/verify_output/loki_verify_results.yml"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Create report summary
+      become: false
+      ansible.builtin.copy:
+        content: |
+          # Quick Summary
+          - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          - Kernel: {{ ansible_kernel }}
+          - Package Manager: {{ ansible_pkg_mgr }}
+          - Service Manager: {{ ansible_service_mgr }}
+          - Loki Status: {{ 'Running' if ansible_facts.services['loki.service'].state == 'running' else 'Not Running' }}
+
+          Last Update: {{ ansible_date_time.iso8601 }}
+        dest: "{{ project_root }}/verify_output/loki_verify_summary.md"
+        mode: "0644"
+      delegate_to: localhost
+#
+#
+#
+# - name: Verify
+#   hosts: all
+#   become: true
+#   vars:
+#     project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+
+#   tasks:
+#     - name: Include defaults
+#       ansible.builtin.include_vars:
+#         file: "{{ project_root }}/ProvisionCollection/loki/defaults/main.yml"
+
+#     - name: Check if Loki service is running
+#       ansible.builtin.service_facts:
+
+#     - name: Assert Loki is running and enabled
+#       ansible.builtin.assert:
+#         that:
+#           - "'loki.service' in ansible_facts.services"
+#           - "ansible_facts.services['loki.service'].state == 'running'"
+#           - "ansible_facts.services['loki.service'].status == 'enabled'"
+
+#     - name: Verify Loki is listening on port 3100
+#       ansible.builtin.wait_for:
+#         port: 3100
+#         timeout: 10
+#         state: started
+
+#     - name: Get Loki version
+#       ansible.builtin.command: loki --version
+#       register: loki_version
+#       changed_when: false
+
+#     - name: Check Loki configuration
+#       ansible.builtin.stat:
+#         path: /etc/loki/config.yml
+#       register: config_stat
+
+#     - name: Assert config exists and has correct permissions
+#       ansible.builtin.assert:
+#         that:
+#           - "config_stat.stat.exists"
+#           - "config_stat.stat.mode == '0644'"
+
+#     - name: Check Loki storage directories
+#       ansible.builtin.stat:
+#         path: "{{ item }}"
+#       register: storage_stat
+#       loop:
+#         - /var/lib/loki/chunks
+#         - /var/lib/loki/rules
+
+#     - name: Assert storage directories exist
+#       ansible.builtin.assert:
+#         that:
+#           - "storage_stat.results[0].stat.exists"
+#           - "storage_stat.results[1].stat.exists"
+#       when: loki_test | bool
+
+#     - name: Create local data directory for test results
+#       become: false
+#       ansible.builtin.file:
+#         path: "{{ project_root }}/verify_output"
+#         state: directory
+#       delegate_to: localhost
+
+#     - name: Save verification results
+#       become: false
+#       ansible.builtin.copy:
+#         content: |
+#           === Loki Molecule Test Results ===
+#           Timestamp: {{ ansible_date_time.iso8601 }}
+
+#           Version Information:
+#           {{ loki_version.stdout }}
+
+#           Service Status:
+#           Running: {{ ansible_facts.services['loki.service'].state == 'running' }}
+#           Enabled: {{ ansible_facts.services['loki.service'].status == 'enabled' }}
+
+#           Configuration:
+#           Config File: /etc/loki/config.yml ({{ config_stat.stat.exists }})
+#           Config Mode: {{ config_stat.stat.mode }}
+
+#           Storage Paths:
+#           Chunks: /var/lib/loki/chunks ({{ storage_stat.results[0].stat.exists }})
+#           Rules: /var/lib/loki/rules ({{ storage_stat.results[1].stat.exists }})
+#         dest: "{{ project_root }}/verify_output/loki_verify_results.yml"
+#         mode: "0644"
+#       delegate_to: localhost

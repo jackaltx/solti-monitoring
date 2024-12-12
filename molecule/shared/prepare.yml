@@ -1,0 +1,50 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Wait for cloud-init to finish
+      shell: cloud-init status --wait
+      changed_when: false
+
+    - name: Wait for any apt locks to be released
+      shell: |
+        while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          echo "Waiting for apt lock to be released..."
+          sleep 5
+        done
+      changed_when: false
+      # Add a reasonable timeout
+      async: 300
+      poll: 5
+
+    - name: Wait for daily apt actions to complete
+      shell: |
+        while systemctl is-active --quiet apt-daily.service || systemctl is-active --quiet apt-daily-upgrade.service; do
+          echo "Waiting for daily apt activities to complete..."
+          sleep 5
+        done
+      changed_when: false
+      # Add a reasonable timeout
+      async: 300
+      poll: 5
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - gpg
+          - ca-certificates
+          - qemu-guest-agent
+          - lsof
+        update_cache: yes
+        state: present
+      register: apt_result
+      retries: 3
+      delay: 10
+      until: apt_result is success
+
+    - name: Ensure qemu-guest-agent is running
+      systemd:
+        name: qemu-guest-agent
+        state: started
+        enabled: true

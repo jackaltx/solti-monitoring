@@ -1,0 +1,6 @@
+---
+- name: "Test InfluxDB role installation"
+  hosts: localhost
+  remote_user: root
+  roles:
+    - influxdb

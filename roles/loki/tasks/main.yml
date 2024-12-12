@@ -1,0 +1,84 @@
+---
+###################################################################################
+#
+#  Install Block
+#
+
+- name: Install Loki Package
+  when: loki_state == 'present'
+  block:
+    - name: Is loki running?
+      ansible.builtin.include_tasks:
+        file: "../../shared/any/tasks/is-service-running.yml"
+      vars:
+        service_name: loki.service
+
+    # .....................................................................................
+    # only install it not running or loki_force_reload
+    - name: Loki package install
+      ansible.builtin.include_tasks:
+        file: "../../shared/grafana/tasks/{{ ansible_distribution }}-install.yml"
+      vars:
+        package: loki
+      when: service_running is false or loki_force_reload
+
+    ##################
+    # Configure
+
+    - name: Template config to  /etc/loki/config.yml
+      become: true
+      ansible.builtin.template:
+        src: config.yml.j2
+        dest: /etc/loki/config.yml
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Restart loki
+
+    - name: Create Loki storage directories (test mode)
+      when: loki_test | bool
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0770"
+        owner: loki
+        group: root
+      loop:
+        - /var/lib/loki/chunks
+        - /var/lib/loki/rules
+
+###################################################################################
+#
+#  Remove Block
+#
+- name: Remove Loki Serivce
+  when: loki_state == 'absent'
+  block:
+    # .................................................................
+    - name: Package remove
+      ansible.builtin.include_tasks:
+        file: "../../shared/any/tasks/{{ ansible_distribution }}-rm.yml"
+      vars:
+        package: loki
+        service_name: loki.service
+
+    # .................................................................
+    - name: "Remove the config files /etc/loki"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      become: true
+      loop:
+        - /etc/loki
+        - /etc/default/loki
+      when: loki_delete_config
+
+      # .................................................................
+    - name: "Remove the date files /var/lib/loki/"
+      ansible.builtin.file:
+        path: "/var/lib/loki/*"
+        state: absent
+      become: true
+      when: loki_delete_data

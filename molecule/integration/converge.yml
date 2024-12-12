@@ -1,0 +1,20 @@
+# molecule/integration/converge.yml
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+
+    - name: Include influxdb role
+      include_role:
+        name: "{{ project_root }}/roles/influxdb"
+
+    - name: Include telegraf role
+      include_role:
+        name: "{{ project_root }}/roles/telegraf"

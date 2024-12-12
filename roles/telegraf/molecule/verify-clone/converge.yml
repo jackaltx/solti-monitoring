@@ -1,0 +1,15 @@
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Check variable loading
+      debug:
+        msg:
+          - "Group vars location: {{ lookup('env', 'PWD') }}/group_vars"
+          - "Molecule vars:"
+          - "{{ vars }}"
+        verbosity: 1
+
+    - name: Include telegraf role
+      ansible.builtin.include_role:
+        name: "{{ project_root }}/ProvisionCollection/telegraf"

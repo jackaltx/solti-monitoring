@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    influxdb_test: true
+    influxdb_configure: true
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+  tasks:
+    - name: Include influxdb role
+      ansible.builtin.include_role:
+        name: "{{ project_root }}/ProvisionCollection/influxdb"

@@ -1,0 +1,82 @@
+---
+# tasks file for telegraf
+
+- name: Intall telegraf from package
+  when: telegraf_state == 'present'
+  block:
+    - name: Package install
+      ansible.builtin.include_tasks:
+        file: "../../shared/influxdb/tasks/{{ ansible_os_family }}-install.yml"
+      vars:
+        package: telegraf
+
+    ##################
+    # Configure
+
+    - name: Sometimes /etc/telegraf/telegraf.conf does not get created on reinstall
+      ansible.builtin.copy:
+        src: telegraf.conf
+        dest: "{{ telegraf_config }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify:
+        - Restart telegraf
+
+    - name: Configure the inputs to collect
+      ansible.builtin.include_tasks:
+        file: telegrafd-inputs-setup.yml
+
+    - name: Configure outputs to influxdb
+      ansible.builtin.include_tasks:
+        file: telegrafd-outputs-setup.yml
+
+    - name: Edge case, when the influxd url is localhost, then set it up
+      ansible.builtin.include_tasks:
+        file: influxdb-localhost-operators-token.yml
+
+    - name: Configure /etc/default/telegraf file
+      ansible.builtin.include_tasks:
+        file: telegrafd-default-setup.yml
+
+######################################################################################
+# Remove Telegraf Service
+#
+
+- name: Telegraf removal block
+  when: telegraf_state == 'absent'
+  block:
+    - name: Package remove
+      ansible.builtin.include_tasks:
+        file: "../../shared/any/tasks/{{ ansible_os_family }}-rm.yml"
+      vars:
+        package: "telegraf"
+        service_name: "telegraf.service"
+
+    - name: "Remove Telegraf configuration files"
+      when: telegraf_delete_config
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      become: true
+      loop:
+        - /etc/default/telegraf
+        - /etc/telegraf
+      register: file_cleanup
+      ignore_errors: "{{ ansible_check_mode }}"
+      failed_when:
+        - file_cleanup.failed is defined
+        - file_cleanup.failed and not ansible_check_mode
+
+    - name: "Remove the Telegraf data files"
+      when: telegraf_delete_data
+      ansible.builtin.file:
+        path: /var/lib/telegraf
+        state: absent
+      become: true
+      register: file_cleanup
+      ignore_errors: "{{ ansible_check_mode }}"
+      failed_when:
+        - file_cleanup.failed is defined
+        - file_cleanup.failed and not ansible_check_mode

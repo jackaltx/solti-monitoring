@@ -1,0 +1,10 @@
+---
+# handlers file for loki
+
+- name: Restart loki
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    name: loki
+    state: restarted
+    enabled: true
+  become: true

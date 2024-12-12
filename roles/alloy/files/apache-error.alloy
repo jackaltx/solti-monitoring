@@ -1,0 +1,197 @@
+# [Previous relabel blocks remain the same until apache_error]
+
+loki.relabel "apache_error" {
+  forward_to = []
+  rule {
+    source_labels = ["filename"]
+    target_label  = "source"
+  }
+  # Basic Apache info
+  rule {
+    source_labels = ["__line__"]
+    regex = "\\[(.*?)\\]"
+    target_label = "error_level"
+  }
+  rule {
+    source_labels = ["__line__"]
+    regex = "\\[(mod_[^\\]]+)\\]"
+    target_label = "module"
+  }
+  rule {
+    source_labels = ["__line__"]
+    regex = "client (\\d+\\.\\d+\\.\\d+\\.\\d+)"
+    target_label = "client_ip"
+  }
+  
+  # PHP Framework-Specific Errors
+  rule {
+    # Laravel Errors
+    source_labels = ["__line__"]
+    regex = "(Illuminate\\\\[A-Za-z\\\\]+Exception|Laravel\\\\[A-Za-z\\\\]+Exception)"
+    target_label = "framework_error_laravel"
+  }
+  rule {
+    # Symfony Errors
+    source_labels = ["__line__"]
+    regex = "(Symfony\\\\Component\\\\[A-Za-z\\\\]+Exception|Symfony\\\\Component\\\\[A-Za-z\\\\]+Error)"
+    target_label = "framework_error_symfony"
+  }
+  rule {
+    # WordPress Errors
+    source_labels = ["__line__"]
+    regex = "(WP_Error|WordPress Database error|wp-content|wp-includes)"
+    target_label = "framework_error_wordpress"
+  }
+  rule {
+    # Drupal Errors
+    source_labels = ["__line__"]
+    regex = "(Drupal\\\\[A-Za-z\\\\]+Exception|sites/all/modules|PDOException in /modules)"
+    target_label = "framework_error_drupal"
+  }
+  
+  # Enhanced PHP Error Grouping
+  rule {
+    # Primary error categorization
+    source_labels = ["__line__"]
+    regex = "(Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError)"
+    target_label = "php_error_type"
+  }
+  rule {
+    # Group by error severity
+    source_labels = ["php_error_type"]
+    regex = "(Fatal error|Catchable fatal error|Parse error|Uncaught Error)"
+    replacement = "critical"
+    target_label = "php_error_severity"
+  }
+  rule {
+    source_labels = ["php_error_type"]
+    regex = "(Warning|Strict Standards)"
+    replacement = "warning"
+    target_label = "php_error_severity"
+  }
+  rule {
+    source_labels = ["php_error_type"]
+    regex = "(Notice|Deprecated)"
+    replacement = "notice"
+    target_label = "php_error_severity"
+  }
+  rule {
+    # Database error grouping
+    source_labels = ["__line__"]
+    regex = "(PDOException|mysqli_|MySQL server|OCI-)"
+    target_label = "php_error_database"
+  }
+  rule {
+    # Session errors
+    source_labels = ["__line__"]
+    regex = "session_start\\(\\)|session_regenerate_id\\(\\)|session has been started"
+    target_label = "php_error_session"
+  }
+  
+  # ModSecurity Enhanced Parsing
+  rule {
+    # Rule ID extraction
+    source_labels = ["__line__"]
+    regex = "\\[id \"(\\d+)\"\\]"
+    target_label = "modsec_rule_id"
+  }
+  rule {
+    # OWASP CRS Category mapping
+    source_labels = ["modsec_rule_id"]
+    regex = "9[45]\\d{2}"
+    replacement = "xss"
+    target_label = "modsec_attack_category"
+  }
+  rule {
+    source_labels = ["modsec_rule_id"]
+    regex = "9[23]\\d{2}"
+    replacement = "sql_injection"
+    target_label = "modsec_attack_category"
+  }
+  rule {
+    source_labels = ["modsec_rule_id"]
+    regex = "91\\d{2}"
+    replacement = "protocol_violation"
+    target_label = "modsec_attack_category"
+  }
+  rule {
+    source_labels = ["modsec_rule_id"]
+    regex = "96\\d{2}"
+    replacement = "information_leakage"
+    target_label = "modsec_attack_category"
+  }
+  rule {
+    source_labels = ["modsec_rule_id"]
+    regex = "98\\d{2}"
+    replacement = "file_inclusion"
+    target_label = "modsec_attack_category"
+  }
+  rule {
+    # Attack severity
+    source_labels = ["__line__"]
+    regex = "\\[severity \"([^\"]+)\"\\]"
+    target_label = "modsec_severity"
+  }
+  rule {
+    # Attack message
+    source_labels = ["__line__"]
+    regex = "\\[msg \"([^\"]+)\"\\]"
+    target_label = "modsec_message"
+  }
+  rule {
+    # Detailed attack tags
+    source_labels = ["__line__"]
+    regex = "\\[tag \"(OWASP_CRS/[^\"]+)\"\\]"
+    target_label = "modsec_owasp_tag"
+  }
+  rule {
+    # PCI DSS correlation
+    source_labels = ["__line__"]
+    regex = "\\[tag \"PCI/[^\"]+\"\\]"
+    target_label = "modsec_pci_requirement"
+  }
+  rule {
+    # Attack data capture
+    source_labels = ["__line__"]
+    regex = "\\[data \"([^\"]+)\"\\]"
+    target_label = "modsec_data"
+  }
+  rule {
+    # Response action
+    source_labels = ["__line__"]
+    regex = "\\[action \"([^\"]+)\"\\]"
+    target_label = "modsec_action"
+  }
+  
+  # Attack Correlation
+  rule {
+    # Correlate PHP errors with potential attacks
+    source_labels = ["__line__"]
+    regex = "(eval\\(\\)|base64_decode\\(|assert\\(|passthru\\(|exec\\(|system\\()"
+    target_label = "potential_php_injection"
+  }
+  rule {
+    # File operation correlation
+    source_labels = ["__line__"]
+    regex = "(fopen|file_get_contents|file_put_contents|unlink|readfile)"
+    target_label = "file_operation"
+  }
+  
+  # Standard error information
+  rule {
+    source_labels = ["__line__"]
+    regex = " in (.*?) on line (\\d+)"
+    replacement = "$1:$2"
+    target_label = "error_location"
+  }
+  rule {
+    source_labels = ["__line__"]
+    regex = "\\[([^\\]]+)\\] \\[.*?\\] \\[.*?\\]"
+    target_label = "vhost"
+  }
+  rule {
+    source_labels = ["__line__"]
+    regex = "referer: (.*?)$"
+    target_label = "referer"
+  }
+}

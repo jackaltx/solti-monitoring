@@ -1,0 +1,44 @@
+---
+#  This is a pure testing system.  No DNS, no external connections
+#  Tried LXC...access issues.
+#  Come back to this...fix the ip address and start hardening.
+
+- name: "Configure Monitor2"
+  hosts: monitor3
+
+  vars:
+    influxdb_reload: true
+    influxdb_configure: true
+    loki_force_reload: false
+
+    #  bad design...need to be able to turn set local or s3 storage option independently
+    loki_test: true
+
+  pre_tasks:
+    - name: Debug variable paths
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Inventory dir: {{ inventory_dir }}"
+
+    - name: Install required packages
+      become: true
+      apt:
+        name:
+          - gpg
+          - lsof
+          - ca-certificates
+          - qemu-guest-agent
+        update_cache: yes
+        state: present
+
+    - name: Ensure qemu-guest-agent is running
+      become: true
+      systemd:
+        name: qemu-guest-agent
+        state: started
+        enabled: true
+
+  roles:
+    - jackaltx.monitoring.loki
+    - jackaltx.monitoring.alloy

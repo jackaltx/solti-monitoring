@@ -1,0 +1,56 @@
+dependency:
+  name: galaxy
+
+driver:
+  name: default
+
+platforms:
+  - name: clone-test
+    vmid: "9100"
+    template: "debian-12-template"
+    node: "${PROXMOX_NODE}"
+
+provisioner:
+  name: ansible
+  log: true
+  inventory:
+    group_vars:
+      all:
+        proxmox_vmid: 9100
+        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+        telgraf2influxdb_configs:
+          {
+            "localhost":
+              {
+                "url": "http://127.0.0.1",
+                "token": "",
+                "bucket": "telegraf",
+                "org": "lavnet",
+                "namedrop": '["influxdb_oss"]',
+                "bucket_tag": "",
+                "exclude_bucket_tag": "",
+                "ping_timeout": "0s",
+                "read_idle_timeout": "0s",
+                "insecure_skip_verify": false,
+              },
+          }
+
+    host_vars:
+      clone-test:
+        ansible_host: "192.168.101.90"
+        ansible_connection: ssh
+        ansible_user: "${USER}"
+        alloy_loki_endpoint: "127.0.0.1"
+
+scenario:
+  name: verify-clone
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
+
+verifier:
+  name: ansible

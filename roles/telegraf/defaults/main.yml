@@ -1,0 +1,37 @@
+---
+# defaults file for telegraf
+
+# can be absent or present
+telegraf_state: present
+
+telegraf_config: /etc/telegraf/telegraf.conf
+telegraf_default_env: /etc/default/telegraf
+
+# a list of metrics to pick from
+influxdb_apache: false
+influxdb_mariadb: false
+influxdb_memcache: false
+influxdb_redis: false
+influxdb_oss_metrics: false
+
+# used for absent
+telegraf_delete_config: false
+telegraf_delete_data: false
+
+# a list of dashboards
+telegraf_outputs: [localhost]
+
+# a list of places to ping
+telegraf_ping_loc:
+  - 1.1.1.1
+  - 8.8.8.8
+  - www.google.com
+
+# by default we are in in testing mode  TODAY!!!
+telegraf_testing: true
+
+# these are for influxd outputs
+telgraf2influxdb_configs: {}
+
+# used for static testing.  TODO go better idea!
+telegraf_localhost_token: "ChangeThisToYourInfluxbdToken"

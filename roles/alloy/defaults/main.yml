@@ -1,0 +1,10 @@
+---
+# defaults file for alloy
+
+alloy_state: "present"
+alloy_loki_endpoint: "127.0.0.1"
+alloy_custom_args: "--disable-reporting --server.http.listen-addr=0.0.0.0:12345"
+alloy_config: "/etc/alloy/config.alloy"
+
+alloy_delete_config: false
+alloy_delete_data: false

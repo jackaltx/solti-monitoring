@@ -1,0 +1,41 @@
+---
+- block:
+    # - name: "Prepare the apt keyring directory"
+    #   ansible.builtin.file:
+    #     path: /etc/apt/keyrings
+    #     state: directory
+
+    # - name: "Get the grafana gpg key used for Grafana, Loki, ..."
+    #   ansible.builtin.shell:
+    #     cmd: "wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor > /etc/apt/keyrings/grafana.gpg"
+
+    # - name: Add an Apt signing key to a specific keyring file
+    #   ansible.builtin.apt_key:
+    #     url: https://apt.grafana.com/gpg.key
+    #     keyring: /etc/apt/trusted.gpg.d/grafana.gpg
+
+    # - name: "setup Grafana apt repo"
+    #   ansible.builtin.copy:
+    #     src: grafana.list
+    #     dest: /etc/apt/sources.list.d/grafana.list
+
+    - name: Download and install Grafana GPG key
+      shell: |
+        wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor > /etc/apt/keyrings/grafana.gpg
+      args:
+        creates: /etc/apt/keyrings/grafana.gpg
+
+    - name: Add Grafana repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+        state: present
+        filename: grafana
+        update_cache: yes
+
+    - name: "Install {{ package }} OSS package"
+      ansible.builtin.apt:
+        update_cache: true
+        pkg:
+          - "{{ package }}"
+
+  become: true

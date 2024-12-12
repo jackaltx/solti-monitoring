@@ -1,0 +1,38 @@
+---
+# defaults file for influxdb
+
+influxdb_level: info
+influxdb_state: "present"
+influxdb_configure: false
+
+# this allows reinstalling package without removing it?????
+influxdb_reload: false
+
+# suppresses output of influx configuration. (at this time)
+influxdb_test: false
+
+influxdb_org: lavnet
+influxdb_bucket: telegraf
+influxdb_username: lavender
+influxdb_password: "generated"
+
+influxdb_cert: ""
+influxdb_key: ""
+
+influxdb_delete_config: false
+influxdb_delete_data: false
+
+# SMELL this is used to comminicate with telegraf
+influxdb_operators_token: ""
+
+influxdb_force_reload: false
+influxdb_force_configure: false
+
+# Set of buckets to create
+influxdb_buckets: [telegraf, oss_metrics, metrics]
+
+# You can override this path here.
+influxdb_data_path: /var/lib/influxdb
+
+# nfs mounts have to happen before package install
+influxdb_nfs: false

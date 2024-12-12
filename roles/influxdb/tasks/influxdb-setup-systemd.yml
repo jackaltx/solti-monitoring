@@ -1,0 +1,36 @@
+---
+- name: Setup InfluxDB with correct storage paths and DBUS config
+  block:
+    - name: Create systemd override directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/systemd/system/influxdb.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Create systemd override file
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/influxdb.service.d/override.conf
+        content: |
+          [Service]
+          StateDirectory=
+          StateDirectoryMode=
+          Environment=INFLUXD_BOLT_PATH={{ influxdb_data_path }}/influxd.bolt
+          Environment=INFLUXD_ENGINE_PATH={{ influxdb_data_path }}/engine
+          Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/influxdb/bus
+        mode: "0644"
+
+    - name: Create directory for DBUS socket
+      become: true
+      ansible.builtin.file:
+        path: /run/user/influxdb
+        state: directory
+        owner: influxdb
+        group: influxdb
+        mode: "0755"
+
+    - name: Reload systemd daemon
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: true

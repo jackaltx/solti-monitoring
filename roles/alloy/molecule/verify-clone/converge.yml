@@ -1,0 +1,9 @@
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+  tasks:
+    - name: Include alloy role
+      ansible.builtin.include_role:
+        name: "{{ project_root }}/ProvisionCollection/alloy"

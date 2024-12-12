@@ -1,0 +1,54 @@
+=== InfluxDB Role Analysis Report ===
+
+Directory Structure:
+influxdb/
+  ├── README.md
+  ├── defaults/
+    ├── main.yml
+  ├── handlers/
+    ├── main.yml
+  ├── meta/
+    ├── main.yml
+  ├── tasks/
+    ├── initializedb.yml
+    ├── main.yml
+    ├── influxdb-setup-systemd.yml
+  ├── templates/
+    ├── config.toml.j2
+    ├── etc-default-influxdb.j2
+  ├── tests/
+    ├── inventory
+    ├── test.yml
+  ├── bin/
+    ├── influxdb_role_analysis.txt
+    ├── influxdb_role_structure.svg
+    ├── influxdb-role-analyzer.py
+
+Tags Analysis:
+  └── No tags found
+
+Handlers:
+  ├── Restart influxdb
+
+Variables:
+  ├── defaults/main.yml (16 variables)
+  │   ├── influxdb_level
+  │   ├── influxdb_state
+  │   ├── influxdb_org
+  │   ├── influxdb_bucket
+  │   ├── influxdb_username
+  │   ├── influxdb_password
+  │   ├── influxdb_cert
+  │   ├── influxdb_key
+  │   ├── influxdb_delete_config
+  │   ├── influxdb_delete_data
+  │   ├── influxdb_operators_token
+  │   ├── influxdb_force_reload
+  │   ├── influxdb_force_configure
+  │   ├── influxdb_buckets
+  │   ├── influxdb_data_path
+  │   ├── influxdb_nfs
+
+State Flows:
+  ├── Present State Flow
+  └── Absent State Flow

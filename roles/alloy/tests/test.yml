@@ -1,0 +1,6 @@
+---
+- name: Run Tests
+  hosts: localhost
+  remote_user: root
+  roles:
+    - alloy

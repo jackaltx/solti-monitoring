@@ -1,0 +1,25 @@
+---
+# - set_fact:
+#     influxdb_operators_token1: "{{ influxdb_operators_token | default }}"
+
+#############################################################
+# All the secrets are passed in via an evironment file
+#
+- name: Copy config to /etc/default/telegraf
+  ansible.builtin.template:
+    src: etc-default-telegraf-localhost.j2
+    dest: "{{ telegraf_default_env }}"
+    owner: root
+    group: telegraf
+    mode: "0640"
+    decrypt: true
+    force: true
+  register: config_status
+  become: true
+  notify:
+    - Restart telegraf
+
+- name: Print configuration config_status
+  ansible.builtin.debug:
+    var: config_status
+    verbosity: 1

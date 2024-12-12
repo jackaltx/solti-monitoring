@@ -1,0 +1,74 @@
+---
+- name: Check InfluxDB binary and get system-operator token
+  block:
+    - name: Check if influx binary exists
+      ansible.builtin.stat:
+        path: "/usr/bin/influx"
+      register: influxdb_bin
+
+    - name: Check if InfluxDB is running locally
+      when: influxdb_bin.stat.exists
+      block:
+        - name: Check InfluxDB service status
+          ansible.builtin.service_facts:
+
+        - name: Set service status fact
+          ansible.builtin.set_fact:
+            influxdb_running:
+              "{{ ansible_facts.services['influxdb.service'] is defined and
+              ansible_facts.services['influxdb.service'].state == 'running' }}"
+
+        - name: Get system-operator token when needed
+          when:
+            - influxdb_running
+            - telegraf_testing | default(false)
+            - telgraf2influxdb_configs.localhost.token | default('') | length == 0
+          block:
+            - name: Fetch auth tokens
+              no_log: "{{ mylab_nolog | default(true) }}"
+              ansible.builtin.command: "/usr/bin/influx auth list --json"
+              become: true
+              register: auth_list
+              failed_when: auth_list.rc != 0
+              changed_when: false
+
+            - name: Extract system-operator token
+              ansible.builtin.set_fact:
+                operator_token: "{{ (auth_list.stdout | from_json | selectattr('description', 'eq', 'system-operator') | list) }}"
+
+            - name: Fail if system-operator token not found
+              ansible.builtin.fail:
+                msg: "system-operator token not found in auth list"
+              when: operator_token | length == 0
+
+            - name: Update telegraf config with system-operator token
+              no_log: "{{ mylab_nolog | default(true) }}"
+              ansible.builtin.set_fact:
+                telgraf2influxdb_configs: "{{ telgraf2influxdb_configs |
+                  combine({
+                  'localhost': {
+                  'token': operator_token[0].token
+                  }
+                  }, recursive=True) }}"
+
+    - name: Influx is not running on localhost. If we are testing, set a default
+      when: not influxdb_bin.stat.exists
+      block:
+        - name: Update telegraf localhost config to default
+          # no_log: "{{ mylab_nolog | default(true) }}"
+          ansible.builtin.set_fact:
+            telgraf2influxdb_configs: "{{ telgraf2influxdb_configs |
+              combine({
+              'localhost': {
+              'token': 'damnitspoc'
+              }
+              }, recursive=True) }}"
+
+        - name: Influx not running on localhost
+          ansible.builtin.debug:
+            msg: "Setting localhost token to the var 'telegraf_localhost_token'. (non-issue for molecule testing)"
+
+  rescue:
+    - name: Handle any failures
+      ansible.builtin.fail:
+        msg: "Failed to retrieve system-operator token: {{ auth_list.stderr if auth_list is defined else 'InfluxDB service not running or binary not found' }}"

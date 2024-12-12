@@ -1,0 +1,87 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+    #http_tls_config:
+    #cert_file: /etc/loki/loki.cer
+    #key_file: /etc/loki/loki.key
+    #client_ca_file:  /etc/loki/ca.cer
+    #client_auth_type: "NoClientCert"
+
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 9096
+  log_level: warn
+  http_server_read_timeout: 300s # allow longer time span queries
+  http_server_write_timeout: 300s # allow longer time span queries
+
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /tmp/loki
+{% if not loki_test %}
+  storage:
+    s3:
+      bucketnames: "{{ loki_s3_bucket }}"
+      endpoint: "{{ loki_endpoint }}"
+      access_key_id: "{{ loki_key_id }}"
+      secret_access_key: "{{ loki_access_key }}"
+      insecure: true
+      s3forcepathstyle: true
+{% else %}
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+{% endif %}  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 500
+
+chunk_store_config:
+  # max_look_back_period: 0s
+  chunk_cache_config:
+    embedded_cache:
+      enabled: true
+      max_size_mb: 500
+      ttl: 24h
+      
+schema_config:
+  configs:
+  - from: 2024-05-30
+    store: tsdb
+{% if not loki_test %}
+    object_store: s3
+{% else %}
+    object_store: filesystem
+{% endif %}
+
+    schema: v13
+    index:
+      prefix: index_
+      period: 24h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+query_scheduler:
+  max_outstanding_requests_per_tenant: 4096
+    
+limits_config:
+  split_queries_by_interval: 0
+  # allow_structured_metadata: false
+
+# https://github.com/grafana/loki/issues/1923
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 8
+
+# https://github.com/grafana/loki/issues/1923
+  #ingestion_rate_mb: 1024
+  #ingestion_burst_size_mb: 1024

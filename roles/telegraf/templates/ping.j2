@@ -1,0 +1,6 @@
+[[inputs.ping]]
+    urls = [
+    {%- for host in telegraf_ping_loc %}
+        "{{ host }}"{% if not loop.last %},{% endif %}
+    {%- endfor %}
+    ]

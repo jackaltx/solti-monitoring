@@ -1,0 +1,62 @@
+# molecule/integration/molecule.yml
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: molecule/shared/requirements.yml
+    ignore-errors: true
+
+driver:
+  name: default
+
+platforms:
+  - name: monitor-integration
+    vmid: "9200"
+
+provisioner:
+  name: ansible
+  log: true
+  config_options:
+    defaults:
+      roles_path: roles
+      interpreter_python: auto_silent
+      host_key_checking: false
+  inventory:
+    group_vars:
+      all:
+        proxmox_vmid: 9100
+        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+        telgraf2influxdb_configs:
+          {
+            "localhost":
+              {
+                "url": "http://127.0.0.1",
+                "token": "",
+                "bucket": "telegraf",
+                "org": "lavnet",
+                "namedrop": '["influxdb_oss"]',
+                "bucket_tag": "",
+                "exclude_bucket_tag": "",
+                "ping_timeout": "0s",
+                "read_idle_timeout": "0s",
+                "insecure_skip_verify": false,
+              },
+          }
+    host_vars:
+      monitor-integration:
+        ansible_host: "192.168.101.91"
+        ansible_user: "${USER}"
+        ansible_connection: ssh
+        proxmox_vmid: 9200
+
+scenario:
+  name: metrics
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+
+verifier:
+  name: ansible

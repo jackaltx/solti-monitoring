@@ -1,0 +1,19 @@
+---
+- block:
+
+  - name: Import rpm key from a grafana
+    ansible.builtin.rpm_key:
+      state: present
+      key: https://apt.grafana.com/gpg.key
+    become: true
+
+  - name: put a grafana repo config file into the dnf repo
+    ansible.builtin.copy:
+      src: grafana.repo
+      dest: /etc/yum.repos.d/grafana.repo
+
+  - name: "Install {{ package }} OSS package"
+    ansible.builtin.dnf:
+      name: "{{ package }}"
+      state: latest
+  become: true

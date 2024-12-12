@@ -1,0 +1,47 @@
+
+// https://github.com/grafana/alloy/blob/main/example-config.alloy
+// https://github.com/grafana/intro-to-mltp/blob/main/alloy/config.alloy
+// https://nickb.dev/blog/introduction-to-journald-and-structured-logging/
+// journalctl _COMM=sshd -o verbose
+
+
+logging {
+  level = "info"
+}
+
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "hostname"
+  }
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label = "transport"
+  }
+}
+
+
+loki.source.journal "read"  {
+  forward_to    = [loki.write.monitor0.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  labels        = {component = "loki.source.journal"}
+}
+
+
+loki.write "monitor0" {
+  endpoint {
+    url = "http://{{ alloy_loki_endpoint }}:3100/loki/api/v1/push"
+  }
+}

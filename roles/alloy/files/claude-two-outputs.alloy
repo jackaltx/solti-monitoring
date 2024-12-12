@@ -1,0 +1,221 @@
+logging {
+  level = "info"
+}
+
+//======================================================
+// Relabel section
+//======================================================
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "hostname"
+  }
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label = "transport"
+  }
+}
+
+
+//======================================================
+loki.relabel "apache_access" {
+  forward_to = []
+  rule {
+    source_labels = ["filename"]
+    target_label  = "source"
+  }
+  rule {
+    # Extract HTTP method
+    source_labels = ["__line__"]
+    regex = "\"(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH) .*?\""
+    target_label = "method"
+  }
+  rule {
+    # Extract HTTP status code
+    source_labels = ["__line__"]
+    regex = "\" ([0-9]{3}) "
+    target_label = "status"
+  }
+  rule {
+    # Extract request path
+    source_labels = ["__line__"]
+    regex = "\"(?:GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH) (.*?) HTTP"
+    target_label = "path"
+  }
+  rule {
+    # Extract client IP
+    source_labels = ["__line__"]
+    regex = "^([\\d.]+)"
+    target_label = "client_ip"
+  }
+}
+
+//======================================================
+loki.relabel "apache_error" {
+  forward_to = []
+  rule {
+    source_labels = ["filename"]
+    target_label  = "source"
+  }
+  rule {
+    # Extract error level (emerg, alert, crit, error, warn, notice, info, debug)
+    source_labels = ["__line__"]
+    regex = "\\[(.*?)\\]"
+    target_label = "error_level"
+  }
+  rule {
+    # Extract Apache module
+    source_labels = ["__line__"]
+    regex = "\\[(mod_[^\\]]+)\\]"
+    target_label = "module"
+  }
+  rule {
+    # Extract client IP address if present
+    source_labels = ["__line__"]
+    regex = "client (\\d+\\.\\d+\\.\\d+\\.\\d+)"
+    target_label = "client_ip"
+  }
+  rule {
+    # Extract process ID and thread ID
+    source_labels = ["__line__"]
+    regex = "\\[pid (\\d+)[^\\]]*\\]"
+    target_label = "pid"
+  }
+  rule {
+    # Extract file path and line number for PHP errors
+    source_labels = ["__line__"]
+    regex = " in (.*?) on line (\\d+)"
+    replacement = "$1:$2"
+    target_label = "error_location"
+  }
+  rule {
+    # Extract HTTP response code if present
+    source_labels = ["__line__"]
+    regex = "\\[client .*?\\] AH\\d+: .*? gave response: (\\d{3})"
+    target_label = "http_code"
+  }
+  rule {
+    # Extract specific error types
+    source_labels = ["__line__"]
+    regex = "AH\\d+: (.+?)(?:, referer|$)"
+    target_label = "error_description"
+  }
+  rule {
+    # Extract referer if present
+    source_labels = ["__line__"]
+    regex = "referer: (.*?)$"
+    target_label = "referer"
+  }
+  rule {
+    # Extract virtual host
+    source_labels = ["__line__"]
+    regex = "\\[([^\\]]+)\\] \\[.*?\\] \\[.*?\\]"
+    target_label = "vhost"
+  }
+  rule {
+    # Categorize common error patterns
+    source_labels = ["__line__"]
+    regex = ".*(permission denied|timeout|not found|invalid|failed|forbidden|unauthorized)"
+    target_label = "error_category"
+  }
+  rule {
+    # Extract SSL/TLS related errors
+    source_labels = ["__line__"]
+    regex = "SSL.*(error|handshake|protocol|certificate)"
+    target_label = "ssl_error"
+  }
+}
+
+//======================================================
+loki.relabel "fail2ban" {
+  forward_to = []
+  rule {
+    source_labels = ["filename"]
+    target_label  = "source"
+  }
+  rule {
+    # Extract jail name from log lines like [jail-name]
+    source_labels = ["__line__"]
+    regex = "\\[(.*?)\\]"
+    target_label = "jail"
+  }
+  rule {
+    # Categorize log entries
+    source_labels = ["__line__"]
+    regex = ".*(Ban|Unban|Found)"
+    target_label = "action"
+  }
+}
+
+//======================================================
+loki.relabel "maillog" {
+  forward_to = []
+  rule {
+    source_labels = ["filename"]
+    target_label  = "source"
+  }
+}
+
+//======================================================
+// Read section
+//======================================================
+loki.source.journal "read" {
+  forward_to    = [loki.write.monitor0.receiver, loki.write.monitor1.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  labels        = {component = "journal"}
+}
+
+loki.source.file "maillog" {
+  forward_to    = [loki.write.monitor0.receiver, loki.write.monitor1.receiver]
+  relabel_rules = loki.relabel.maillog.rules
+  targets       = [{__path__ = "/var/log/maillog"}]
+  labels        = {component = "maillog", job = "mail"}
+}
+
+loki.source.file "fail2ban" {
+  forward_to    = [loki.write.monitor0.receiver, loki.write.monitor1.receiver]
+  relabel_rules = loki.relabel.fail2ban.rules
+  targets       = [{__path__ = "/var/log/fail2ban.log"}]
+  labels        = {component = "fail2ban", job = "security"}
+}
+
+loki.source.file "apache_access" {
+  forward_to    = [loki.write.monitor0.receiver, loki.write.monitor1.receiver]
+  relabel_rules = loki.relabel.apache_access.rules
+  targets       = [{__path__ = "/var/log/apache2/access.log"}]
+  labels        = {component = "apache", log_type = "access", job = "webserver"}
+}
+
+loki.source.file "apache_error" {
+  forward_to    = [loki.write.monitor0.receiver, loki.write.monitor1.receiver]
+  relabel_rules = loki.relabel.apache_error.rules
+  targets       = [{__path__ = "/var/log/apache2/error.log"}]
+  labels        = {component = "apache", log_type = "error", job = "webserver"}
+}
+
+
+//======================================================
+// Output section
+//======================================================
+loki.write "monitor0" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}
+
+loki.write "monitor1" {
+  endpoint {
+    url = "http://127.0.0.1:3101/loki/api/v1/push"
+  }
+}

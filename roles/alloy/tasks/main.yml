@@ -1,0 +1,83 @@
+---
+# tasks file for alloy
+
+# ......................................
+- name: Install Allow service to feed measurements to a Loki service
+  when: alloy_state == 'present'
+  block:
+    - name: Package install
+      ansible.builtin.include_tasks:
+        file: "../../shared/grafana/tasks/{{ ansible_os_family }}-install.yml"
+      vars:
+        package: alloy
+
+    # ..............................................
+    # Alloy takes one and only one configuration file
+    #
+    - name: "Template config  in /etc/alloy/config.alloy "
+      ansible.builtin.template:
+        src: client-config-alloy.j2
+        dest: "{{ alloy_config }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify:
+        - Restart alloy
+
+    # ....................................................................
+    # Alloy used the /etc/default directory to keep environment variables
+    #
+    - name: "Template config  in /etc/default/alloy"
+      ansible.builtin.template:
+        src: etc-default-alloy.j2
+        dest: /etc/default/alloy
+        owner: root
+        group: alloy
+        mode: "0640"
+      become: true
+      notify:
+        - Restart alloy
+
+  # ......................................
+- name: Remove Alloy Service and all associated data (if-requested)
+  when: alloy_state == 'absent'
+  block:
+    - name: Package remove
+      ansible.builtin.include_tasks:
+        file: "../../shared/any/tasks/{{ ansible_distribution }}-rm.yml"
+      vars:
+        package: alloy
+        service_name: alloy.service
+
+    - name: Remove the configuration files
+      when: alloy_delete_config
+      block:
+        # NOTE:  you have to remove all the config files before the package
+        # deb have a script that tracks them and messes up the remove.
+
+        - name: "Remove Grafana-Alloy configuration files"
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          become: true
+          loop:
+            - /etc/default/alloy
+            - /etc/alloy
+          register: file_cleanup
+          ignore_errors: "{{ ansible_check_mode }}"
+          failed_when:
+            - file_cleanup.failed is defined
+            - file_cleanup.failed and not ansible_check_mode
+
+    - name: Remove the data files
+      ansible.builtin.file:
+        path: /var/lib/alloy
+        state: absent
+        register: file_cleanup
+        ignore_errors: "{{ ansible_check_mode }}"
+      failed_when:
+        - file_cleanup.failed is defined
+        - file_cleanup.failed and not ansible_check_mode
+      become: true
+      when: alloy_delete_data

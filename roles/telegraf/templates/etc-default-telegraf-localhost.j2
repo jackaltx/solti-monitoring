@@ -1,0 +1,8 @@
+#####################################################################
+# JKL
+#
+# This is used all of the homelab. 
+
+{% for server_name, config in telgraf2influxdb_configs.items() %}{% if server_name in telegraf_outputs %}
+{{ server_name|upper }}="{{ config.token }}"
+{% endif %}{% endfor %}

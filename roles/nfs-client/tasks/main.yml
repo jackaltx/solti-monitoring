@@ -1,0 +1,29 @@
+---
+# tasks file for nfs-client
+
+- name: NFS client block
+  when: mount_nfs_share
+  become: true
+  block:
+    - name: Install NFS client packages
+      when: ansible_facts['os_family'] == "Debian"
+      ansible.builtin.apt:
+        update_cache: true
+        pkg:
+          - nfs-common
+
+    - name: Install the latest version of NFS clients
+      when: ansible_facts['os_family'] == "RedHat"
+      ansible.builtin.dnf:
+        name: nfs-utils
+        state: latest
+
+    - name: Mount an NFS volume
+      ansible.posix.mount:
+        src: "{{ item.value.src }}"
+        path: "{{ item.value.path }}"
+        opts: "{{ item.value.opts }}"
+        state: "{{ item.value.state }}"
+        fstype: "{{ item.value.fstype }}"
+      # loop: "{{ lookup('dict', cluster_nfs_mounts) }}"
+      loop: "{{ cluster_nfs_mounts | dict2items }}"

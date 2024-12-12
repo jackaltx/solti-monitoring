@@ -1,0 +1,118 @@
+---
+- name: Manage service and remove package
+  block:
+    - name: Verify required variables
+      ansible.builtin.fail:
+        msg: "Required variable {{ item }} is not defined"
+      when: not item is defined or item | length == 0
+      loop:
+        - package
+        - service_name
+
+    # Backup configuration if requested
+    - name: Backup configuration files
+      ansible.builtin.archive:
+        path:
+          - "/etc/{{ package }}"
+          - "/etc/systemd/system/{{ service_name }}*"
+        dest: "/root/{{ package }}_backup_{{ ansible_date_time.iso8601 }}.tar.gz"
+        format: gz
+      when: backup_config | default(false)
+      become: true
+      notify: cleanup temp files after 7 days
+
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: Check service status
+      ansible.builtin.set_fact:
+        service_running: "{{
+          service_name in ansible_facts.services and
+          (ansible_facts.services[service_name].state == 'active' or
+          ansible_facts.services[service_name].state == 'running') }}"
+
+    - name: Stop service if running
+      ansible.builtin.systemd_service:
+        name: "{{ service_name }}"
+        state: stopped
+        enabled: false
+      when: service_running
+      register: service_stop_result
+      become: true
+
+    - name: Wait for service to stop
+      ansible.builtin.wait_for:
+        timeout: 10
+      when: service_running and service_stop_result.changed
+
+    - name: Remove package and dependencies
+      ansible.builtin.apt:
+        name: "{{ package }}"
+        state: absent
+        purge: true
+        autoremove: true
+        autoclean: true
+        update_cache: true
+      become: true
+      register: package_remove_result
+
+    # - name: Clean up service files
+    #   ansible.builtin.file:
+    #     path: "{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - "/etc/systemd/system/{{ service_name }}"
+    #     - "/etc/systemd/system/{{ service_name }}.service"
+    #     - "/etc/systemd/system/{{ service_name }}.service.d"
+    #     - "/var/lib/{{ package }}"
+    #     - "/etc/{{ package }}"
+    #   become: true
+    #   when: package_remove_result.changed
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+      when: package_remove_result.changed
+
+    # Verify removal
+    - name: Get package facts
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_removal | default(true)
+
+    - name: Verify package removal
+      ansible.builtin.assert:
+        that: "package not in ansible_facts.packages"
+        fail_msg: "Package {{ package }} is still installed"
+        success_msg: "Package {{ package }} was successfully removed"
+      when: verify_removal | default(true)
+
+    # # Check for leftover files
+    # - name: Check for leftover files
+    #   ansible.builtin.find:
+    #     paths:
+    #       - "/etc/{{ package }}"
+    #       - "/var/lib/{{ package }}"
+    #       - "/var/log/{{ package }}"
+    #     file_type: any
+    #   register: leftover_files
+    #   when: verify_removal | default(true)
+
+    # - name: Report leftover files
+    #   ansible.builtin.debug:
+    #     msg: "Warning: Found leftover files: {{ leftover_files.files | map(attribute='path') | list }}"
+    #   when:
+    #     - verify_removal | default(true)
+    #     - leftover_files.matched > 0
+
+  rescue:
+    - name: Handle service stop failure
+      ansible.builtin.fail:
+        msg: "Failed to stop {{ service_name }}: {{ service_stop_result.msg if service_stop_result is defined else 'Unknown error' }}"
+      when: service_stop_result is defined and service_stop_result.failed
+
+    - name: Handle package removal failure
+      ansible.builtin.fail:
+        msg: "Failed to remove {{ package }}: {{ package_remove_result.msg if package_remove_result is defined else 'Unknown error' }}"
+      when: package_remove_result is defined and package_remove_result.failed

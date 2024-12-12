@@ -1,0 +1,24 @@
+### REQUIRED
+namespace: jackaltx
+name: monitoring
+version: 1.0.0
+readme: README.md
+authors:
+  - Jackaltx <jack@jackaltx.com>
+
+### OPTIONAL but strongly recommended
+# A short summary description of the collection
+description: CI/CD Pipeline to keep my Ansible collection working. This installs metrics and log collection pairs.
+license:
+  - MIT
+license_file: ""
+tags: []
+dependencies:
+  "community.general": ">=10.0.0"
+
+repository: http://github.com/jackaltx/moditoring_collection
+documentation: http://docs.jackaltx.com
+homepage: http://github.com/jackaltx/monitoring_collection
+issues: http://github.com/jackaltx/monitoring_collection/issue/tracker
+
+build_ignore: []

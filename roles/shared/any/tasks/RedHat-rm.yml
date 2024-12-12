@@ -1,0 +1,35 @@
+---
+
+# ....................................................................................
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: "Check if service is running"
+  set_fact:
+    service_running: "{{ 
+      service_name in ansible_facts.services.keys() and 
+      service_name in ansible_facts.services.keys() and (
+      ansible_facts.services[service_name].state == 'active' or
+      ansible_facts.services[service_name].state == 'running' )
+    }}"
+  vars:
+    service_name: "{{ service_name | default('') }}"
+  failed_when: service_name | length == 0
+
+- name: "Systemd stop {{ package }}"
+  ansible.builtin.systemd_service:
+    name: "{{ service_name }}"
+    state: stopped
+  register: cmd_results
+  when:  service_running
+  become: true
+
+# ...............................................................
+- name: "Remove {{ package }} Package"
+  ansible.builtin.dnf:
+    name: "{{ package }}"
+    autoremove: true
+    allowerasing: true
+    # purge: true
+    state: absent
+  become: true

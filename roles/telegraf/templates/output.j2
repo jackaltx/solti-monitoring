@@ -1,0 +1,12 @@
+[[outputs.influxdb_v2]]
+  urls = ["{{ item.value.url }}:8086"]
+  token = "${{ item.key | upper }}"
+  bucket =  "{{ item.value.bucket }}"
+  organization =  "{{ item.value.org }}"
+  namedrop = {{ item.value.namedrop }}
+  #bucket_tag =  "{{ item.value.bucket_tag }}"
+  #exclude_bucket_tag =  {{ item.value.exclude_bucket_tag }}
+  ping_timeout = "{{ item.value.ping_timeout }}"
+  read_idle_timeout = "{{ item.value.read_idle_timeout }}"
+  insecure_skip_verify = {{ item.value.insecure_skip_verify|lower }}
+

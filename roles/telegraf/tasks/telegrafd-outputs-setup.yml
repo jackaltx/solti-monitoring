@@ -1,0 +1,25 @@
+---
+- name: Create telegraf ouput files
+  no_log: "{{ mylab_nolog | default(true) }}"
+  ansible.builtin.template:
+    src: output.j2
+    dest: "/etc/telegraf/telegraf.d/output-{{ item.key }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  # loop: "{{ lookup('dict', telgraf2influxdb_configs, wantList=True) }}"
+  loop: "{{ telgraf2influxdb_configs | dict2items }}"
+  when: item.key in telegraf_outputs
+  become: true
+  notify:
+    - Restart telegraf
+
+- name: Print telegraf output file configuration
+  ansible.builtin.debug:
+    msg: "telegraf_outputs: {{ telegraf_outputs }}"
+    verbosity: 2
+
+- name: Print telegraf output file configuration2
+  ansible.builtin.debug:
+    var: telgraf2influxdb_configs
+    verbosity: 2

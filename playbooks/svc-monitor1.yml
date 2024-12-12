@@ -1,0 +1,19 @@
+---
+# Monitor 1 is not the active system
+# It is ansible managed.
+
+- name: "Service: Influxdb, Loki, telegraf, alloy"
+  hosts: monitor1 # metric_collectors
+  
+  vars:
+    influxdb_reload: true
+    influxdb_configure: true
+    loki_force_reload: false
+
+  roles:
+    
+    - influxdb
+    - loki
+
+    - telegraf
+    - alloy

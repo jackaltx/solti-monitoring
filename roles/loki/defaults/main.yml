@@ -1,0 +1,14 @@
+---
+# defaults file for loki
+
+loki_state: present
+loki_test: false
+
+loki_endpoint: ""
+loki_s3_bucket: ""
+loki_key_id: ""
+loki_access_key: ""
+
+loki_force_reload: false
+loki_delete_config: false
+loki_delete_data: false

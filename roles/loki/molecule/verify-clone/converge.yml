@@ -1,0 +1,10 @@
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    loki_test: true
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+  tasks:
+    - name: Include loki role
+      ansible.builtin.include_role:
+        name: "{{ project_root }}/ProvisionCollection/loki"

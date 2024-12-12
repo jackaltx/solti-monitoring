@@ -1,0 +1,19 @@
+---
+# I am expecting that service_name will be passed in and the fact service_running is available to the caller
+
+# .....................................................................................
+- name: Populate service facts
+  no_log: "{{ mylab_nolog | default(true) }}"
+  ansible.builtin.service_facts:
+
+- name: "Check if service is running"
+  ansible.builtin.set_fact:
+    service_running: false
+  when: service_name is not defined
+
+- name: "Check if service is running (when name is provided)"
+  ansible.builtin.set_fact:
+    service_running: "{{ service_name in ansible_facts.services.keys() and
+      (ansible_facts.services[service_name].state == 'active' or
+      ansible_facts.services[service_name].state == 'running') }}"
+  when: service_name is defined

@@ -1,0 +1,21 @@
+---
+- block:
+
+  - name: Import rpm key from a influx
+    ansible.builtin.rpm_key:
+      state: present
+      key: https://repos.influxdata.com/influxdata-archive.key
+    become: true
+
+  - name: put a influxdb repo config file into the dnf repo
+    ansible.builtin.copy:
+      src: influxdata.repo
+      dest: /etc/yum.repos.d/influxdata.repo
+
+
+  - name: "Install {{ package }} OSS package"
+    ansible.builtin.dnf:
+      name: "{{ package }}"
+      state: latest
+
+  become: true

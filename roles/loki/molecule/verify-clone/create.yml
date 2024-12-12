@@ -1,0 +1,44 @@
+- name: Create VM
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Create Proxmox VM
+      community.general.proxmox_kvm:
+        api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
+        api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
+        api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+        api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+        node: "{{ lookup('env', 'PROXMOX_NODE') }}"
+        name: "clone-test"
+        newid: "9100" # Changed from vmid to newid for cloning
+        clone: "debian-12-template" # "9000" # Changed from clone to clone_from
+        full: no
+        timeout: 300
+        #netif:
+        #  net0: "name=eth0,gw=192.168.101.254,ip=192.168.101.90/24,bridge=vmbr0"
+        #ipconfig:
+        #ipconfig: "ip=192.168.101.90/24,gw=192.168.101.254"
+        #  nameservers: "192.168.101.200"
+        #  searchdomains: "a0a0.org"
+        state: present
+      register: vm_facts
+
+    - name: Wait for clone to complete
+      pause:
+        seconds: 10
+
+    - name: Update VM configuration
+      community.general.proxmox_kvm:
+        api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
+        api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
+        api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+        api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+        node: "{{ lookup('env', 'PROXMOX_NODE') }}"
+        name: "clone-test"
+        ipconfig:
+          ipconfig0: "ip=192.168.101.90/24,gw=192.168.101.254"
+        update: yes
+
+    - name: Print VM facts
+      debug:
+        var: vm_facts
