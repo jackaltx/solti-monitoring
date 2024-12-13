@@ -36,6 +36,7 @@
           - ca-certificates
           - qemu-guest-agent
           - lsof
+          - logcli
         update_cache: yes
         state: present
       register: apt_result

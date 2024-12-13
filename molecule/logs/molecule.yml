@@ -3,7 +3,7 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: molecule/integration/requirements.yml
+    requirements-file: molecule/shared/requirements.yml
     ignore-errors: true
 
 driver:
@@ -24,40 +24,26 @@ provisioner:
   inventory:
     group_vars:
       all:
-        proxmox_vmid: "{{ proxmox_vmid }}"
+        proxmox_vmid: 9200
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
-        telgraf2influxdb_configs:
-          {
-            "localhost":
-              {
-                "url": "http://127.0.0.1",
-                "token": "",
-                "bucket": "telegraf",
-                "org": "lavnet",
-                "namedrop": '["influxdb_oss"]',
-                "bucket_tag": "",
-                "exclude_bucket_tag": "",
-                "ping_timeout": "0s",
-                "read_idle_timeout": "0s",
-                "insecure_skip_verify": false,
-              },
-          }
     host_vars:
       monitor-integration:
         ansible_host: "192.168.101.91"
         ansible_user: "${USER}"
         ansible_connection: ssh
-        proxmox_vmid: 9200
+        proxmox_vmid: "{{ proxmox_vmid }}"
+        loki_test: true # this selects local data storage
+        alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
-  name: integration
+  name: logs
   test_sequence:
     - destroy
     - create
     - prepare
     - converge
     - verify
-    - destroy
+    # - destroy
 
 verifier:
   name: ansible

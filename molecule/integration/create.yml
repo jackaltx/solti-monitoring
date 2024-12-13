@@ -12,7 +12,7 @@
         api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
         node: "{{ lookup('env', 'PROXMOX_NODE') }}"
         name: "monitor-integration"
-        newid: "9200" # Changed from vmid to newid for cloning
+        newid: "{{ proxmox_vmid }}"
         clone: "debian-12-template"
         full: no
         timeout: 300

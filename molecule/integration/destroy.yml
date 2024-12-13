@@ -12,6 +12,6 @@
         api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
         api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
         node: "{{ lookup('env', 'PROXMOX_NODE') }}"
-        vmid: "9200"
+        vmid: "{{ proxmox_vmid }}"
         state: absent
       ignore_errors: true
