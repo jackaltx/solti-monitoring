@@ -10,7 +10,7 @@
     influxdb_reload: true
     influxdb_configure: true
     loki_force_reload: false
-    loki_test: true
+    loki_local_storage: true
 
   pre_tasks:
     - name: Debug variable paths

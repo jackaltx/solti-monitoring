@@ -2,8 +2,9 @@
 # defaults file for loki
 
 loki_state: present
-loki_test: false
+loki_local_storage: true
 
+# used for NOT loki_local_storage  (QNAP S3 Objects)
 loki_endpoint: ""
 loki_s3_bucket: ""
 loki_key_id: ""

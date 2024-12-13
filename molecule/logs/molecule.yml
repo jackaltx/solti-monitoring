@@ -32,7 +32,7 @@ provisioner:
         ansible_user: "${USER}"
         ansible_connection: ssh
         proxmox_vmid: "{{ proxmox_vmid }}"
-        loki_test: true # this selects local data storage
+        loki_local_storage: true # this selects local data storage
         alloy_loki_endpoint: "127.0.0.1"
 
 scenario:

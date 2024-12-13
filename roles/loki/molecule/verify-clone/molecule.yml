@@ -17,12 +17,13 @@ provisioner:
     group_vars:
       all:
         proxmox_vmid: 9100
+        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
     host_vars:
       clone-test:
         ansible_host: "192.168.101.90"
         ansible_connection: ssh
         ansible_user: "${USER}"
-        loki_test: true
+        loki_local_storage: true
 
 scenario:
   name: verify-clone
@@ -32,7 +33,6 @@ scenario:
     - prepare
     - converge
     - verify
-    - destroy
 
 verifier:
   name: ansible

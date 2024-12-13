@@ -18,7 +18,7 @@ server:
 common:
   instance_addr: 127.0.0.1
   path_prefix: /tmp/loki
-{% if not loki_test %}
+{% if not loki_local_storage %}
   storage:
     s3:
       bucketnames: "{{ loki_s3_bucket }}"
@@ -56,7 +56,7 @@ schema_config:
   configs:
   - from: 2024-05-30
     store: tsdb
-{% if not loki_test %}
+{% if not loki_local_storage %}
     object_store: s3
 {% else %}
     object_store: filesystem

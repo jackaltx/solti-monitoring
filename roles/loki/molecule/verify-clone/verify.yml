@@ -33,7 +33,7 @@
 
     - name: Include defaults
       ansible.builtin.include_vars:
-        file: "{{ project_root }}/ProvisionCollection/loki/defaults/main.yml"
+        file: "{{ project_root }}/defaults/main.yml"
 
     - name: Check if Loki service is running
       ansible.builtin.service_facts:
@@ -233,7 +233,7 @@
 #         that:
 #           - "storage_stat.results[0].stat.exists"
 #           - "storage_stat.results[1].stat.exists"
-#       when: loki_test | bool
+#       when: loki_local_storage | bool
 
 #     - name: Create local data directory for test results
 #       become: false

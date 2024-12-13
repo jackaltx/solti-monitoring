@@ -23,7 +23,7 @@ provisioner:
         ansible_host: "192.168.101.90"
         ansible_connection: ssh
         ansible_user: "${USER}"
-        loki_test: true
+        loki_local_storage: true
 
 scenario:
   name: verify-clone

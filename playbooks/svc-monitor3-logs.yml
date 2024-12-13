@@ -10,9 +10,7 @@
     influxdb_reload: true
     influxdb_configure: true
     loki_force_reload: false
-
-    #  bad design...need to be able to turn set local or s3 storage option independently
-    loki_test: true
+    loki_local_storage: true
 
   pre_tasks:
     - name: Debug variable paths

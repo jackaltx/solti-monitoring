@@ -37,7 +37,7 @@
         - Restart loki
 
     - name: Create Loki storage directories (test mode)
-      when: loki_test | bool
+      when: loki_local_storage | bool
       become: true
       ansible.builtin.file:
         path: "{{ item }}"
