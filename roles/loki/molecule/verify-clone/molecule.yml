@@ -18,6 +18,7 @@ provisioner:
       all:
         proxmox_vmid: 9100
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+        report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/verify_output"
     host_vars:
       clone-test:
         ansible_host: "192.168.101.90"
@@ -33,6 +34,7 @@ scenario:
     - prepare
     - converge
     - verify
+    - destroy
 
 verifier:
   name: ansible

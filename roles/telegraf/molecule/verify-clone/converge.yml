@@ -1,7 +1,18 @@
 - name: Converge
   hosts: all
   become: true
+  vars:
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    roles_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname }}"
   tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Project root: {{ project_root }}"
+          - "Report root: {{ report_root }}"
+          - "Roles root: {{ roles_root }}"
+
     - name: Check variable loading
       debug:
         msg:
@@ -10,6 +21,10 @@
           - "{{ vars }}"
         verbosity: 1
 
+    # - name: Include group_vars
+    #   ansible.builtin.include_vars:
+    #     file: "{{ project_root | dirname | dirname }}/group_vars/all/telegraf2influx-config.yml"
+
     - name: Include telegraf role
       ansible.builtin.include_role:
-        name: "{{ project_root }}/ProvisionCollection/telegraf"
+        name: "{{ roles_root }}/telegraf"

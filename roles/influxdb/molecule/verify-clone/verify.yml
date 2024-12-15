@@ -3,8 +3,6 @@
 - name: Verify
   hosts: all
   become: true
-  vars:
-    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
 
   tasks:
     ########################################################
@@ -36,7 +34,7 @@
 
     - name: Include defaults
       ansible.builtin.include_vars:
-        file: "{{ project_root }}/ProvisionCollection/influxdb/defaults/main.yml"
+        file: "{{ project_root }}/defaults/main.yml"
 
     ##################################################################
     # Standard InfluxDB verification tasks
@@ -85,29 +83,29 @@
     ############################################################
     # Gather Linux OS details on Alloy
 
-    - name: Get Alloy process information with lsof
-      ansible.builtin.command: lsof -p $(pidof alloy)
+    - name: Get InfluxDB process information with lsof
+      ansible.builtin.shell: lsof -p $(pidof influxd)
       register: lsof_output
       changed_when: false
 
-    - name: Get Alloy network connections
-      ansible.builtin.command: lsof -i -P -n -p $(pidof alloy)
+    - name: Get InfluxDB network connections
+      ansible.builtin.shell: lsof -i -P -n -p $(pidof influxd)
       register: network_info
       changed_when: false
 
-    - name: Check Alloy in journal
-      ansible.builtin.command: journalctl -u alloy --since "1 hour ago" -n 50 --no-pager
+    - name: Check InfluxDB in journal
+      ansible.builtin.command: journalctl -u influxdb --since "1 hour ago" -n 50 --no-pager
       register: journal_output
       changed_when: false
 
-    - name: Assert Alloy network and file checks
+    - name: Assert InfluxDB network and file checks
       ansible.builtin.assert:
         that:
-          - "'TCP *:12345' in network_info.stdout" # Custom port from alloy_custom_args
-          - "'/etc/alloy' in lsof_output.stdout" # Config directory
-          - "'alloy.service' in journal_output.stdout" # Service in journal
+          - "'TCP *:8086' in network_info.stdout"
+          - "'/var/lib/influxdb/influxd.bolt' in lsof_output.stdout" # output
+          - "'influxd' in journal_output.stdout" # Service in journal
         fail_msg: |
-          Alloy service verification failed:
+          InfluxDB service verification failed:
           Network info:
           {{ network_info.stdout }}
 
@@ -218,7 +216,7 @@
               Auth Tokens: {{ influxdb_auth_list | length }} configured
               {% endif %}
 
-            dest: "{{ project_root }}/verify_output/influxdb_verify_results.yml"
+            dest: "{{ report_root }}/influxdb_verify_results.txt"
             mode: "0644"
           delegate_to: localhost
 
@@ -240,7 +238,7 @@
               {% endif %}
 
               Last Update: {{ ansible_date_time.iso8601 }}
-            dest: "{{ project_root }}/verify_output/influxdb_verify_summary.md"
+            dest: "{{ report_root }}/influxdb_verify_summary.md"
             mode: "0644"
           delegate_to: localhost
 
@@ -260,7 +258,7 @@
               Recent Journal Entries:
               {{ journal_output.stdout_lines | to_nice_yaml | indent(2) }}
 
-            dest: "{{ project_root }}/verify_output/alloy_runtime_details.yml"
+            dest: "{{ report_root }}/alloy_runtime_details.yml"
             mode: "0644"
           delegate_to: localhost
 
@@ -274,7 +272,7 @@
               - Working Directory: {{ lsof_output.stdout_lines | select('match', '.*cwd.*') | list | first | default('Unknown') }}
 
               Last Check: {{ ansible_date_time.iso8601 }}
-            dest: "{{ project_root }}/verify_output/alloy_runtime_summary.md"
+            dest: "{{ report_root }}/influxd_runtime_summary.md"
             mode: "0644"
           delegate_to: localhost
 
@@ -294,7 +292,7 @@
               Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
               Version Check: {{ influx_version.stderr if influx_version.stderr is defined else 'N/A' }}
               Storage Check: {{ storage_stat.msg if storage_stat.failed is defined else 'N/A' }}
-            dest: "{{ project_root }}/verify_output/influxdb_verify_errors.yml"
+            dest: "{{ report_root }}/influxdb_verify_errors.yml"
             mode: "0644"
           delegate_to: localhost
 

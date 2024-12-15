@@ -5,8 +5,17 @@
   vars:
     influxdb_test: true
     influxdb_configure: true
-    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+    project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+    roles_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname }}"
   tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Project root: {{ project_root }}"
+          - "Report root: {{ report_root }}"
+          - "Roles root: {{ roles_root }}"
+
     - name: Include influxdb role
       ansible.builtin.include_role:
-        name: "{{ project_root }}/ProvisionCollection/influxdb"
+        name: "{{ roles_root }}/influxdb"

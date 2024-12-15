@@ -1,8 +1,6 @@
 - name: Verify
   hosts: all
   become: true
-  # vars:
-  #   project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
 
   tasks:
     # Gather OS Information
@@ -31,7 +29,7 @@
 
     - name: Include defaults
       ansible.builtin.include_vars:
-        file: "{{ project_root }}/ProvisionCollection/telegraf/defaults/main.yml"
+        file: "{{ project_root }}/defaults/main.yml"
 
     ######################################################################
     # telegraf Verification Tasks
@@ -75,7 +73,7 @@
     - name: Create local data directory for test results
       become: false
       ansible.builtin.file:
-        path: "{{ project_root }}/verify_output"
+        path: "{{ report_root }}"
         state: directory
       delegate_to: localhost
 
@@ -152,7 +150,7 @@
               SELinux: {{ ansible_selinux.status | default('disabled') }}
               AppArmor: {{ ansible_apparmor.status | default('disabled') }}
 
-            dest: "{{ project_root }}/verify_output/telegraf_verify_results.yml"
+            dest: "{{ report_root }}/telegraf_verify_results.yml"
             mode: "0644"
           delegate_to: localhost
 
@@ -169,7 +167,7 @@
               - Configuration: {{ telegraf_config }}
 
               Last Update: {{ ansible_date_time.iso8601 }}
-            dest: "{{ project_root }}/verify_output/telegraf_verify_summary.md"
+            dest: "{{ report_root }}/telegraf_verify_summary.md"
             mode: "0640"
           delegate_to: localhost
 
@@ -188,7 +186,7 @@
               Service Status: {{ ansible_facts.services['telegraf.service'] | default('Service not found') }}
               Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
               Version Check: {{ telegraf_version.stderr if telegraf_version.stderr is defined else 'N/A' }}
-            dest: "{{ project_root }}/verify_output/telegraf_verify_errors.yml"
+            dest: "{{ report_root }}/telegraf_verify_errors.yml"
             mode: "0640"
           delegate_to: localhost
 

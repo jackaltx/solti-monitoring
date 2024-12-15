@@ -17,7 +17,8 @@ provisioner:
     group_vars:
       all:
         proxmox_vmid: 9100
-        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+        report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/verify_output"
         telgraf2influxdb_configs:
           {
             "localhost":

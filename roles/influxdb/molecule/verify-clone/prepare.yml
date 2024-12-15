@@ -45,6 +45,7 @@
           - gpg
           - ca-certificates
           - qemu-guest-agent
+          - lsof
         update_cache: yes
         state: present
 
