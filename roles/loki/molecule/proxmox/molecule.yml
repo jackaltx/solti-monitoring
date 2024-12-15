@@ -1,4 +1,3 @@
----
 dependency:
   name: galaxy
 
@@ -14,6 +13,13 @@ platforms:
 provisioner:
   name: ansible
   log: true
+  playbooks:
+    # create: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
+    # prepare: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/prepare.yml"
+    # destroy: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/destroy.yml"
+    create: "../../../../molecule/shared/proxmox/create.yml"
+    prepare: "../../../../molecule/shared/proxmox/prepare.yml"
+    destroy: "../../../../molecule/shared/proxmox/destroy.yml"
   inventory:
     group_vars:
       all:
@@ -28,7 +34,7 @@ provisioner:
         loki_local_storage: true
 
 scenario:
-  name: verify-clone
+  name: proxmox
   test_sequence:
     - destroy
     - create

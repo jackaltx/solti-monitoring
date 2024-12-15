@@ -12,6 +12,13 @@ platforms:
 
 provisioner:
   name: ansible
+  playbooks:
+    # create: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
+    # prepare: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/prepare.yml"
+    # destroy: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/destroy.yml"
+    create: "../../../../molecule/shared/proxmox/create.yml"
+    prepare: "../../../../molecule/shared/proxmox/prepare.yml"
+    destroy: "../../../../molecule/shared/proxmox/destroy.yml"
   log: true
   inventory:
     group_vars:
@@ -19,23 +26,6 @@ provisioner:
         proxmox_vmid: 9100
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/verify_output"
-        telgraf2influxdb_configs:
-          {
-            "localhost":
-              {
-                "url": "http://127.0.0.1",
-                "token": "",
-                "bucket": "telegraf",
-                "org": "lavnet",
-                "namedrop": '["influxdb_oss"]',
-                "bucket_tag": "",
-                "exclude_bucket_tag": "",
-                "ping_timeout": "0s",
-                "read_idle_timeout": "0s",
-                "insecure_skip_verify": false,
-              },
-          }
-
     host_vars:
       clone-test:
         ansible_host: "192.168.101.90"
@@ -44,7 +34,7 @@ provisioner:
         alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
-  name: verify-clone
+  name: proxmox
   test_sequence:
     - destroy
     - create

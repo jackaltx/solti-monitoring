@@ -1,5 +1,3 @@
-# molecule/verify-clone/prepare.yml
----
 - name: Prepare VM
   hosts: localhost
   tasks:
@@ -26,7 +24,7 @@
 
     - name: Display connection status
       debug:
-        msg: "VM is ready at 192.168.101.90"
+        msg: "VM is ready at {{ proxmox_vmid }}"
 
 - name: Install prerequisites
   hosts: all

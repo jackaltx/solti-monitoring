@@ -8,6 +8,8 @@
     - name: Debug information
       debug:
         msg:
+          - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
+          - "Molecule dir: {{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Project root: {{ project_root }}"
           - "Report root: {{ report_root }}"

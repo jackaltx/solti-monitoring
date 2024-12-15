@@ -1,4 +1,3 @@
-# molecule/integration/molecule.yml
 ---
 dependency:
   name: galaxy
@@ -11,10 +10,17 @@ driver:
 
 platforms:
   - name: monitor-integration
-    vmid: "9200"
+    vmid: "9100"
 
 provisioner:
   name: ansible
+  playbooks:
+    # create: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
+    # prepare: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/prepare.yml"
+    # destroy: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/destroy.yml"
+    create: "../../molecule/shared/proxmox/create.yml"
+    prepare: "../../molecule/shared/proxmox/prepare.yml"
+    destroy: "../../molecule/shared/proxmox/destroy.yml"
   log: true
   config_options:
     defaults:
@@ -24,11 +30,11 @@ provisioner:
   inventory:
     group_vars:
       all:
-        proxmox_vmid: 9200
+        proxmox_vmid: 9100
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
     host_vars:
       monitor-integration:
-        ansible_host: "192.168.101.91"
+        ansible_host: "192.168.101.90"
         ansible_user: "${USER}"
         ansible_connection: ssh
         proxmox_vmid: "{{ proxmox_vmid }}"
@@ -36,7 +42,7 @@ provisioner:
         alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
-  name: logs
+  name: proxmox-logs
   test_sequence:
     - destroy
     - create
