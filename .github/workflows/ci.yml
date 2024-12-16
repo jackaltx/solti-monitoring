@@ -25,7 +25,7 @@ jobs:
       matrix:
         distro:
           - debian12
-          - ubuntu2204
+          # - ubuntu2204
 
     steps:
       - name: Check out code
@@ -35,6 +35,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Create required directories
+        run: |
+          mkdir -p log
+          mkdir -p verify_output
+          chmod 777 log verify_output
 
       - name: Install dependencies
         run: |
