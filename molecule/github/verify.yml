@@ -69,7 +69,8 @@
 
     - name: Check Loki data ingestion
       command: >
-        logcli --addr="http://localhost:3100" query '{job="varlogs"}' 
+        logcli --addr="http://localhost:3100" query 
+        '{job="loki.source.journal.read"}' 
         --from="{{ time_stamp.stdout }}"
         --limit=1
       register: loki_data
