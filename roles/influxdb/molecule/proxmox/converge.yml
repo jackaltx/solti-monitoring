@@ -3,8 +3,8 @@
   hosts: all
   become: true
   vars:
-    influxdb_test: true
-    influxdb_configure: true
+    # influxdb_test: true
+    # influxdb_configure: true
     project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
     roles_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname }}"
   tasks:

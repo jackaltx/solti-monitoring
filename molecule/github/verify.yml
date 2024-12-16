@@ -3,6 +3,15 @@
   hosts: all
   become: true
   tasks:
+    # .....................................................
+    - name: Ensure verify_output directory exists
+      ansible.builtin.file:
+        path: "{{ report_root }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
     - name: Check service statuses
       ansible.builtin.service_facts:
 
