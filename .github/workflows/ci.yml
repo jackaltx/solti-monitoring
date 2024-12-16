@@ -6,6 +6,7 @@ on:
     paths:
       - 'roles/**'
       - 'molecule/**'
+      - '.github/**'
     # paths-ignore:
     #   - "**.md"
   pull_request:
