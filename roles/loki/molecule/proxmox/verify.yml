@@ -3,6 +3,10 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    git_info: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+    git_branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+    git_status: "{{ lookup('pipe', 'git status --porcelain') }}"
 
   tasks:
     # Gather OS Information
@@ -104,6 +108,12 @@
           Architecture: {{ ansible_architecture }}
           Python Version: {{ ansible_python_version }}
 
+          Git Information:
+          ---------------
+          Branch: {{ git_branch }}
+          Commit: {{ git_info }}
+          Status: {{ 'Clean' if not git_status else 'Modified' }}
+
           Package Management:
           ------------------
           Package Manager: {{ ansible_pkg_mgr }}
@@ -177,6 +187,13 @@
           - Package Manager: {{ ansible_pkg_mgr }}
           - Service Manager: {{ ansible_service_mgr }}
           - Loki Status: {{ 'Running' if ansible_facts.services['loki.service'].state == 'running' else 'Not Running' }}
+
+          Git Information:
+          ---------------
+          Branch: {{ git_branch }}
+          Commit: {{ git_info }}
+          Status: {{ 'Clean' if not git_status else 'Modified' }}
+
 
           Last Update: {{ ansible_date_time.iso8601 }}
         dest: "{{ report_root }}/loki_verify_summary.md"

@@ -3,6 +3,10 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    git_info: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+    git_branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+    git_status: "{{ lookup('pipe', 'git status --porcelain') }}"
 
   tasks:
     ########################################################
@@ -145,6 +149,12 @@
               Architecture: {{ ansible_architecture }}
               Python Version: {{ ansible_python_version }}
 
+              Git Information:
+              ---------------
+              Branch: {{ git_branch }}
+              Commit: {{ git_info }}
+              Status: {{ 'Clean' if not git_status else 'Modified' }}
+
               Package Management:
               ------------------
               Package Manager: {{ ansible_pkg_mgr }}
@@ -237,6 +247,12 @@
               - Database Config: {{ 'Configured' if influxdb_configured else 'Not Configured' }}
               {% endif %}
 
+              Git Information:
+              ---------------
+              Branch: {{ git_branch }}
+              Commit: {{ git_info }}
+              Status: {{ 'Clean' if not git_status else 'Modified' }}
+
               Last Update: {{ ansible_date_time.iso8601 }}
             dest: "{{ report_root }}/influxdb_verify_summary.md"
             mode: "0644"
@@ -271,8 +287,14 @@
               - Journal Logging: {{ 'Active' if journal_output.stdout_lines | length > 0 else 'No recent entries' }}
               - Working Directory: {{ lsof_output.stdout_lines | select('match', '.*cwd.*') | list | first | default('Unknown') }}
 
+              Git Information:
+              ---------------
+              Branch: {{ git_branch }}
+              Commit: {{ git_info }}
+              Status: {{ 'Clean' if not git_status else 'Modified' }}
+
               Last Check: {{ ansible_date_time.iso8601 }}
-            dest: "{{ report_root }}/influxd_runtime_summary.md"
+            dest: "{{ report_root }}/influxd_runtime_summary.txt"
             mode: "0644"
           delegate_to: localhost
 
