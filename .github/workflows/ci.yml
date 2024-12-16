@@ -61,12 +61,13 @@ jobs:
       - name: Run Molecule tests
         run: molecule test -s github
         env:
+          LOG_DURATION: "5m"
           MOLECULE_DISTRO: ${{ matrix.distro }}
 
       - name: Upload test results
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: test-results-${{ matrix.distro }}
-          path: verify_output/
-          retention-days: 7
+          name: monitoring-test-results
+          path: verify_output
+          if-no-files-found: error
