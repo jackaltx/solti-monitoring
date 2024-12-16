@@ -2,7 +2,7 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: molecule/shared/requirements.yml
+    requirements-file: ../../molecule/shared/requirements.yml
     ignore-errors: true
 
 driver:
