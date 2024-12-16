@@ -168,7 +168,7 @@
               SELinux: {{ ansible_selinux.status | default('disabled') }}
               AppArmor: {{ ansible_apparmor.status | default('disabled') }}
 
-            dest: "{{ report_root }}/telegraf_verify_results.yml"
+            dest: "{{ report_root }}/telegraf_verify_results.txt"
             mode: "0644"
           delegate_to: localhost
 
