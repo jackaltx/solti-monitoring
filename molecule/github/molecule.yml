@@ -7,6 +7,8 @@ dependency:
 
 driver:
   name: docker
+  options:
+    managed: true
 
 platforms:
   - name: instance
@@ -17,9 +19,12 @@ platforms:
     cgroupns_mode: host
     privileged: true
     pre_build_image: true
+    override_command: false
 
 provisioner:
   name: ansible
+  env:
+    ANSIBLE_FORCE_COLOR: "1"
   log: true
   config_options:
     defaults:
