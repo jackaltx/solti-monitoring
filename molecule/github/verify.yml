@@ -69,7 +69,7 @@
 
     # .................................................................
     - name: Save test results
-      copy:
+      ansible.builtin.copy:
         content: |
           === GitHub CI Test Results ===
           Timestamp: {{ ansible_date_time.iso8601 }}
@@ -81,3 +81,28 @@
           - Alloy: {{ ansible_facts.services['alloy.service'].state }}
         dest: "{{ report_root }}/github_ci_results.yml"
         mode: "0644"
+      run_once: true
+      delegate_to: localhost
+      become: false
+      register: save_result
+
+    - name: Debug save attempt
+      ansible.builtin.debug:
+        msg:
+          - "Save attempt result: {{ save_result }}"
+          - "Current working directory: {{ lookup('pipe', 'pwd') }}"
+          - "Ansible playbook dir: {{ playbook_dir }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Verify directory contents
+      ansible.builtin.command: "ls -la {{ report_root }}"
+      delegate_to: localhost
+      register: dir_contents
+      run_once: true
+
+    - name: Show directory contents
+      ansible.builtin.debug:
+        msg: "{{ dir_contents.stdout_lines }}"
+      delegate_to: localhost
+      run_once: true
