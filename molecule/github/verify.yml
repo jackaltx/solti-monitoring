@@ -3,15 +3,6 @@
   hosts: all
   become: true
   tasks:
-    # .....................................................
-    - name: Ensure verify_output directory exists
-      ansible.builtin.file:
-        path: "{{ report_root }}"
-        state: directory
-        mode: "0755"
-      delegate_to: localhost
-      become: false
-
     - name: Check service statuses
       ansible.builtin.service_facts:
 
@@ -36,6 +27,47 @@
         - 8086 # InfluxDB
         - 3100 # Loki
 
+    # .....................................................
+    - name: Ensure verify_output directory exists
+      ansible.builtin.file:
+        path: "{{ report_root }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    # .................................................................
+    - name: Debug directory path
+      ansible.builtin.debug:
+        msg:
+          - "Report root path: {{ report_root }}"
+          - "Project root path: {{ project_root }}"
+      delegate_to: localhost
+
+    - name: Check directory existence and permissions
+      ansible.builtin.stat:
+        path: "{{ report_root }}"
+      register: dir_check
+      delegate_to: localhost
+
+    - name: Debug directory status
+      ansible.builtin.debug:
+        msg:
+          - "Directory exists: {{ dir_check.stat.exists | default(false) }}"
+          - "Directory permissions: {{ dir_check.stat.mode | default('N/A') }}"
+          - "Directory owner: {{ dir_check.stat.pw_name | default('N/A') }}"
+      delegate_to: localhost
+
+    - name: Ensure verify_output directory exists with explicit path
+      ansible.builtin.file:
+        path: "{{ report_root }}"
+        state: directory
+        mode: "0755"
+        recurse: yes # This will create parent directories if needed
+      delegate_to: localhost
+      become: false
+
+    # .................................................................
     - name: Save test results
       copy:
         content: |
