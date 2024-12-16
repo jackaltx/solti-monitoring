@@ -52,14 +52,43 @@
         influx query --token {{ influx_token }} 
         'from(bucket:"telegraf")
         |> range(start: -5m)
-        |> filter(fn: (r) => r["_measurement"] == "cpu")
-        |> count()
-        |> yield(name: "count")'
+        |> filter(fn: (r) => r["_measurement"] == "cpu" and r["cpu"] == "cpu-total")
+        |> filter(fn: (r) => r["_field"] == "usage_user")
+        |> keep(columns: ["_time", "_value"])
+        |> last()'
       register: influx_data
       failed_when: >
         influx_data.rc != 0 or
-        influx_data.stdout | trim | regex_search(',[0-9]+,') is not defined
+        influx_data.stdout | trim == ""
       changed_when: false
+
+    # - name: Check InfluxDB data ingestion
+    #   command: >
+    #     influx query --token {{ influx_token }}
+    #     'from(bucket:"telegraf")
+    #     |> range(start: -5m)
+    #     |> filter(fn: (r) => r["_measurement"] == "cpu")
+    #     |> count()
+    #     |> yield(name: "count")'
+    #   register: influx_data
+    #   failed_when: >
+    #     influx_data.rc != 0 or
+    #     influx_data.stdout | trim | regex_search(',[0-9]+,') is not defined
+    #   changed_when: false
+
+    # ..................................................................................
+    - name: Check for any recent Loki logs
+      command: >
+        logcli --addr="http://localhost:3100" query 
+        '{job="loki.source.journal.read"}'
+        --since=5m
+        --limit=2
+      register: loki_data
+      changed_when: false
+
+    - name: Display Loki query result
+      debug:
+        var: loki_data
 
     # ..................................................................................
     - name: Get timestamp for 5 minutes ago
