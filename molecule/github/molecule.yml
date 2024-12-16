@@ -1,4 +1,3 @@
-# molecule/github/molecule.yml
 ---
 dependency:
   name: galaxy
@@ -26,6 +25,8 @@ provisioner:
     defaults:
       interpreter_python: auto_silent
       host_key_checking: false
+  playbooks:
+    prepare: prepare.yml
   inventory:
     group_vars:
       all:
@@ -45,9 +46,12 @@ provisioner:
             ping_timeout: "0s"
             read_idle_timeout: "0s"
             insecure_skip_verify: false
-
         # From proxmox-logs
         loki_local_storage: true
+    host_vars:
+      instance:
+        ansible_connection: docker
+        alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
   name: github
