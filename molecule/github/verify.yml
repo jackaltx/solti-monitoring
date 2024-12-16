@@ -210,77 +210,78 @@
 
     # .......................................................................................
     # Then generate the HTML using the same context
-    - name: Generate HTML status page
-      copy:
-        content: |
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Monitoring Stack Status</title>
-              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
-          </head>
-          <body class="bg-gray-100">
-              <div class="container mx-auto px-4 py-8">
-                  <header class="mb-8">
-                      <h1 class="text-3xl font-bold text-gray-800">Monitoring Stack Status</h1>
-                      <p class="text-gray-600" id="timestamp">Last Updated: {{ ansible_date_time.iso8601 }}</p>
-                  </header>
+    # - name: Generate HTML status page
+    #   copy:
+    #     content: |
+    #       <!DOCTYPE html>
+    #       <html lang="en">
+    #       <head>
+    #           <meta charset="UTF-8">
+    #           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    #           <title>Monitoring Stack Status</title>
+    #           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    #       </head>
+    #       <body class="bg-gray-100">
+    #           <div class="container mx-auto px-4 py-8">
+    #               <header class="mb-8">
+    #                   <h1 class="text-3xl font-bold text-gray-800">Monitoring Stack Status</h1>
+    #                   <p class="text-gray-600" id="timestamp">Last Updated: {{ ansible_date_time.iso8601 }}</p>
+    #               </header>
 
-                  <!-- Service Status Cards -->
-                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-2">InfluxDB</h3>
-                          <div class="flex items-center">
-                              <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['influxdb.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
-                              <span>{{ ansible_facts.services['influxdb.service'].state }}</span>
-                          </div>
-                      </div>
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-2">Telegraf</h3>
-                          <div class="flex items-center">
-                              <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['telegraf.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
-                              <span>{{ ansible_facts.services['telegraf.service'].state }}</span>
-                          </div>
-                      </div>
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-2">Loki</h3>
-                          <div class="flex items-center">
-                              <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['loki.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
-                              <span>{{ ansible_facts.services['loki.service'].state }}</span>
-                          </div>
-                      </div>
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-2">Alloy</h3>
-                          <div class="flex items-center">
-                              <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['alloy.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
-                              <span>{{ ansible_facts.services['alloy.service'].state }}</span>
-                          </div>
-                      </div>
-                  </div>
+    #               <!-- Service Status Cards -->
+    #               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-2">InfluxDB</h3>
+    #                       <div class="flex items-center">
+    #                           <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['influxdb.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
+    #                           <span>{{ ansible_facts.services['influxdb.service'].state }}</span>
+    #                       </div>
+    #                   </div>
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-2">Telegraf</h3>
+    #                       <div class="flex items-center">
+    #                           <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['telegraf.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
+    #                           <span>{{ ansible_facts.services['telegraf.service'].state }}</span>
+    #                       </div>
+    #                   </div>
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-2">Loki</h3>
+    #                       <div class="flex items-center">
+    #                           <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['loki.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
+    #                           <span>{{ ansible_facts.services['loki.service'].state }}</span>
+    #                       </div>
+    #                   </div>
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-2">Alloy</h3>
+    #                       <div class="flex items-center">
+    #                           <span class="h-3 w-3 rounded-full {{ 'bg-green-500' if ansible_facts.services['alloy.service'].state == 'running' else 'bg-red-500' }} mr-2"></span>
+    #                           <span>{{ ansible_facts.services['alloy.service'].state }}</span>
+    #                       </div>
+    #                   </div>
+    #               </div>
 
-                  <!-- Data Ingestion Status -->
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-4">InfluxDB Data Ingestion</h3>
-                          <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm">{{ influx_data.stdout }}</pre>
-                      </div>
-                      <div class="bg-white rounded-lg shadow p-6">
-                          <h3 class="text-lg font-semibold mb-4">Loki Data Ingestion</h3>
-                          <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm">{{ loki_data.stdout }}</pre>
-                      </div>
-                  </div>
-              </div>
-          </body>
-          </html>
-        dest: "{{ report_root }}/githubci_status.html"
-        mode: "0644"
-      delegate_to: localhost
+    #               <!-- Data Ingestion Status -->
+    #               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-4">InfluxDB Data Ingestion</h3>
+    #                       <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm">{{ influx_data.stdout }}</pre>
+    #                   </div>
+    #                   <div class="bg-white rounded-lg shadow p-6">
+    #                       <h3 class="text-lg font-semibold mb-4">Loki Data Ingestion</h3>
+    #                       <pre class="bg-gray-100 p-4 rounded overflow-x-auto text-sm">{{ loki_data.stdout }}</pre>
+    #                   </div>
+    #               </div>
+    #           </div>
+    #       </body>
+    #       </html>
+    #     dest: "{{ report_root }}/githubci_status.html"
+    #     mode: "0644"
+    #   delegate_to: localhost
 
     # .......................................................................................
     # Add these tasks after your existing verification tasks
     #
+
     - name: Prepare status content for Gist
       set_fact:
         gist_content: |
@@ -305,9 +306,9 @@
           {% for item in service_logs.results %}
           === {{ item.item }} Last Logs ===
           {% for line in (item.stdout_lines[-5:] | default([])) %}
-          {{ line }}
-          {% endfor %}
+            {{ line }}
 
+          {% endfor %}
           {% endfor %}
       delegate_to: localhost
 
