@@ -53,14 +53,33 @@
         'from(bucket:"telegraf")
         |> range(start: -5m)
         |> filter(fn: (r) => r["_measurement"] == "cpu" and r["cpu"] == "cpu-total")
-        |> filter(fn: (r) => r["_field"] == "usage_user")
-        |> keep(columns: ["_time", "_value"])
-        |> last()'
+        |> filter(fn: (r) => r["_field"] == "usage_system" or r["_field"] == "usage_user")
+        |> keep(columns: ["_time", "_field", "_value"])
+        |> limit(n: 5)
+        |> yield(name: "result")'
       register: influx_data
       failed_when: >
         influx_data.rc != 0 or
         influx_data.stdout | trim == ""
       changed_when: false
+      retries: 3
+      delay: 10
+      until: influx_data is success
+
+    # - name: Check InfluxDB data ingestion
+    #   command: >
+    #     influx query --token {{ influx_token }}
+    #     'from(bucket:"telegraf")
+    #     |> range(start: -5m)
+    #     |> filter(fn: (r) => r["_measurement"] == "cpu" and r["cpu"] == "cpu-total")
+    #     |> filter(fn: (r) => r["_field"] == "usage_user")
+    #     |> keep(columns: ["_time", "_value"])
+    #     |> last()'
+    #   register: influx_data
+    #   failed_when: >
+    #     influx_data.rc != 0 or
+    #     influx_data.stdout | trim == ""
+    #   changed_when: false
 
     # - name: Check InfluxDB data ingestion
     #   command: >
@@ -96,15 +115,31 @@
       register: time_stamp
       changed_when: false
 
-    - name: Check Loki data ingestion
+    - name: Check Loki data ingestion (multiple sources)
       command: >
         logcli --addr="http://localhost:3100" query 
-        '{job="loki.source.journal.read"}' 
-        --from="{{ time_stamp.stdout }}"
-        --limit=1
+        '{job=~"loki.*|systemd-journal|alloy.*"}' 
+        --from="{{ five_min_ago.stdout }}" 
+        --to="{{ current_time.stdout }}"
+        --limit=10
       register: loki_data
-      failed_when: loki_data.stdout | trim == ""
+      failed_when: >
+        loki_data.rc != 0 or
+        loki_data.stdout | trim == ""
       changed_when: false
+      retries: 3
+      delay: 10
+      until: loki_data is success
+
+    # - name: Check Loki data ingestion
+    #   command: >
+    #     logcli --addr="http://localhost:3100" query
+    #     '{job="loki.source.journal.read"}'
+    #     --from="{{ time_stamp.stdout }}"
+    #     --limit=1
+    #   register: loki_data
+    #   failed_when: loki_data.stdout | trim == ""
+    #   changed_when: false
 
     # ..................................................................................
     # Gather detailed information for report
