@@ -32,3 +32,18 @@
       # Add a reasonable timeout
       async: 300
       poll: 5
+
+- name: Create required local directories
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Create project directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/data"
+        - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+      delegate_to: localhost
+      become: false
