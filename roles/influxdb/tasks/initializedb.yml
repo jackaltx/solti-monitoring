@@ -179,9 +179,10 @@
             msg: "Failed to complete InfluxDB setup: Check logs for details"
 
 ########################################################################################
-# Use the influxdb auth list
-#
-- name: Use the auth list to setup local telegraf and print current setup
+# Get the current auth list and save credentials regardless of whether we just initialized
+# or if the database was already configured
+
+- name: Get and save current InfluxDB configuration
   block:
     - name: Get auth list from influxdb
       no_log: "{{ mylab_nolog | default(true) }}"
@@ -201,25 +202,26 @@
       ansible.builtin.set_fact:
         influxdb_operators_token: "{{ influxdb_auth_list | json_query('[?description==`system-operator`].token') | first }}"
 
-    - name: Create a token file in the local data directory
+    # Save files only if not in test mode
+    - name: Save configuration files locally
       when: not ( influxdb_test | default(false) )
-      become: false
-      ansible.builtin.copy:
-        content: "{{ influxdb_auth_list | to_nice_yaml }}"
-        dest: "{{ project_root }}/data/influx-tokens-{{ ansible_hostname }}.yml"
-        owner: "{{ lookup('env', 'USER') }}"
-        mode: "0600"
       delegate_to: localhost
+      block:
+        - name: Create a token file in the local data directory
+          ansible.builtin.copy:
+            content: "{{ influxdb_auth_list | to_nice_yaml }}"
+            dest: "{{ project_root }}/data/influx-tokens-{{ ansible_hostname }}.yml"
+            owner: "{{ lookup('env', 'USER') }}"
+            mode: "0600"
 
-    - name: Create influx password file in the local data directory
-      when: not ( influxdb_test | default(false) )
-      become: false
-      ansible.builtin.copy:
-        content: "\nUsername: {{ influxdb_username }}\n password: {{ influxdb_password }} \n"
-        dest: "{{ project_root }}/data/influx-webui-access-{{ ansible_hostname }}.txt"
-        owner: "{{ lookup('env', 'USER') }}"
-        mode: "0600"
-      delegate_to: localhost
+        - name: Create influx password file in the local data directory
+          ansible.builtin.copy:
+            content: |
+              Username: {{ influxdb_username }}
+              Password: {{ influxdb_password }}
+            dest: "{{ project_root }}/data/influx-webui-access-{{ ansible_hostname }}.txt"
+            owner: "{{ lookup('env', 'USER') }}"
+            mode: "0600"
 
   rescue:
     - name: Failed to get the auth list!!!
