@@ -171,13 +171,20 @@
           Timestamp: {{ ansible_date_time.iso8601 }}
 
           Service Status:
+
           - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+
           - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+
           - Loki: {{ ansible_facts.services['loki.service'].state }}
+
           - Alloy: {{ ansible_facts.services['alloy.service'].state }}
 
+
           Data Ingestion Status:
+
           - InfluxDB Data: {{ influx_data.stdout }}
+
           - Loki Data: {{ loki_data.stdout }}
 
           Process Information:
