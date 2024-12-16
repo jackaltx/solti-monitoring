@@ -32,7 +32,8 @@ provisioner:
         ansible_host: "192.168.101.90"
         ansible_connection: ssh
         ansible_user: "${USER}"
-        loki_local_storage: true
+        influxdb_test: true
+        influxdb_configure: true
 
 scenario:
   name: proxmox

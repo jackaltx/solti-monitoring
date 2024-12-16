@@ -53,6 +53,9 @@ provisioner:
             insecure_skip_verify: false
         # From proxmox-logs
         loki_local_storage: true
+        influxdb_test: true
+        influxdb_configure: true
+
     host_vars:
       instance:
         ansible_connection: docker
