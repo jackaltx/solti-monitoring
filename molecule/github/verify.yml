@@ -130,16 +130,6 @@
       delay: 10
       until: loki_data is success
 
-    # - name: Check Loki data ingestion
-    #   command: >
-    #     logcli --addr="http://localhost:3100" query
-    #     '{job="loki.source.journal.read"}'
-    #     --from="{{ time_stamp.stdout }}"
-    #     --limit=1
-    #   register: loki_data
-    #   failed_when: loki_data.stdout | trim == ""
-    #   changed_when: false
-
     # ..................................................................................
     # Gather detailed information for report
     #
@@ -153,6 +143,16 @@
         - alloy
       changed_when: false
 
+    - name: Filter lsof output
+      when: process_info is defined
+      set_fact:
+        process_filtered: {}
+      loop: "{{ process_info.results }}"
+      vars:
+        filtered_lines: "{{ item.stdout_lines | select('search', '(cwd|rtd|txt|TCP)') | list }}"
+      register: filter_results
+
+    # ..................................................................................
     - name: Collect service logs
       command: "journalctl -u {{ item }} --since '5 minutes ago'"
       register: service_logs
@@ -163,6 +163,7 @@
         - alloy
       changed_when: false
 
+    # ..................................................................................
     - name: Save test results
       copy:
         content: |
@@ -180,6 +181,8 @@
           - Loki Data: {{ loki_data.stdout }}
 
           Process Information:
+
+
           {% for item in process_info.results %}
           === {{ item.item }} Processes ===
           {{ item.stdout }}
@@ -187,6 +190,8 @@
           {% endfor %}
 
           Service Logs:
+
+
           {% for item in service_logs.results %}
           === {{ item.item }} Logs ===
           {{ item.stdout }}
