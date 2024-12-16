@@ -208,6 +208,7 @@
         mode: "0644"
       delegate_to: localhost
 
+    # .......................................................................................
     # Then generate the HTML using the same context
     - name: Generate HTML status page
       copy:
@@ -276,3 +277,57 @@
         dest: "{{ report_root }}/githubci_status.html"
         mode: "0644"
       delegate_to: localhost
+
+    # .......................................................................................
+    # Add these tasks after your existing verification tasks
+    - name: Prepare status content for Gist
+      set_fact:
+        gist_content: |
+          === Monitoring Stack Status ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          Service Status:
+          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+          - Loki: {{ ansible_facts.services['loki.service'].state }}
+          - Alloy: {{ ansible_facts.services['alloy.service'].state }}
+
+          Data Ingestion:
+          InfluxDB: {{ influx_data.stdout | replace('\n', '\n  ') }}
+          Loki: {{ loki_data.stdout | replace('\n', '\n  ') }}
+
+          Connection Status:
+          - InfluxDB Port: 8086 ({{ 'LISTENING' if ansible_facts.services['influxdb.service'].state == 'running' else 'NOT LISTENING' }})
+          - Loki Port: 3100 ({{ 'LISTENING' if ansible_facts.services['loki.service'].state == 'running' else 'NOT LISTENING' }})
+
+          Recent Service Activity:
+          {{ service_logs.results | map(attribute='stdout_lines') | map('last', 5) | list | to_nice_yaml | indent(2) }}
+      delegate_to: localhost
+
+    - name: Create or update Gist
+      uri:
+        url: "{% if gist_id is defined %}https://api.github.com/gists/{{ gist_id }}{% else %}https://api.github.com/gists{% endif %}"
+        method: "{{ 'PATCH' if gist_id is defined else 'POST' }}"
+        body_format: json
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'GIST_TOKEN') }}"
+          Accept: "application/vnd.github.v3+json"
+        body:
+          description: "Monitoring Stack Status Report"
+          public: true
+          files:
+            "status.md":
+              content: "{{ gist_content }}"
+        status_code: [200, 201]
+      register: gist_result
+      delegate_to: localhost
+      environment:
+        GIST_TOKEN: "{{ lookup('env', 'GIST_TOKEN') }}"
+
+    - name: Save Gist URL
+      copy:
+        content: "{{ gist_result.json.html_url }}"
+        dest: "{{ report_root }}/status_url.txt"
+        mode: "0644"
+      delegate_to: localhost
+      when: gist_result.json.html_url is defined
