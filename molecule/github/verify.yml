@@ -119,8 +119,7 @@
       command: >
         logcli --addr="http://localhost:3100" query 
         '{job=~"loki.*|systemd-journal|alloy.*"}' 
-        --from="{{ five_min_ago.stdout }}" 
-        --to="{{ current_time.stdout }}"
+        --from="{{ time_stamp.stdout }}"
         --limit=10
       register: loki_data
       failed_when: >
