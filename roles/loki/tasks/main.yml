@@ -19,9 +19,7 @@
       ansible.builtin.include_tasks:
         file: "../../shared/grafana/tasks/{{ ansible_distribution }}-install.yml"
       vars:
-        package:
-          - loki
-          - logcli
+        package: ["loki", "logcli"]
       when: service_running is false or loki_force_reload
 
     ##################

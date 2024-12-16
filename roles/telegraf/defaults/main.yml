@@ -18,6 +18,9 @@ influxdb_oss_metrics: false
 telegraf_delete_config: false
 telegraf_delete_data: false
 
+# use to clean out config data
+telegraf_clean_inputs: false
+
 # a list of dashboards
 telegraf_outputs: [localhost]
 

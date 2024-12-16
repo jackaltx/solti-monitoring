@@ -3,6 +3,7 @@
 # These are the default inputs....no output!
 #
 - name: Clear the telegraf.d configuration files
+  when: telegraf_clean_inputs
   become: true
   ansible.builtin.file:
     path: /etc/telegraf/telegraf.d
