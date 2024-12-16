@@ -1,0 +1,42 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Check service statuses
+      ansible.builtin.service_facts:
+
+    - name: Verify required services are running
+      ansible.builtin.assert:
+        that:
+          - "'influxdb.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb.service'].state == 'running'"
+          - "'telegraf.service' in ansible_facts.services"
+          - "ansible_facts.services['telegraf.service'].state == 'running'"
+          - "'loki.service' in ansible_facts.services"
+          - "ansible_facts.services['loki.service'].state == 'running'"
+          - "'alloy.service' in ansible_facts.services"
+          - "ansible_facts.services['alloy.service'].state == 'running'"
+
+    - name: Check ports
+      wait_for:
+        port: "{{ item }}"
+        timeout: 30
+        state: started
+      loop:
+        - 8086 # InfluxDB
+        - 3100 # Loki
+
+    - name: Save test results
+      copy:
+        content: |
+          === GitHub CI Test Results ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          Service Status:
+          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+          - Loki: {{ ansible_facts.services['loki.service'].state }}
+          - Alloy: {{ ansible_facts.services['alloy.service'].state }}
+        dest: "{{ report_root }}/github_ci_results.yml"
+        mode: "0644"

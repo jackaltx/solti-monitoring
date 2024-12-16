@@ -54,7 +54,7 @@ provisioner:
         ansible_host: "192.168.101.90"
         ansible_user: "${USER}"
         ansible_connection: ssh
-        proxmox_vmid: 9200
+        proxmox_vmid: 9100
 
 scenario:
   name: proxmox-metrics
