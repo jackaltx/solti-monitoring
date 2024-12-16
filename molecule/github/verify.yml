@@ -81,7 +81,7 @@
     # Gather detailed information for report
     #
     - name: Collect process information
-      command: "lsof -p $(pidof {{ item }})"
+      shell: "lsof -p $(pidof {{ item }})"
       register: process_info
       loop:
         - influxd
