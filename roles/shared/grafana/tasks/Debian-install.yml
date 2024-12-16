@@ -34,8 +34,8 @@
 
     - name: "Install {{ package }} OSS package"
       ansible.builtin.apt:
+        state: present
         update_cache: true
-        pkg:
-          - "{{ package }}"
+        name: "{{ package }}"
 
   become: true
