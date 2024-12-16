@@ -210,7 +210,7 @@
 
     - name: Generate HTML status page
       template:
-        src: status.html.j2
+        src: templates/status.html.j2
         dest: "{{ report_root }}/githubci_status.html"
         mode: "0644"
       delegate_to: localhost
