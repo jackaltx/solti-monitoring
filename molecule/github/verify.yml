@@ -164,6 +164,16 @@
       changed_when: false
 
     # ..................................................................................
+    - name: Get Git information
+      set_fact:
+        git_info:
+          branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+          commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+          status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+
+    # ..................................................................................
+    #  Save as text file
+    #
     - name: Save test results
       copy:
         content: |
@@ -173,12 +183,15 @@
           Service Status:
 
           - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
-
           - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
-
           - Loki: {{ ansible_facts.services['loki.service'].state }}
-
           - Alloy: {{ ansible_facts.services['alloy.service'].state }}
+
+          Git Repository Status
+
+          - Branch: {{ git_info.branch }}
+          - Commit: {{ git_info.commit }}
+          - Status: {{ 'Clean' if not git_info.status else 'Modified' }}
 
 
           Data Ingestion Status:
@@ -204,75 +217,132 @@
           {{ item.stdout }}
 
           {% endfor %}
-        dest: "{{ report_root }}/github_ci_results.yml"
+        dest: "{{ report_root }}/github_ci_results.txt"
         mode: "0644"
       delegate_to: localhost
 
     # .......................................................................................
-    # Add these tasks after your existing verification tasks
+    # Gist and Wiki
     #
 
-    - name: Get Git information
+    - name: Create common status data structure
       set_fact:
-        git_info:
-          branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
-          commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
-          status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+        status_data:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          environment:
+            os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+            kernel: "{{ ansible_kernel }}"
+            python: "{{ ansible_python_version }}"
+          git:
+            branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+            commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+            status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+          services:
+            influxdb:
+              state: "{{ ansible_facts.services['influxdb.service'].state }}"
+              port: 8086
+            telegraf:
+              state: "{{ ansible_facts.services['telegraf.service'].state }}"
+              port: null
+            loki:
+              state: "{{ ansible_facts.services['loki.service'].state }}"
+              port: 3100
+            alloy:
+              state: "{{ ansible_facts.services['alloy.service'].state }}"
+              port: null
+          data_ingestion:
+            influxdb: "{{ influx_data.stdout if influx_data.stdout != '' else 'No data' }}"
+            loki: "{{ loki_data.stdout if loki_data.stdout != '' else 'No data' }}"
+          logs: "{{ service_logs.results }}"
+          processes: "{{ process_info.results }}"
 
-    - name: Prepare status content for Gist
+    - name: Format Gist content
       set_fact:
         gist_content: |
-          # Monitoring Stack Status
+          # Monitoring Stack Status Report
+          **Run Date:** {{ status_data.timestamp }}
 
-          **Timestamp:** {{ ansible_date_time.iso8601 }}
+          ## Environment
+          - OS: {{ status_data.environment.os }}
+          - Kernel: {{ status_data.environment.kernel }}
+          - Python: {{ status_data.environment.python }}
+
+          ## Git Status
+          - Branch: {{ status_data.git.branch }}
+          - Commit: {{ status_data.git.commit }}
+          - Working Tree: {{ 'Clean' if status_data.git.status == 'clean' else 'Modified' }}
 
           ## Service Status
-          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
-          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
-          - Loki: {{ ansible_facts.services['loki.service'].state }}
-          - Alloy: {{ ansible_facts.services['alloy.service'].state }}
-
-          ## Git Repository Status
-          - Branch: {{ git_info.branch }}
-          - Commit: {{ git_info.commit }}
-          - Status: {{ 'Clean' if not git_info.status else 'Modified' }}
+          | Service  | Status | Port | Listening |
+          |----------|--------|------|-----------|
+          {% for name, svc in status_data.services.items() %}
+          | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
+          {% endfor %}
 
           ## Data Ingestion
-          ### InfluxDB Data:
+          ### InfluxDB Metrics
           ```
-          {{ influx_data.stdout | replace('\n', '\n  ') }}
-          ```
-
-          ### Loki Data:
-          ```
-          {{ loki_data.stdout | replace('\n', '\n  ') }}
+          {{ status_data.data_ingestion.influxdb | trim | indent(2) }}
           ```
 
-          ## Connection Status
-          - InfluxDB Port: 8086 ({{ 'LISTENING' if ansible_facts.services['influxdb.service'].state == 'running' else 'NOT LISTENING' }})
-          - Loki Port: 3100 ({{ 'LISTENING' if ansible_facts.services['loki.service'].state == 'running' else 'NOT LISTENING' }})
+          ### Loki Logs
+          ```
+          {{ status_data.data_ingestion.loki | trim | indent(2) }}
+          ```
 
-          ## Recent Service Activity
-          {% for item in service_logs.results %}
-          ### {{ item.item | upper }} Logs
-          | Timestamp | Level | Message |
-          |-----------|-------|---------|
+          ## Service Logs
+          {% for item in status_data.logs %}
+          ### {{ item.item | upper }}
           {% for line in (item.stdout_lines[-5:] | default([])) %}
-          {%- set parts = line.split('] ') -%}
-          {%- set timestamp = line.split()[0:3] | join(' ') -%}
-          {%- if 'level=' in line -%}
-            {%- set level = line.split('level=')[1].split()[0] -%}
-            {%- set message = line.split('msg=')[1] if 'msg=' in line else parts[-1] -%}
-          {%- else -%}
-            {%- set level = line.split()[3] | default('INFO') -%}
-            {%- set message = parts[-1] if parts|length > 1 else line -%}
-          {%- endif %}
-          | {{ timestamp }} | {{ level }} | {{ message }} |
+          - {{ line }}
           {% endfor %}
 
           {% endfor %}
-      delegate_to: localhost
 
+    - name: Format Wiki content
+      set_fact:
+        wiki_content: |
+          # Test Results: {{ status_data.timestamp }}
+
+          ## Environment
+          - **OS:** {{ status_data.environment.os }}
+          - **Kernel:** {{ status_data.environment.kernel }}
+
+          ## Status Summary
+          {% for name, svc in status_data.services.items() %}
+          - {{ name | capitalize }}: {{ svc.state }}{{ ' (Port ' + svc.port|string + ')' if svc.port }}
+          {% endfor %}
+
+          ## Data Collection
+          - **InfluxDB:** {{ 'Receiving data' if status_data.data_ingestion.influxdb != 'No data' else 'No data received' }}
+          - **Loki:** {{ 'Receiving data' if status_data.data_ingestion.loki != 'No data' else 'No data received' }}
+
+          ## Details
+          <details>
+          <summary>Latest Log Entries</summary>
+
+          ```
+          {% for item in status_data.logs %}
+          === {{ item.item }} ===
+          {{ item.stdout | trim }}
+
+          {% endfor %}
+          ```
+          </details>
+
+          <details>
+          <summary>Process Information</summary>
+
+          ```
+          {% for proc in status_data.processes %}
+          === {{ proc.item }} ===
+          {{ proc.stdout | trim }}
+
+          {% endfor %}
+          ```
+          </details>
+
+    # Gist creation task
     - name: Create or update Gist
       uri:
         url: "https://api.github.com/gists"
@@ -290,5 +360,35 @@
         status_code: [200, 201]
       register: gist_result
       delegate_to: localhost
-      environment:
-        GIST_TOKEN: "{{ lookup('env', 'GIST_TOKEN') }}"
+      when: lookup('env', 'GIST_TOKEN') != ""
+
+    # Wiki update tasks
+    - name: Update Wiki
+      block:
+        - name: Ensure wiki directory exists
+          file:
+            path: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki"
+            state: directory
+          delegate_to: localhost
+          become: false
+
+        - name: Write wiki content
+          copy:
+            content: "{{ wiki_content }}"
+            dest: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki/Test-Results.md"
+            mode: "0644"
+          delegate_to: localhost
+          become: false
+
+        - name: Configure and push wiki changes
+          shell: |
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add Test-Results.md
+            git commit -m "Update test results from CI run"
+            git push
+          args:
+            chdir: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki"
+          delegate_to: localhost
+          become: false
+      when: lookup('env', 'GITHUB_WORKSPACE') != ""
