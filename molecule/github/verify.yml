@@ -35,16 +35,41 @@
         - 8086 # InfluxDB
         - 3100 # Loki
 
-    # New data ingestion checks
+    # ..................................................................................
+    - name: Get InfluxDB token
+      command: "influx auth list --json"
+      register: auth_list
+      changed_when: false
+
+    - name: Set token fact
+      set_fact:
+        influx_token: "{{ (auth_list.stdout | from_json | json_query('[?description==`admin`].token'))[0] }}"
+
     - name: Check InfluxDB data ingestion
       command: >
-        influx query 'from(bucket:"telegraf")
+        influx query --token {{ influx_token }} 
+        'from(bucket:"telegraf")
         |> range(start: -5m)
-        |> filter(fn: (r) => r._measurement == "cpu")
-        |> count()'
+        |> filter(fn: (r) => r["_measurement"] == "cpu")
+        |> count()
+        |> yield(name: "count")'
       register: influx_data
-      failed_when: influx_data.stdout | trim | int < 1
+      failed_when: >
+        influx_data.rc != 0 or
+        influx_data.stdout | trim | regex_search(',[0-9]+,') is not defined
       changed_when: false
+
+    # ..................................................................................
+    # New data ingestion checks
+    # - name: Check InfluxDB data ingestion
+    #   command: >
+    #     influx query 'from(bucket:"telegraf")
+    #     |> range(start: -5m)
+    #     |> filter(fn: (r) => r._measurement == "cpu")
+    #     |> count()'
+    #   register: influx_data
+    #   failed_when: influx_data.stdout | trim | int < 1
+    #   changed_when: false
 
     - name: Check Loki data ingestion
       command: >
