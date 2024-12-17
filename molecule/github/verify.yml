@@ -317,30 +317,74 @@
           - **InfluxDB:** {{ 'Receiving data' if status_data.data_ingestion.influxdb != 'No data' else 'No data received' }}
           - **Loki:** {{ 'Receiving data' if status_data.data_ingestion.loki != 'No data' else 'No data received' }}
 
-          ## Details
-          <details>
-          <summary>Latest Log Entries</summary>
+          ## Service Logs
 
-          ```
           {% for item in status_data.logs %}
-          === {{ item.item }} ===
-          {{ item.stdout | trim }}
-
-          {% endfor %}
-          ```
-          </details>
-
           <details>
-          <summary>Process Information</summary>
+          <summary><b>{{ item.item | upper }} Logs</b></summary>
 
           ```
-          {% for proc in status_data.processes %}
-          === {{ proc.item }} ===
-          {{ proc.stdout | trim }}
-
-          {% endfor %}
+          {{ item.stdout | trim }}
           ```
           </details>
+
+          {% endfor %}
+
+          ## Process Information
+
+          {% for proc in status_data.processes %}
+          <details>
+          <summary><b>{{ proc.item | upper }} Processes</b></summary>
+
+          ```
+          {{ proc.stdout | trim }}
+          ```
+          </details>
+
+          {% endfor %}
+
+    # - name: Format Wiki content
+    #   set_fact:
+    #     wiki_content: |
+    #       # Test Results: {{ status_data.timestamp }}
+
+    #       ## Environment
+    #       - **OS:** {{ status_data.environment.os }}
+    #       - **Kernel:** {{ status_data.environment.kernel }}
+
+    #       ## Status Summary
+    #       {% for name, svc in status_data.services.items() %}
+    #       - {{ name | capitalize }}: {{ svc.state }}{{ ' (Port ' + svc.port|string + ')' if svc.port }}
+    #       {% endfor %}
+
+    #       ## Data Collection
+    #       - **InfluxDB:** {{ 'Receiving data' if status_data.data_ingestion.influxdb != 'No data' else 'No data received' }}
+    #       - **Loki:** {{ 'Receiving data' if status_data.data_ingestion.loki != 'No data' else 'No data received' }}
+
+    #       ## Details
+    #       <details>
+    #       <summary>Latest Log Entries</summary>
+
+    #       ```
+    #       {% for item in status_data.logs %}
+    #       === {{ item.item }} ===
+    #       {{ item.stdout | trim }}
+
+    #       {% endfor %}
+    #       ```
+    #       </details>
+
+    #       <details>
+    #       <summary>Process Information</summary>
+
+    #       ```
+    #       {% for proc in status_data.processes %}
+    #       === {{ proc.item }} ===
+    #       {{ proc.stdout | trim }}
+
+    #       {% endfor %}
+    #       ```
+    #       </details>
 
     # Gist creation task
     - name: Create or update Gist
