@@ -7,7 +7,7 @@
     roles_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname }}"
   tasks:
     - name: Debug information
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Project root: {{ project_root }}"

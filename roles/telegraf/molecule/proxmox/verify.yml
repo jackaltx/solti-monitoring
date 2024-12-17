@@ -79,11 +79,13 @@
       ansible.builtin.file:
         path: "{{ report_root }}"
         state: directory
+        mode: "0755"
       delegate_to: localhost
 
     ################################################################################
     # Save test results
-    - block:
+    - name: Verification Report Block
+      block:
         - name: Save verification results
           become: false
           ansible.builtin.copy:

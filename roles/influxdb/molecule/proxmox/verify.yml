@@ -129,6 +129,7 @@
       ansible.builtin.file:
         path: "{{ project_root }}/verify_output"
         state: directory
+        mode: "0777"
       delegate_to: localhost
 
     - name: Save results block

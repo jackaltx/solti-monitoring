@@ -6,7 +6,7 @@
     roles_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname }}"
   tasks:
     - name: Debug information
-      debug:
+      ansible.builtin.debug:
         msg:
           - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
           - "Molecule dir: {{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
@@ -16,7 +16,7 @@
           - "Roles root: {{ roles_root }}"
 
     - name: Check variable loading
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Group vars location: {{ lookup('env', 'PWD') }}/group_vars"
           - "Molecule vars:"
