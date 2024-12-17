@@ -435,37 +435,3 @@
             GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
           when: lookup('env', 'GITHUB_WORKSPACE') != ""
       when: lookup('env', 'GITHUB_WORKSPACE') != ""
-
-    # ..........................................................................................
-    # ..........................................................................................
-    # ..........................................................................................
-    # # Wiki update tasks
-    # - name: Update Wiki
-    #   block:
-    #     - name: Ensure wiki directory exists
-    #       file:
-    #         path: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki"
-    #         state: directory
-    #       delegate_to: localhost
-    #       become: false
-
-    #     - name: Write wiki content
-    #       copy:
-    #         content: "{{ wiki_content }}"
-    #         dest: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki/Test-Results.md"
-    #         mode: "0644"
-    #       delegate_to: localhost
-    #       become: false
-
-    #     - name: Configure and push wiki changes
-    #       shell: |
-    #         git config --local user.email "github-actions[bot]@users.noreply.github.com"
-    #         git config --local user.name "github-actions[bot]"
-    #         git add Test-Results.md
-    #         git commit -m "Update test results from CI run"
-    #         git push
-    #       args:
-    #         chdir: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki"
-    #       delegate_to: localhost
-    #       become: false
-    #   when: lookup('env', 'GITHUB_WORKSPACE') != ""

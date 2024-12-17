@@ -3,13 +3,18 @@
   connection: local
   gather_facts: false
   vars:
-    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('pve') }}"
+    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('pve',true) }}"
     proxmox_api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
     proxmox_api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
     proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
     proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
 
   tasks:
+    - name: Proxmox vmid
+      ansible.builtin.debug:
+        var: proxmox_vmid
+        verbosity: 1
+
     - name: Get VM info
       community.general.proxmox_vm_info:
         api_host: "{{ proxmox_api_host }}"

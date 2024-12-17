@@ -175,8 +175,7 @@
           - Alloy: {{ ansible_facts.services['alloy.service'].state }}
 
           Loki Health:
-          - Ready Endpoint: {{ (loki_health.results[0].status == 204) }}
-          - Metrics Available: {{ (loki_health.results[1].status == 204) }}
+          - Metrics Available: {{ (loki_health.results[0].status == 200) }}
           - Log Query Success: {{ loki_query_result.json.status == 'success' }}
 
           Recent Loki Logs:
@@ -196,7 +195,7 @@
           Last 50 log entries:
             {{ alloy_logs.stdout_lines | to_nice_yaml | indent(8) }}
 
-        dest: "{{ project_root }}/verify_output/log_collection_integration_results.yml"
+        dest: "{{ report_root }}/log_collection_integration_results.yml"
         mode: "0644"
       delegate_to:
         localhost

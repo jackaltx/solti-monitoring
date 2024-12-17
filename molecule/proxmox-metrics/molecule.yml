@@ -9,8 +9,8 @@ driver:
   name: default
 
 platforms:
-  - name: monitor-integration
-    vmid: "9100"
+  - name: "uut-vm" # hardcode this as it is ugly to watch the lookup
+    template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
 
 provisioner:
   name: ansible
@@ -30,9 +30,19 @@ provisioner:
   inventory:
     group_vars:
       all:
-        proxmox_vmid: 9100
+        proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | default('9100', true) | int }}"
+        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+        proxmox_vm_name: "uut-vm" # "{{ lookup('env', 'MOLECULE_NAME') | default('debian12-test',true) }}" # not used
+        molecule_ip: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+    host_vars:
+      uut-vm:
+        ansible_host: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        ansible_connection: ssh
+        ansible_user: "${USER}"
+
         influxdb_test: true
         influxdb_configure: true
         telgraf2influxdb_configs:
@@ -51,11 +61,6 @@ provisioner:
                 "insecure_skip_verify": false,
               },
           }
-    host_vars:
-      monitor-integration:
-        ansible_host: "192.168.101.90"
-        ansible_user: "${USER}"
-        ansible_connection: ssh
 
 scenario:
   name: proxmox-metrics

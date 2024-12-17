@@ -8,7 +8,7 @@
         api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
         api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
         node: "{{ lookup('env', 'PROXMOX_NODE') }}"
-        name: "clone-test"
+        vmid: "{{ proxmox_vmid }}"
         state: started
         timeout: 300
 
@@ -18,13 +18,13 @@
 
     - name: Wait for SSH
       wait_for:
-        host: "192.168.101.90"
+        host: "{{ molecule_ip }}"
         port: 22
         timeout: 300
 
     - name: Display connection status
       debug:
-        msg: "VM is ready at {{ proxmox_vmid }}"
+        msg: "VM id: {{ proxmox_vmid }} named: {{ proxmox_vm_name }} at ip {{ molecule_ip }} is ready"
 
 - name: Install prerequisites
   hosts: all
