@@ -17,7 +17,7 @@ on:
     # paths-ignore:
     #   - "**.md"
   # Allow manual trigger
-  # workflow_dispatch:
+  workflow_dispatch:
 
 env:
   MOLECULE_NO_LOG: false
