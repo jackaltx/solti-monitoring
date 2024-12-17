@@ -370,7 +370,7 @@
         - name: Write wiki content
           copy:
             content: "{{ wiki_content }}"
-            dest: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki/Test-Results.md"
+            dest: "{{ lookup('env', 'GITHUB_WORKSPACE') }}/main/.wiki/Test-Results.md"
             mode: "0644"
           delegate_to: localhost
           become: false
@@ -378,7 +378,7 @@
 
         - name: Configure and push wiki changes
           shell: |
-            cd {{ lookup('env', 'GITHUB_WORKSPACE') }}/.wiki
+            cd {{ lookup('env', 'GITHUB_WORKSPACE') }}/main/.wiki
             git add Test-Results.md
             git commit -m "Update test results from CI run"
             git push origin master
