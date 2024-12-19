@@ -1,0 +1,11 @@
+[2024-12-19 10:15:05] [1;33mTesting proxmox-logs on debian[0m
+[2024-12-19 10:18:16] [0;32m✓ proxmox-logs tests passed on debian[0m
+[2024-12-19 10:18:16] [1;33mTesting proxmox-logs on rocky[0m
+[2024-12-19 10:24:05] [0;32m✓ proxmox-logs tests passed on rocky[0m
+[2024-12-19 10:24:05] [1;33mTesting proxmox-metrics on debian[0m
+[2024-12-19 10:26:39] [0;32m✓ proxmox-metrics tests passed on debian[0m
+[2024-12-19 10:26:39] [1;33mTesting proxmox-metrics on rocky[0m
+[2024-12-19 10:31:30] [0;32m✓ proxmox-metrics tests passed on rocky[0m
+[2024-12-19 10:31:30] 
+Test Summary:
+[2024-12-19 10:31:30] [0;32mAll tests passed successfully[0m

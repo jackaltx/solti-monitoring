@@ -1,0 +1,7 @@
+---
+influx_pkgs:
+  Debian:
+    - influxdb2
+  Rocky:
+    - influxdb2
+    - influxdb2-cli

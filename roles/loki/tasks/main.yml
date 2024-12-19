@@ -14,7 +14,7 @@
         service_name: loki.service
 
     # .....................................................................................
-    # only install it not running or loki_force_reload
+    # only install if not running or loki_force_reload
     - name: Loki package install
       ansible.builtin.include_tasks:
         file: "../../shared/grafana/tasks/{{ ansible_distribution }}-install.yml"

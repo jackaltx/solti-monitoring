@@ -1,0 +1,19 @@
+[2024-12-19 10:34:55] [1;33mTesting telegraf on debian[0m
+[2024-12-19 10:36:54] [0;32m✓ telegraf tests passed on debian[0m
+[2024-12-19 10:36:54] [1;33mTesting telegraf on rocky[0m
+[2024-12-19 10:41:05] [0;32m✓ telegraf tests passed on rocky[0m
+[2024-12-19 10:41:05] [1;33mTesting influxdb on debian[0m
+[2024-12-19 10:43:21] [0;32m✓ influxdb tests passed on debian[0m
+[2024-12-19 10:43:21] [1;33mTesting influxdb on rocky[0m
+[2024-12-19 10:47:49] [0;32m✓ influxdb tests passed on rocky[0m
+[2024-12-19 10:47:49] [1;33mTesting loki on debian[0m
+[2024-12-19 10:50:19] [0;32m✓ loki tests passed on debian[0m
+[2024-12-19 10:50:19] [1;33mTesting loki on rocky[0m
+[2024-12-19 10:56:04] [0;32m✓ loki tests passed on rocky[0m
+[2024-12-19 10:56:04] [1;33mTesting alloy on debian[0m
+[2024-12-19 10:58:18] [0;32m✓ alloy tests passed on debian[0m
+[2024-12-19 10:58:18] [1;33mTesting alloy on rocky[0m
+[2024-12-19 11:03:18] [0;32m✓ alloy tests passed on rocky[0m
+[2024-12-19 11:03:18] 
+Test Summary:
+[2024-12-19 11:03:18] [0;32mAll tests passed successfully[0m

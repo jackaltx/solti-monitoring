@@ -3,8 +3,8 @@
 #  Tried LXC...access issues.
 #  Come back to this...fix the ip address and start hardening.
 
-- name: "Configure Monitor3"
-  hosts: monitor3
+- name: "Configure Monitor4"
+  hosts: monitor4
 
   vars:
     influxdb_reload: true
@@ -18,25 +18,15 @@
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Inventory dir: {{ inventory_dir }}"
+          - "project_root: {{ inventory_dir }}"
+          - "ansible_config_file: {{ ansible_config_file }}"
 
     - name: Install required packages
       become: true
-      apt:
-        name:
-          - gpg
-          - lsof
-          - ca-certificates
-          - qemu-guest-agent
-        update_cache: yes
+      dnf:
+        name: lsof
         state: present
 
-    - name: Ensure qemu-guest-agent is running
-      become: true
-      systemd:
-        name: qemu-guest-agent
-        state: started
-        enabled: true
-
   roles:
-    - jackaltx.monitoring.influxdb
-    - jackaltx.monitoring.telegraf
+    - jackaltx.monitoring.loki
+    - jackaltx.monitoring.alloy

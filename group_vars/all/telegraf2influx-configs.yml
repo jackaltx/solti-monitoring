@@ -12,7 +12,7 @@ telgraf2influxdb_configs:
     read_idle_timeout: "0s"
     insecure_skip_verify: false
   monitor2:
-    url: "http://monitor2.{{ domain }}"
+    url: "http://monitor2.a0a0.org"
     token: !vault |
       $ANSIBLE_VAULT;1.1;AES256
       31643462363439373438373331633438383836326566633964646336386461626665613038313538

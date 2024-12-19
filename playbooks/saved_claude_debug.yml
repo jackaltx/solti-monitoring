@@ -1,0 +1,55 @@
+- name: Debug variable access
+  hosts: monitor4
+  tasks:
+    - name: Debug variable in different ways
+      debug:
+        msg:
+          - "Variable type: {{ telgraf2influxdb_configs | type_debug }}"
+          - "Raw vars keys: {{ vars.keys() | list }}"
+          - "Direct access: {{ telgraf2influxdb_configs | default('NOT FOUND') }}"
+          - "From vars dict: {{ vars['telgraf2influxdb_configs'] | default('NOT FOUND') }}"
+          - "From hostvars: {{ hostvars[inventory_hostname].telgraf2influxdb_configs | default('NOT FOUND') }}"
+
+    - name: Write full vars context
+      copy:
+        content: "{{ vars | to_nice_yaml }}"
+        dest: "./full_context_dump.yml"
+      delegate_to: localhost
+#
+#
+#
+# - name: Debug variable access
+#   hosts: monitor4
+#   tasks:
+#     - name: Debug vars directly
+#       copy:
+#         content: "{{ telgraf2influxdb_configs | to_nice_yaml }}"
+#         dest: "./var_direct_dump.yml"
+#       delegate_to: localhost
+
+#     - name: Debug variable type and context
+#       debug:
+#         msg:
+#           - "Variable type: {{ telgraf2influxdb_configs | type_debug }}"
+#           - "Parent context: {{ vars | dict2items | selectattr('value', 'contains', 'telgraf2influxdb_configs') | list }}"
+
+#     - name: Try accessing with different methods
+#       debug:
+#         msg:
+#           - "Direct: {{ telgraf2influxdb_configs | default('NOT FOUND') }}"
+#           - "From vars: {{ vars['telgraf2influxdb_configs'] | default('NOT FOUND') }}"
+#           - "From hostvars: {{ hostvars[inventory_hostname]['telgraf2influxdb_configs'] | default('NOT FOUND') }}"
+#
+#
+# - name: Debug variable access
+#   hosts: monitor4 # Or whatever host you're targeting
+#   tasks:
+#     - name: Write all variables to file
+#       copy:
+#         content: "{{ vars | to_nice_json }}"
+#         dest: "./vars_dump.json"
+#       delegate_to: localhost
+
+#     - name: Try accessing the specific variable
+#       debug:
+#         var: telgraf2influxdb_configs

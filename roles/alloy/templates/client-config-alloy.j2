@@ -32,16 +32,19 @@ loki.relabel "journal" {
 
 
 loki.source.journal "read"  {
-  forward_to    = [loki.write.monitor0.receiver]
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
   relabel_rules = loki.relabel.journal.rules
   max_age       = "12h"
   path          = "/var/log/journal"
   labels        = {component = "loki.source.journal"}
 }
 
-
-loki.write "monitor0" {
+{# Then create write sections for each endpoint #}
+{% for endpoint in alloy_loki_endpoints %}
+loki.write "{{ endpoint.label }}" {
   endpoint {
-    url = "http://{{ alloy_loki_endpoint }}:3100/loki/api/v1/push"
+    url = "http://{{ endpoint.endpoint }}:3100/loki/api/v1/push"
   }
 }
+{% endfor %}
+

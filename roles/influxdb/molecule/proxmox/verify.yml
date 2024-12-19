@@ -127,7 +127,7 @@
     - name: Create local data directory for test results
       become: false
       ansible.builtin.file:
-        path: "{{ project_root }}/verify_output"
+        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
         state: directory
         mode: "0777"
       delegate_to: localhost
@@ -227,7 +227,7 @@
               Auth Tokens: {{ influxdb_auth_list | length }} configured
               {% endif %}
 
-            dest: "{{ report_root }}/influxdb_verify_results.txt"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/influxdb_verify_results.txt"
             mode: "0644"
           delegate_to: localhost
 
@@ -255,7 +255,7 @@
               Status: {{ 'Clean' if not git_status else 'Modified' }}
 
               Last Update: {{ ansible_date_time.iso8601 }}
-            dest: "{{ report_root }}/influxdb_verify_summary.md"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/influxdb_verify_summary.md"
             mode: "0644"
           delegate_to: localhost
 
@@ -275,7 +275,7 @@
               Recent Journal Entries:
               {{ journal_output.stdout_lines | to_nice_yaml | indent(2) }}
 
-            dest: "{{ report_root }}/alloy_runtime_details.yml"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/alloy_runtime_details.yml"
             mode: "0644"
           delegate_to: localhost
 
@@ -295,7 +295,7 @@
               Status: {{ 'Clean' if not git_status else 'Modified' }}
 
               Last Check: {{ ansible_date_time.iso8601 }}
-            dest: "{{ report_root }}/influxd_runtime_summary.txt"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/influxd_runtime_summary.txt"
             mode: "0644"
           delegate_to: localhost
 
@@ -315,7 +315,7 @@
               Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
               Version Check: {{ influx_version.stderr if influx_version.stderr is defined else 'N/A' }}
               Storage Check: {{ storage_stat.msg if storage_stat.failed is defined else 'N/A' }}
-            dest: "{{ report_root }}/influxdb_verify_errors.yml"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/influxdb_verify_errors.yml"
             mode: "0644"
           delegate_to: localhost
 

@@ -71,7 +71,7 @@
     - name: Create local data directory for test results
       become: false
       ansible.builtin.file:
-        path: "{{ report_root }}"
+        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -156,7 +156,7 @@
               SELinux: {{ ansible_selinux.status | default('disabled') }}
               AppArmor: {{ ansible_apparmor.status | default('disabled') }}
 
-            dest: "{{ report_root }}/alloy_verify_results.txt"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/alloy_verify_results.txt"
             mode: "0644"
           delegate_to: localhost
 
@@ -179,7 +179,7 @@
               Status: {{ 'Clean' if not git_status else 'Modified' }}
 
               Last Update: {{ ansible_date_time.iso8601 }}
-            dest: "{{ report_root }}/alloy_verify_summary.md"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/alloy_verify_summary.md"
             mode: "0644"
           delegate_to: localhost
 
@@ -198,7 +198,7 @@
               Service Status: {{ ansible_facts.services['alloy.service'] | default('Service not found') }}
               Config Check: {{ config_stat.msg if config_stat.failed is defined else 'N/A' }}
               Version Check: {{ alloy_version.stderr if alloy_version.stderr is defined else 'N/A' }}
-            dest: "{{ report_root }}/alloy_verify_errors.yml"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/alloy_verify_errors.yml"
             mode: "0644"
           delegate_to: localhost
 

@@ -27,7 +27,7 @@
           ansible.builtin.include_tasks:
             file: "../../shared/influxdb/tasks/{{ ansible_distribution }}-install.yml"
           vars:
-            package: influxdb2
+            package: "{{ influx_pkgs[ansible_distribution] }}"
 
         - name: Debug package install results
           ansible.builtin.debug:

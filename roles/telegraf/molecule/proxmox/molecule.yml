@@ -12,6 +12,9 @@ driver:
 platforms:
   - name: "uut-vm" # hardcode this as it is ugly to watch the lookup
     template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+    ssh_options:
+      - "-o UserKnownHostsFile=/dev/null"
+      - "-o StrictHostKeyChecking=no"
 
 provisioner:
   name: ansible

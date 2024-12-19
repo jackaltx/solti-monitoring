@@ -1,36 +1,25 @@
 ---
-- name: "Prepare the apt keyring directory"
+- name: Debian Linux install block
   become: true
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
+  block:
+    - name: Ensure the keyring file exists (older)
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        mode: "0755"
+        state: directory
 
-# - name: "get influx key"
-#   ansible.builtin.get_url:
-#     url: https://repos.influxdata.com/influxdata-archive.key
-#     dest: /etc/apt/keyrings/influxdata-archive.key
-#     checksum: sha256:943666881a1b8d9b849b74caebf02d3465d6beb716510d86a39f6c8e8dac7515
+    - name: Add an Apt signing key to a specific keyring file
+      ansible.builtin.apt_key:
+        url: https://repos.influxdata.com/influxdata-archive.key
+        keyring: /etc/apt/trusted.gpg.d/influxdata-archive.gpg
 
-# - name: "build key for apt"
-#   ansible.builtin.shell:
-#     cmd: cat /etc/apt/keyrings/influxdata-archive.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/influxdata-archive.gpg > /dev/null
+    - name: "Setup influxdb apt repo"
+      ansible.builtin.copy:
+        src: influxdata.list
+        dest: /etc/apt/sources.list.d/influxdata.list
 
-- name: Add an Apt signing key to a specific keyring file
-  become: true
-  ansible.builtin.apt_key:
-    url: https://repos.influxdata.com/influxdata-archive.key
-    keyring: /etc/apt/trusted.gpg.d/influxdata-archive.gpg
-
-- name: "Setup influxdb apt repo"
-  become: true
-  ansible.builtin.copy:
-    src: influxdata.list
-    dest: /etc/apt/sources.list.d/influxdata.list
-
-- name: "Get {{ package }}} package"
-  become: true
-  ansible.builtin.apt:
-    update_cache: true
-    pkg:
-      - "{{ package }}"
-  register: pkg_install_result
+    - name: "Get {{ package }}} package"
+      ansible.builtin.apt:
+        update_cache: true
+        name: "{{ package }}"
+      register: pkg_install_result

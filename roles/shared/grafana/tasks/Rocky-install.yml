@@ -1,0 +1,24 @@
+---
+- name: Redhat Grafana dnf block
+  become: true
+  block:
+    - name: Import rpm key from a grafana
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://apt.grafana.com/gpg.key
+
+    - name: Install grafana repos into dnf
+      ansible.builtin.copy:
+        src: grafana.repo
+        dest: /etc/yum.repos.d/grafana.repo
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Install package(s)"
+      ansible.builtin.dnf:
+        name: "{{ package if package is string else package }}"
+        state: present
+
+        update_cache: yes
+      register: pkg_install_result

@@ -37,18 +37,36 @@
       retries: 30
       delay: 10
 
-    - name: Install required packages
-      apt:
-        name:
-          - gpg
-          - ca-certificates
-          - qemu-guest-agent
-          - lsof
-        update_cache: yes
-        state: present
+    - name: Branch on Debian
+      when: ansible_distribution == "Debian"
+      block:
+        - name: Install required packages
+          apt:
+            name:
+              - gpg
+              - ca-certificates
+              - qemu-guest-agent
+              - lsof
+            update_cache: yes
+            state: present
 
-    - name: Ensure qemu-guest-agent is running
-      systemd:
-        name: qemu-guest-agent
-        state: started
-        enabled: true
+        - name: Ensure qemu-guest-agent is running
+          systemd:
+            name: qemu-guest-agent
+            state: started
+            enabled: true
+
+    - name: Branch on Rocky
+      when: ansible_distribution == "Rocky"
+      block:
+        - name: Install required packages
+          dnf:
+            name:
+              - lsof
+            update_cache: yes
+            state: present
+
+    - name: Fail for unsupported
+      fail:
+        msg: "Distribution {{ ansible_distribution }} not supported"
+      when: ansible_distribution != "Debian" and ansible_distribution != "Rocky"

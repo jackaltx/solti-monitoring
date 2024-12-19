@@ -1,6 +1,18 @@
-# Monitoring Collection
+# SOFTI Monitoring Collection
 
 A comprehensive monitoring solution that integrates metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides roles for deploying both logging and metrics collection infrastructure.
+
+## What is softi ?
+
+Systems Oriented Laboratory Testing & Integration (softi) is a suite of ansible collections that can be used to define and test a networked laboratory you would find in most small labs. Entropy is the ehThe project emphasizes methodical testing, system behavior analysis, and component integration.  
+
+```
+solti/
+├── solti-monitor/      # System monitoring and metrics collection
+├── solti-conductor/    # Proxmox management and orchestration
+├── solti-ensemble/     # Support tools and shared utilities
+└── solti-score/       # Documentation and playbooks
+```
 
 ## Architecture Overview
 

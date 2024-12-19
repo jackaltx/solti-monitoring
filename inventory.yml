@@ -16,8 +16,9 @@ all:
       # mylab hosts
       hosts:
         monitor3:
-          ansible_host: "monitor3.{{domain}}"
+          ansible_host: "monitor3.a0a0.org"
         monitor4:
+          ansible_host: "monitor4.a0a0.org"
 
       # .........................................
       # mylab vars
@@ -32,7 +33,7 @@ all:
               telegraf_outputs: [localhost, monitor2]
 
             monitor4:
-              telegraf_outputs: [localhost, monitor3]
+              telegraf_outputs: [localhost]
 
           # ........................................
           # metric_collectors only vars
@@ -47,9 +48,15 @@ all:
         clients:
           hosts:
             monitor3:
-              alloy_loki_endpoint: [monitor2]
+              alloy_loki_endpoints:
+                - label: localhost
+                  endpoint: "127.0.0.1"
+                - label: monitor2
+                  endpoint: "monitor2.a0a0.org"
             monitor4:
-              alloy_loki_endpoint: [localhost]
+              alloy_loki_endpoints:
+                - label: localhost
+                  endpoint: "127.0.0.1"
 
           # .........................................
           # client only vars ( alloy and telegraf)
