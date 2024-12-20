@@ -53,7 +53,7 @@ provisioner:
   inventory:
     group_vars:
       all:
-        # ansible_user: ansible
+        $ansible_user: ansible
         proxmox_vmid: 9100
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
@@ -78,9 +78,11 @@ provisioner:
     host_vars:
       debian-instance:
         ansible_connection: docker
+        ansible_user: root
 
       rocky-instance:
         ansible_connection: docker
+        ansible_user: root
 
 scenario:
   name: github
