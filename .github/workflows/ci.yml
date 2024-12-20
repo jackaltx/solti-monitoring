@@ -62,7 +62,6 @@ jobs:
         run: |
           mkdir -p log
           mkdir -p verify_output/{debian,rocky}
-          # chmod 777 log verify_output
           chmod 777 log verify_output verify_output/{debian,rocky}
 
       - name: Install dependencies

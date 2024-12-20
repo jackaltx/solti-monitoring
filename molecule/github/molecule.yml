@@ -11,7 +11,7 @@ driver:
     managed: true
 
 platforms:
-  - name: instance
+  - name: debian-instance
     image: "geerlingguy/docker-${MOLECULE_DISTRO:-debian12}-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     volumes:
@@ -53,7 +53,7 @@ provisioner:
   inventory:
     group_vars:
       all:
-        ansible_user: ansible
+        # ansible_user: ansible
         proxmox_vmid: 9100
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
