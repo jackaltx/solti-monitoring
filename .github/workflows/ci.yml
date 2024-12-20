@@ -55,7 +55,6 @@ jobs:
       - name: Pull Docker images
         run: |
           docker pull geerlingguy/docker-debian12-ansible:latest
-          docker pull geerlingguy/docker-rocky9-ansible:latest || \
           docker pull geerlingguy/docker-rockylinux9-ansible:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
