@@ -12,7 +12,7 @@ driver:
 
 platforms:
   - name: debian-instance
-    image: "geerlingguy/docker-${MOLECULE_DISTRO:-debian12}-ansible:latest"
+    image: "geerlingguy/docker-debian12-ansible:latest"
     command: ${MOLECULE_DOCKER_COMMAND:-""}
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
@@ -24,18 +24,18 @@ platforms:
     groups:
       - debian
 
-  # - name: rocky-instance
-  #   image: "geerlingguy/docker-rockylinux9-ansible:latest"
-  #   command: ${MOLECULE_DOCKER_COMMAND:-""}
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #     - /tmp:/tmp
-  #   cgroupns_mode: host
-  #   privileged: true
-  #   pre_build_image: true
-  #   override_command: false
-  #   groups:
-  #     - rocky
+  - name: rocky-instance
+    image: "geerlingguy/docker-rockylinux9-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - /tmp:/tmp
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    override_command: false
+    groups:
+      - rocky
 
 provisioner:
   name: ansible
@@ -80,9 +80,9 @@ provisioner:
         ansible_connection: docker
         ansible_user: root
 
-      # rocky-instance:
-      #   ansible_connection: docker
-      #   ansible_user: ansible
+      rocky-instance:
+        ansible_connection: docker
+        ansible_user: ansible
 
 scenario:
   name: github
