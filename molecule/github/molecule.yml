@@ -82,7 +82,7 @@ provisioner:
 
       rocky-instance:
         ansible_connection: docker
-        ansible_user: ansible
+        ansible_user: root
 
 scenario:
   name: github
