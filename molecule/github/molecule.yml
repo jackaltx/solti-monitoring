@@ -78,7 +78,7 @@ provisioner:
     host_vars:
       debian-instance:
         ansible_connection: docker
-        ansible_user: ansible
+        ansible_user: root
 
       # rocky-instance:
       #   ansible_connection: docker
