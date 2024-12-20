@@ -1,38 +1,65 @@
 ---
+# ..................................................................
+# ..................................................................
+# ..................................................................
 - name: Prepare
   hosts: all
   become: true
   tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
+    # ..................................................................
+    - name: Debian specific tasks
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
 
-    - name: Install required packages
-      apt:
-        name:
-          - gpg
-          - ca-certificates
-          - lsof
-        state: present
-        update_cache: yes
-      register: apt_result
-      retries: 3
-      delay: 10
-      until: apt_result is success
+        - name: Install required packages
+          apt:
+            name:
+              - gpg
+              - ca-certificates
+              - lsof
+            state: present
+            update_cache: yes
+          register: apt_result
+          retries: 3
+          delay: 10
+          until: apt_result is success
 
-    # Wait for any automated apt activities to finish
-    - name: Wait for dpkg lock
-      shell: |
-        while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-          echo "Waiting for apt lock to be released..."
-          sleep 5
-        done
-      changed_when: false
-      # Add a reasonable timeout
-      async: 300
-      poll: 5
+        # Wait for any automated apt activities to finish
+        - name: Wait for dpkg lock
+          shell: |
+            while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+              echo "Waiting for apt lock to be released..."
+              sleep 5
+            done
+          changed_when: false
+          # Add a reasonable timeout
+          async: 300
+          poll: 5
 
+    # ..................................................................
+    - name: Rocky Linux specific tasks
+      when: ansible_os_family == "RedHat"
+      block:
+        - name: Install required packages
+          dnf:
+            name:
+              - gpg
+              - ca-certificates
+              - lsof
+            state: present
+            update_cache: yes
+          register: dnf_result
+          retries: 3
+          delay: 10
+          until: dnf_result is success
+
+# ..................................................................
+# ..................................................................
+# ..................................................................
 - name: Create required local directories
   hosts: localhost
   gather_facts: false

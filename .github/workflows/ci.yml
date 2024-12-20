@@ -33,6 +33,7 @@ jobs:
       matrix:
         distro:
           - debian12
+          - rocky9
           # - ubuntu2204
 
     steps:
@@ -51,11 +52,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
       - name: Create required directories
         run: |
           mkdir -p log
           mkdir -p verify_output
-          chmod 777 log verify_output
+          # chmod 777 log verify_output/{debian,rocky}
+          chmod 777 log verify_output verify_output/{debian,rocky}
 
       - name: Install dependencies
         run: |
@@ -69,6 +72,7 @@ jobs:
             docker \
             jmespath
 
+      # Claude: does it make sense to read the local requirements?  
       - name: Install galaxy requirements
         run: |
           ansible-galaxy collection install community.general
