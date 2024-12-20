@@ -44,7 +44,7 @@ provisioner:
     defaults:
       interpreter_python: auto_silent
       host_key_checking: false
-      remote_tmp: /tmp
+      remote_tmp: /tmp/ansible-tmp
   playbooks:
     prepare: prepare.yml
   inventory:

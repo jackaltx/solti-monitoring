@@ -7,6 +7,15 @@
   become: true
   tasks:
     # ..................................................................
+    - name: Ensure ansible temp directory exists with proper permissions
+      file:
+        path: /tmp/ansible-tmp
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
+
+    # ..................................................................
     - name: Debian specific tasks
       when: ansible_os_family == "Debian"
       block:
