@@ -62,7 +62,7 @@ jobs:
         run: |
           mkdir -p log
           mkdir -p verify_output/{debian,rocky}
-          chmod 777 log verify_output verify_output/{debian,rocky}
+          chmod 755 log verify_output verify_output/{debian,rocky}
 
       - name: Install dependencies
         run: |
@@ -76,6 +76,7 @@ jobs:
             docker \
             jmespath
 
+      # .......................................................................
       # Claude: does it make sense to read the local requirements?  
       - name: Install galaxy requirements
         run: |
@@ -89,6 +90,30 @@ jobs:
           MOLECULE_DISTRO: ${{ matrix.distro }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
 
+      #######################################################################
+      # Debugging steps
+      - name: Debugging Information
+        if: failure()
+        run: |
+          echo "=== Docker Containers ==="
+          docker ps -a
+
+          echo "=== Finding Molecule Container ==="
+          CONTAINER_ID=$(docker ps -a | grep rocky | awk '{print $1}')
+          echo "Container ID: $CONTAINER_ID"
+
+          echo "=== Container Logs ==="
+          docker logs $CONTAINER_ID
+
+      - name: Interactive Debug Session
+        if: failure() && matrix.distro == 'rocky9'
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+      #
+      #######################################################################
+
+      # .......................................................................
       # Optional: Comment on PR with status URL
       - name: Comment PR
         if: github.event_name == 'pull_request' && success()
