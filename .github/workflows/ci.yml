@@ -20,6 +20,7 @@ on:
   workflow_dispatch:
 
 env:
+  DEBUG_MODE: save   # OR none OR interactive
   MOLECULE_NO_LOG: false
   PY_COLORS: 1
   ANSIBLE_FORCE_COLOR: 1
@@ -77,13 +78,15 @@ jobs:
             jmespath
 
       # .......................................................................
-      # Claude: does it make sense to read the local requirements?  
+      # TODO: does it make sense to read the local requirements?  
       - name: Install galaxy requirements
         run: |
           ansible-galaxy collection install community.general
 
+      # .......................................................................
       - name: Run Molecule tests with wiki update
         run: molecule test -s github
+        continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
           LOG_DURATION: "5m"
           GITHUB_WORKSPACE: ${{ github.workspace }}/main
@@ -92,24 +95,41 @@ jobs:
 
       #######################################################################
       # Debugging steps
-      - name: Debugging Information
-        if: failure()
-        run: |
-          echo "=== Docker Containers ==="
-          docker ps -a
 
-          echo "=== Finding Molecule Container ==="
+      # ......................................................................
+      # Save container artifact approach
+      - name: Save failed Rocky container
+        if: |
+          failure() && 
+          matrix.distro == 'rocky9' && 
+          env.DEBUG_MODE == 'save'
+        run: |
           CONTAINER_ID=$(docker ps -a | grep rocky | awk '{print $1}')
           echo "Container ID: $CONTAINER_ID"
+          docker commit $CONTAINER_ID debug-rocky-container
+          docker save debug-rocky-container > rocky-debug.tar
 
-          echo "=== Container Logs ==="
-          docker logs $CONTAINER_ID
+      - name: Upload Rocky container artifact
+        if: |
+          failure() && 
+          matrix.distro == 'rocky9' && 
+          env.DEBUG_MODE == 'save'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rocky-debug-container
+          path: rocky-debug.tar
 
-      - name: Interactive Debug Session
-        if: failure() && matrix.distro == 'rocky9'
+      # ......................................................................
+      # Interactive debugging approach
+      - name: Interactive Debug Session for Rocky
+        if: |
+          failure() && 
+          matrix.distro == 'rocky9' && 
+          env.DEBUG_MODE == 'interactive'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
+
       #
       #######################################################################
 

@@ -217,7 +217,7 @@
           {{ item.stdout }}
 
           {% endfor %}
-        dest: "{{ report_root }}/github_ci_results.txt"
+        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/github_ci_results.txt"
         mode: "0644"
       delegate_to: localhost
 
