@@ -163,9 +163,6 @@ molecule test -s proxmox-metrics
 
 # Test logging pipeline
 molecule test -s proxmox-logs
-
-# Full integration test
-molecule test -s integration
 ```
 
 ## Known Limitations
