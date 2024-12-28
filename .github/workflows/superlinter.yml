@@ -8,7 +8,7 @@ on:
     pull_request:
       branches: 
         - dev
-        
+
 jobs:
   super-lint:
     name: Lint Code Base
@@ -25,3 +25,9 @@ jobs:
           DEFAULT_BRANCH: dev
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: true
+          # Enable only specific linters
+          VALIDATE_YAML: true
+          VALIDATE_ANSIBLE: true
+          # Optional but recommended for Ansible
+          VALIDATE_JSON: true
+          # Disable all other linters
