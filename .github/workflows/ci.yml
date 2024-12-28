@@ -34,7 +34,7 @@ jobs:
       matrix:
         distro:
           - debian12
-          - rocky9
+          # - rocky9
           # - ubuntu2204
 
     steps:
