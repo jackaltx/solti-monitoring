@@ -4,7 +4,9 @@ A comprehensive monitoring solution that integrates metrics and log collection u
 
 ## What is softi ?
 
-Systems Oriented Laboratory Testing & Integration (softi) is a suite of ansible collections that can be used to define and test a networked laboratory you would find in most small labs. Entropy is the ehThe project emphasizes methodical testing, system behavior analysis, and component integration.  
+Systems Oriented Laboratory Testing & Integration (softi) is a suite 
+of ansible collections that can be used to define and test a networked 
+laboratory you would find in most small labs. Entropy is real. The project emphasizes methodical testing, system behavior analysis, and component integration.  
 
 ```
 solti/
@@ -161,9 +163,6 @@ molecule test -s proxmox-metrics
 
 # Test logging pipeline
 molecule test -s proxmox-logs
-
-# Full integration test
-molecule test -s integration
 ```
 
 ## Known Limitations
