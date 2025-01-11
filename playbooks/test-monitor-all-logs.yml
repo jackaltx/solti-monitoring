@@ -1,0 +1,32 @@
+---
+#  This is a pure testing system.  No DNS, no external connections
+#  Tried LXC...access issues.
+#  Come back to this...fix the ip address and start hardening.
+
+- name: "Test all monitoring systems"
+  hosts: mylab
+
+  vars:
+    influxdb_reload: true
+    influxdb_configure: true
+    loki_force_reload: false
+    loki_local_storage: true
+
+  pre_tasks:
+    - name: Debug variable paths
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Inventory dir: {{ inventory_dir }}"
+          - "project_root: {{ inventory_dir }}"
+          - "ansible_config_file: {{ ansible_config_file }}"
+
+    # - name: Install required packages
+    #   become: true
+    #   dnf:
+    #     name: lsof
+    #     state: present
+
+  roles:
+    - log-tests
+    - metrics-tests

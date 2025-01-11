@@ -15,6 +15,10 @@ all:
       # .........................................
       # mylab hosts
       hosts:
+        monitor1:
+          ansible_host: "monitor1.a0a0.org"
+        monitor2:
+          ansible_host: "monitor2.a0a0.org"
         monitor3:
           ansible_host: "monitor3.a0a0.org"
         monitor4:

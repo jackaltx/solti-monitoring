@@ -10,7 +10,7 @@ driver:
 
 platforms:
   - name: "uut-ct"
-    image: "gitea.a0a0.org:3001/lavender/rocky-containers/rocky93-ssh:latest"
+    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
     pull: true
     pull_policy: "missing"
     privileged: true # Needed for systemd
