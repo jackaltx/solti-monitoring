@@ -36,7 +36,7 @@ provisioner:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
   playbooks:
     create: "../../molecule/shared/podman/create.yml"
-    prepare: "../../molecule/shared/podman/prepare.yml"
+    prepare: "../../molecule/shared/podman/prepare_debug.yml"
     destroy: "../../molecule/shared/podman/destroy.yml"
   config_options:
     defaults:

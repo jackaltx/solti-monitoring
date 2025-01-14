@@ -1,0 +1,52 @@
+---
+- name: Pre-connection tasks
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Debug SSH command that would work
+      ansible.builtin.debug:
+        msg: "ssh -o StrictHostKeyChecking=no -p 2222 jackaltx@127.0.0.1 whoami"
+
+    - name: Wait for SSH port to be available
+      wait_for:
+        host: "127.0.0.1"
+        port: 2222
+        state: started
+        delay: 2
+        timeout: 30
+      register: wait_result
+
+    - name: Show wait result
+      debug:
+        var: wait_result
+
+    - name: Test direct SSH connection
+      shell: ssh -o StrictHostKeyChecking=no -p 2222 jackaltx@127.0.0.1 whoami
+      register: ssh_test
+      ignore_errors: true
+
+    - name: Show SSH test result
+      debug:
+        var: ssh_test
+
+- name: Main tasks
+  hosts: molecule
+  gather_facts: false
+  tasks:
+    - name: Debug connection info
+      debug:
+        msg:
+          - "Ansible host: {{ ansible_host | default('undefined') }}"
+          - "Ansible port: {{ ansible_port | default('undefined') }}"
+          - "Ansible user: {{ ansible_user | default('undefined') }}"
+          - "Connection type: {{ ansible_connection | default('undefined') }}"
+      delegate_to: localhost
+
+    - name: Try simple whoami command
+      command: whoami
+      register: whoami_result
+      ignore_errors: true
+
+    - name: Show whoami result
+      debug:
+        var: whoami_result
