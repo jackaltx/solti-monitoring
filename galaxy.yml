@@ -1,6 +1,6 @@
-### REQUIRED
+---
 namespace: jackaltx
-name: monitoring
+name: solte_monitoring
 version: 1.0.0
 readme: README.md
 authors:
@@ -16,9 +16,9 @@ tags: []
 dependencies:
   "community.general": ">=10.0.0"
 
-repository: http://github.com/jackaltx/moditoring_collection
+repository: http://github.com/jackaltx/solte_monitoring_collection
 documentation: http://docs.jackaltx.com
-homepage: http://github.com/jackaltx/monitoring_collection
-issues: http://github.com/jackaltx/monitoring_collection/issue/tracker
+homepage: http://github.com/jackaltx/solte_monitoring_collection
+issues: http://github.com/jackaltx/solte_monitoring_collection/issue/tracker
 
 build_ignore: []

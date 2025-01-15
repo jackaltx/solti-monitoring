@@ -37,7 +37,7 @@ provisioner:
   playbooks:
     create: "../../molecule/shared/podman/create.yml"
     prepare: "../../molecule/shared/podman/prepare.yml"
-    verify: "../../molecule/shared/verify/verify-metrics.yml"
+    verify: "../../molecule/shared/verify/verify-logs.yml"
     destroy: "../../molecule/shared/podman/destroy.yml"
   config_options:
     defaults:
@@ -59,27 +59,11 @@ provisioner:
         ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
         ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
 
-        influxdb_test: true
-        influxdb_configure: true
-        telgraf2influxdb_configs:
-          {
-            "localhost":
-              {
-                "url": "http://127.0.0.1",
-                "token": "",
-                "bucket": "telegraf",
-                "org": "lavnet",
-                "namedrop": '["influxdb_oss"]',
-                "bucket_tag": "",
-                "exclude_bucket_tag": "",
-                "ping_timeout": "0s",
-                "read_idle_timeout": "0s",
-                "insecure_skip_verify": false,
-              },
-          }
+        loki_local_storage: true
+        alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
-  name: podman-metrics
+  name: podman-logs
   test_sequence:
     - destroy
     - create

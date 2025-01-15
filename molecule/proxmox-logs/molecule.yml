@@ -20,6 +20,7 @@ provisioner:
     # destroy: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/destroy.yml"
     create: "../../molecule/shared/proxmox/create.yml"
     prepare: "../../molecule/shared/proxmox/prepare.yml"
+    verify: "../../molecule/shared/verify/verify-logs.yml"
     destroy: "../../molecule/shared/proxmox/destroy.yml"
   log: true
   config_options:

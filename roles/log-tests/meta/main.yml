@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: jackaltx
-  description: Install/remove Loki
+  description: Test Loki-Alloy behaviour
   company: lavnet.net
   license: MIT
   min_ansible_version: "2.9"

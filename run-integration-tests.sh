@@ -17,8 +17,8 @@ IFS=$'\n\t'
 
 # Configuration
 DISTRIBUTIONS=(
-    "debian:debian-12-template"
     "rocky:rocky9-template"
+    "debian:debian-12-template"
 )
 INTEGRATIONS=(
     "proxmox-logs"
@@ -33,6 +33,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+
+# Required environment variables check
+REQUIRED_ENV_VARS=(
+    "PROXMOX_URL"
+    "PROXMOX_USER"
+    "PROXMOX_TOKEN_ID"
+    "PROXMOX_TOKEN_SECRET"
+    "PROXMOX_NODE"
+)
+
+
 log() {
     echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "${OUTPUT_DIR}/integration_tests_${TIMESTAMP}.log"
 }
@@ -40,6 +51,37 @@ log() {
 error() {
     log "${RED}ERROR: $*${NC}"
     exit 1
+}
+
+ensure_clean_state() {
+    local scenario=$1
+    log "${YELLOW}Ensuring clean state for ${scenario}${NC}"
+    
+    # First, try regular molecule destroy
+    molecule destroy -s "${scenario}" || true
+    
+    # Wait for any lingering processes
+    sleep 5
+    
+    # Clean molecule cache/state files
+    find .molecule -name "${scenario}" -type d -exec rm -rf {} + 2>/dev/null || true
+    find molecule -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+    
+    # Final wait to ensure everything is settled
+    sleep 5
+}
+
+check_environment() {
+    local missing_vars=()
+    for var in "${REQUIRED_ENV_VARS[@]}"; do
+        if [[ -z "${!var:-}" ]]; then
+            missing_vars+=("$var")
+        fi
+    done
+    
+    if [[ ${#missing_vars[@]} -ne 0 ]]; then
+        error "Missing required environment variables: ${missing_vars[*]}"
+    fi
 }
 
 setup() {
@@ -56,8 +98,15 @@ run_tests() {
     local test_log="${OUTPUT_DIR}/${integration_test}_${distro_name}_${TIMESTAMP}.log"
 
     log "${YELLOW}Testing ${integration_test} on ${distro_name}${NC}"
-        
+
+    # Ensure clean state before test
+    # ensure_clean_state "${integration_test}"
+    sleep 10
+
+    # Export template variable for this test run       
     export PROXMOX_TEMPLATE="${template}"
+
+    # Run molecule test
     if molecule test -s "${integration_test}" > "${test_log}" 2>&1; then
         log "${GREEN}✓ ${integration_test} tests passed on ${distro_name}${NC}"
         cd - > /dev/null
@@ -71,6 +120,7 @@ run_tests() {
 }
 
 main() {
+    check_environment
     setup
     
     local failed_tests=()
