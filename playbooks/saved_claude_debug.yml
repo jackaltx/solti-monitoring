@@ -1,3 +1,4 @@
+---
 - name: Debug variable access
   hosts: monitor4
   tasks:

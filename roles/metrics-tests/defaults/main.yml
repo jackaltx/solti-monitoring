@@ -1,0 +1,4 @@
+---
+# defaults file for log-tests
+
+report_root: "{{ project_root }}/verify_output"

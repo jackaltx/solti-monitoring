@@ -1,11 +1,8 @@
 ---
 - name: Verify
-  hosts: all
   become: true
-  # vars:
-  #   project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
-
-  tasks:
+  block:
+    # ........................................................................................
     - name: Verify InfluxDB is running
       ansible.builtin.service_facts:
 
@@ -31,7 +28,7 @@
         state: started
 
     - name: Wait for Telegraf to establish connection
-      command: ss -tpn '( dst :8086 )'
+      command: ss -tpn '( dst = :8086 )'
       register: ss_output
       until: "'telegraf' in ss_output.stdout"
       retries: 12 # Will try for 2 minutes
@@ -159,7 +156,7 @@
     - name: Create local data directory for test results
       become: false
       ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+        path: "{{ report_root }}/{{ ansible_host | lower }}_{{ ansible_distribution | lower }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -203,6 +200,6 @@
           {% endif %}
           Last 50 log entries:
             {{ telegraf_logs.stdout_lines | to_nice_yaml | indent(8) }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/metrics_collection_integration_results.yml"
+        dest: "{{ report_root }}/{{ ansible_host | lower }}_{{ ansible_distribution | lower }}/metrics_collection_integration_results.yml"
         mode: "0644"
       delegate_to: localhost

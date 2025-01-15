@@ -13,7 +13,7 @@
     ##################
     # Configure
 
-    - name: Sometimes /etc/telegraf/telegraf.conf does not get created on reinstall
+    - name: Ensure /etc/telegraf/telegraf.conf exists
       ansible.builtin.copy:
         src: telegraf.conf
         dest: "{{ telegraf_config }}"
