@@ -1,76 +1,53 @@
 ---
-- name: Install prerequisites
+- name: Main tasks
   hosts: molecule
-  become: true
-  gather_facts: false
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
-    # ansible_connection: containers.podman.podman
-
+  gather_facts: true
   tasks:
-    #
-
-    # ..........................................................................
-    # Add these tasks at the start of the playbook
     - name: Debug connection info
       debug:
         msg:
-          - "Python interpreter: {{ ansible_playbook_python }}"
           - "Ansible host: {{ ansible_host | default('undefined') }}"
           - "Ansible port: {{ ansible_port | default('undefined') }}"
           - "Ansible user: {{ ansible_user | default('undefined') }}"
           - "Connection type: {{ ansible_connection | default('undefined') }}"
-          - "SSH args: {{ ansible_ssh_common_args | default('undefined') }}"
       delegate_to: localhost
-      run_once: true
 
-    - name: Check SSH port status
-      shell: "netstat -ln | grep :{{ ansible_port | default(22) }}"
-      register: port_status
-      changed_when: false
-      delegate_to: localhost
-      become: false
-
-    # Test SSH connection directly
-    - name: Wait for SSH connection
-      command: "true" # Simple command to test connection
-      register: ssh_result
-      until: ssh_result is success
-      retries: 20
-      delay: 3
-
-    # Now that SSH works, gather facts
-    - name: Gather facts
+    - name: Get basic system info
       setup:
+        gather_subset:
+          - "!all"
+          - "!any"
+          - "distribution"
+          - "pkg_mgr"
 
-    # ..........................................................................
-    - name: Wait for container to be ready
-      wait_for:
-        port: 2222
-        timeout: 30
-      # when: ansible_connection == 'containers.podman.podman'
+    - name: Debug system info
+      debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Package Manager: {{ ansible_pkg_mgr }}"
 
-    # ..........................................................................
     - name: Branch on Debian
       when: ansible_distribution == "Debian"
       block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          become: true
+
         - name: Install required packages
           apt:
             name:
               - gpg
               - ca-certificates
-              - qemu-guest-agent
               - lsof
-            update_cache: yes
             state: present
+          become: true
+          register: pkg_install
+          retries: 3
+          delay: 10
+          until: pkg_install is success
 
-        - name: Ensure qemu-guest-agent is running
-          systemd:
-            name: qemu-guest-agent
-            state: started
-            enabled: true
-
-    # ..........................................................................
     - name: Branch on Rocky
       when: ansible_distribution == "Rocky"
       block:
@@ -78,21 +55,30 @@
           dnf:
             name:
               - lsof
-            update_cache: yes
             state: present
+            update_cache: yes
+          become: true
+          register: pkg_install
+          retries: 3
+          delay: 10
+          until: pkg_install is success
 
     - name: Fail for unsupported distribution
       fail:
         msg: "Distribution {{ ansible_distribution }} not supported"
-      when: ansible_distribution != "Debian" and ansible_distribution != "Rocky"
+      when: ansible_distribution not in ["Debian", "Rocky"]
 
-    # ===========================================================================
-    - name: Ensure systemd is available in container
+    # Test systemd functionality
+    - name: Ensure systemd is available
       command: systemctl --version
       changed_when: false
       register: systemd_check
-      failed_when: systemd_check.rc != 0
+
+    - name: Show systemd version
+      debug:
+        var: systemd_check.stdout_lines
 
     - name: Configure container for systemd operation
       command: systemctl daemon-reexec
       when: systemd_check is success
+      become: true

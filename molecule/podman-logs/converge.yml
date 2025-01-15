@@ -1,9 +1,7 @@
 ---
 - name: Converge
-  hosts: molecule
+  hosts: all
   become: true
-  gather_facts: true
-
   tasks:
     - name: Debug information
       debug:
@@ -14,8 +12,8 @@
 
     - name: Include influxdb role
       include_role:
-        name: "{{ project_root }}/roles/influxdb"
+        name: "{{ project_root }}/roles/loki"
 
     - name: Include telegraf role
       include_role:
-        name: "{{ project_root }}/roles/telegraf"
+        name: "{{ project_root }}/roles/alloy"
