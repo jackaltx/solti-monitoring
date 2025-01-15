@@ -1,0 +1,7 @@
+---
+# data looks like this:
+test_matrix:
+  logging_svc: lokipod
+    alloy
+  metrics_svc: influxdb
+    telegraf
