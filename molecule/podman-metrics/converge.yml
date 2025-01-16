@@ -1,6 +1,6 @@
 ---
 - name: Converge
-  hosts: molecule
+  hosts: all
   become: true
   gather_facts: true
 
@@ -11,6 +11,7 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
 
     - name: Include influxdb role
       include_role:

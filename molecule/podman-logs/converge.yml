@@ -20,8 +20,3 @@
     - name: Include alloy role
       include_role:
         name: "{{ project_root }}/roles/alloy"
-
-    # - name: Wait for services to stabilize
-    #   wait_for:
-    #     timeout: 30
-    #   when: lookup('env', 'MOLECULE_SERIAL') | default(0) | int > 0 # Only wait if running serially
