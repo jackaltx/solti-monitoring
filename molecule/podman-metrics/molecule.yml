@@ -49,8 +49,8 @@ provisioner:
       all:
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
-    host_vars:
-      uut-ct:
+        # host_vars:
+        # uut-ct:
         ansible_connection: ssh
         ansible_user: "jackaltx" # "${USER}"
         # DEBUG: Add explicit SSH settings

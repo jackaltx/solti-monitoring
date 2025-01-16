@@ -1,0 +1,156 @@
+=== Monitor Stack Integration Test Results ===
+Timestamp: 2025-01-16T03:07:07Z
+
+Service Versions:
+- Loki: loki, version 3.3.2 (branch: release-3.3.x, revision: 23b5fc2c)
+  build user:       root@b9db99946dd3
+  build date:       2024-12-18T16:50:49Z
+  go version:       go1.23.1
+  platform:         linux/amd64
+  tags:             netgo
+- Alloy: alloy, version v1.5.1 (branch: HEAD, revision: dc8a365f8)
+  build user:       root@19aa8bb023d9
+  build date:       2024-12-03T16:39:10Z
+  go version:       go1.22.7
+  platform:         linux/amd64
+  tags:             netgo,builtinassets,promtail_journal_enabled
+
+Service Status:
+- Loki: running
+- Alloy: running
+
+Loki Health:
+- Metrics Available: True
+- Log Query Success: True
+
+Recent Loki Logs:
+  - 'Jan 16 03:05:50 a70c37f29da3 systemd[1]: Started Loki service.'
+        - 'Jan 16 03:05:50 a70c37f29da3 loki[1629]: failed parsing config: /etc/loki/config.yml:
+            yaml: unmarshal errors:'
+        - 'Jan 16 03:05:50 a70c37f29da3 loki[1629]:   line 44: field enabled not found in
+            type aggregation.Config. Use `-config.expand-env=true` flag if you want to expand
+            environment variables in your config file'
+        - 'Jan 16 03:05:50 a70c37f29da3 systemd[1]: loki.service: Main process exited, code=exited,
+            status=1/FAILURE'
+        - 'Jan 16 03:05:50 a70c37f29da3 systemd[1]: loki.service: Failed with result ''exit-code''.'
+        - 'Jan 16 03:05:52 a70c37f29da3 systemd[1]: loki.service: Scheduled restart job, restart
+            counter is at 1.'
+        - 'Jan 16 03:05:52 a70c37f29da3 systemd[1]: Stopped Loki service.'
+        - 'Jan 16 03:05:52 a70c37f29da3 systemd[1]: Started Loki service.'
+        - 'Jan 16 03:05:52 a70c37f29da3 loki[1816]: failed parsing config: /etc/loki/config.yml:
+            yaml: unmarshal errors:'
+        - 'Jan 16 03:05:52 a70c37f29da3 loki[1816]:   line 44: field enabled not found in
+            type aggregation.Config. Use `-config.expand-env=true` flag if you want to expand
+            environment variables in your config file'
+        - 'Jan 16 03:05:52 a70c37f29da3 systemd[1]: loki.service: Main process exited, code=exited,
+            status=1/FAILURE'
+        - 'Jan 16 03:05:52 a70c37f29da3 systemd[1]: loki.service: Failed with result ''exit-code''.'
+
+
+Alloy Integration:
+- Connection Status: Established
+- Network Connections:
+  - State Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess
+        - ESTAB 0      0          127.0.0.1:36146    127.0.0.1:3100 users:(("alloy",pid=3775,fd=10))
+
+- Process Information:
+  - COMMAND  PID  USER   FD      TYPE             DEVICE  SIZE/OFF     NODE NAME
+        - alloy   3775 alloy  cwd       DIR              0,125        84  5801555 /var/lib/alloy
+        - alloy   3775 alloy  rtd       DIR              0,125        34  5798441 /
+        - alloy   3775 alloy  txt       REG              0,125 303806752  5801539 /usr/bin/alloy
+        - alloy   3775 alloy  mem       REG              0,140   8388608        4 /var/log/journal/184c6829bd1d4360925fdfe13857e8d7/user-1000.journal
+        - alloy   3775 alloy  mem       REG              0,140   8388608        3 /var/log/journal/184c6829bd1d4360925fdfe13857e8d7/system.journal
+        - alloy   3775 alloy  mem       REG              0,125    882384  5079001 /usr/lib64/libzstd.so.1.5.1
+        - alloy   3775 alloy  mem       REG              0,125    153600  5078807 /usr/lib64/libgpg-error.so.0.32.0
+        - alloy   3775 alloy  mem       REG              0,125    108136  5469994 /usr/lib64/libgcc_s-11-20240719.so.1
+        - alloy   3775 alloy  mem       REG              0,125    144144  5078848 /usr/lib64/liblz4.so.1.9.3
+        - alloy   3775 alloy  mem       REG              0,125    178744  5078850 /usr/lib64/liblzma.so.5.2.5
+        - alloy   3775 alloy  mem       REG              0,125   1304848  5469997 /usr/lib64/libgcrypt.so.20.4.0
+        - alloy   3775 alloy  mem       REG              0,125     36304  5078727 /usr/lib64/libcap.so.2.48
+        - alloy   3775 alloy  mem       REG              0,125    920064  5470121 /usr/lib64/libsystemd.so.0.35.0
+        - alloy   3775 alloy  mem       REG              0,125   2543976  5469942 /usr/lib64/libc.so.6
+        - alloy   3775 alloy  mem       REG              0,125     15632  5469966 /usr/lib64/libdl.so.2
+        - alloy   3775 alloy  mem       REG              0,125     15640  5470088 /usr/lib64/libpthread.so.0
+        - alloy   3775 alloy  mem       REG              0,125    892480  5469920 /usr/lib64/ld-linux-x86-64.so.2
+        - alloy   3775 alloy    0r      CHR                1,3       0t0        4 /dev/null
+        - alloy   3775 alloy    1u     unix 0x000000009e82f39d       0t0 60452132 type=STREAM
+            (CONNECTED)
+        - alloy   3775 alloy    2u     unix 0x000000009e82f39d       0t0 60452132 type=STREAM
+            (CONNECTED)
+        - alloy   3775 alloy    3u     IPv4           60435374       0t0      TCP localhost:italk
+            (LISTEN)
+        - alloy   3775 alloy    4u  a_inode               0,16         0     1062 [eventpoll:3,5,10]
+        - alloy   3775 alloy    5r     FIFO               0,15       0t0 60455028 pipe
+        - alloy   3775 alloy    6w     FIFO               0,15       0t0 60455028 pipe
+        - alloy   3775 alloy    7r  a_inode               0,16         0     1062 inotify
+        - alloy   3775 alloy    8r      REG              0,140   8388608        3 /var/log/journal/184c6829bd1d4360925fdfe13857e8d7/system.journal
+        - alloy   3775 alloy    9r      REG              0,140   8388608        4 /var/log/journal/184c6829bd1d4360925fdfe13857e8d7/user-1000.journal
+        - alloy   3775 alloy   10u     IPv4           60453434       0t0      TCP localhost:36146->localhost:opcon-xps
+            (ESTABLISHED)
+
+
+Recent Log Activity:
+Last 50 log entries:
+  - 'Jan 16 03:06:39 a70c37f29da3 systemd[1]: Started Vendor-agnostic OpenTelemetry
+            Collector distribution with programmable pipelines.'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966109835Z level=info
+            "boringcrypto enabled"=false'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.965441119Z level=info
+            source=/go/pkg/mod/github.com/!kim!machine!gun/automemlimit@v0.6.0/memlimit/memlimit.go:170
+            msg="memory is not limited, skipping: %v" package=github.com/KimMachineGun/automemlimit/memlimit
+            !BADKEY="memory is not limited"'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966149269Z level=info
+            msg="no peer discovery configured: both join and discover peers are empty" service=cluster'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966153687Z level=info
+            msg="running usage stats reporter"'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966156853Z level=info
+            msg="starting complete graph evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966164497Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=tracing duration=3.016µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966169777Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=logging duration=78.136µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966177742Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=livedebugging duration=3.327µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966525881Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=loki.write.localhost duration=343.59µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.966666112Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=loki.relabel.journal duration=128.951µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967508011Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=loki.source.journal.read duration=831.45µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967544469Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=remotecfg duration=23.354µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967563084Z level=info
+            msg="applying non-TLS config to HTTP server" service=http'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967574195Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=http duration=21.53µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967581168Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=cluster duration=1.783µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967596787Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=ui duration=9.507µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967605132Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=otel duration=1.262µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967611645Z level=info
+            msg="finished node evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            node_id=labelstore duration=2.495µs'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967615752Z level=info
+            msg="finished complete graph evaluation" controller_path=/ controller_id="" trace_id=d6bac893da2dad8f8ae9b31fd9cc5f8a
+            duration=1.586287ms'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967669072Z level=info
+            msg="scheduling loaded components and services"'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.96776474Z level=info
+            msg="starting cluster node" service=cluster peers_count=0 peers="" advertise_addr=127.0.0.1:12345'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.967952841Z level=info
+            msg="peers changed" service=cluster peers_count=1 peers=a70c37f29da3'
+        - 'Jan 16 03:06:39 a70c37f29da3 alloy[3775]: ts=2025-01-16T03:06:39.968291121Z level=info
+            msg="now listening for http traffic" service=http addr=127.0.0.1:12345'

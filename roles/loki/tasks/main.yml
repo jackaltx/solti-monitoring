@@ -36,24 +36,58 @@
       notify:
         - Restart loki
 
-    - name: Create Loki storage directories (test mode)
-      when: loki_local_storage | bool
-      become: true
-      ansible.builtin.file:
+- name: Ensure loki group and user exist
+  block:
+    - name: Create loki group
+      group:
+        name: loki
+        system: yes
+        state: present
+
+    - name: Add loki user to loki group
+      user:
+        name: loki
+        group: loki
+        state: present
+
+- name: Prepare Loki directories
+  block:
+    - name: Create Loki directories with consistent permissions
+      file:
         path: "{{ item }}"
         state: directory
-        mode: "0770"
         owner: loki
-        group: root
+        group: loki
+        mode: "0770"
+        modification_time: preserve
+        access_time: preserve
       loop:
+        # - /tmp/loki
+        # - /tmp/loki/tsdb-shipper-active
+        # - /tmp/loki/tsdb-shipper-active/scratch
+        - /var/lib/loki
         - /var/lib/loki/chunks
         - /var/lib/loki/rules
+      register: loki_dirs
+
+    # - name: Debug directory changes
+    #   debug:
+    #     var: loki_dirs
+
+    - name: Ensure consistent SELinux context
+      command: restorecon -Rv "{{ item }}"
+      loop:
+        - /tmp/loki
+        - /var/lib/loki
+      when:
+        - ansible_selinux.status == 'enabled'
+        - loki_dirs.changed
 
 ###################################################################################
 #
 #  Remove Block
 #
-- name: Remove Loki Serivce
+- name: Remove Loki Service
   when: loki_state == 'absent'
   block:
     # .................................................................

@@ -2,6 +2,8 @@
 - name: Converge
   hosts: all
   become: true
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+
   tasks:
     - name: Debug information
       debug:
@@ -9,11 +11,17 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
 
-    - name: Include influxdb role
+    - name: Include loki role
       include_role:
         name: "{{ project_root }}/roles/loki"
 
-    - name: Include telegraf role
+    - name: Include alloy role
       include_role:
         name: "{{ project_root }}/roles/alloy"
+
+    # - name: Wait for services to stabilize
+    #   wait_for:
+    #     timeout: 30
+    #   when: lookup('env', 'MOLECULE_SERIAL') | default(0) | int > 0 # Only wait if running serially
