@@ -2,10 +2,18 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    # Only check container and network health
+    check_services: false
 
   tasks:
     #
-    # ..................................................................
+    # .....................................................................
+    - name: Run container diagnostics
+      ansible.builtin.include_tasks:
+        file: ../diagnostics/tasks/main.yml
+
+    # .....................................................................
     # Service readiness checks
     - name: Wait for services to fully initialize
       wait_for:
@@ -15,10 +23,6 @@
       loop:
         - { port: 3100, name: "Loki" } # Loki
         # - { port: 8086, name: "InfluxDB" } # InfluxDB if present
-
-    # - name: Wait for services to stabilize
-    #   wait_for:
-    #     timeout: 5
 
     # ..................................................................
     - name: Verify Loki is running
@@ -224,7 +228,7 @@
           Last 50 log entries:
             {{ alloy_logs.stdout_lines | to_nice_yaml | indent(8) }}
 
-        dest: "{{ report_root }}//{{ ansible_distribution | lower }}/log_collection_integration_results.yml"
+        dest: "{{ report_root }}//{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}.yml"
         mode: "0644"
       delegate_to:
         localhost

@@ -1,0 +1,2 @@
+---
+report_root: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/reports"

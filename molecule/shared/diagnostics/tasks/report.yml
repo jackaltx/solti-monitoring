@@ -1,0 +1,35 @@
+---
+- name: Generate container diagnostic report
+  block:
+    - name: Create diagnostic report directory
+      become: false
+      file:
+        path: "{{ report_root }}/{{ ansible_distribution | lower }}/diagnostics"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+
+    - name: Save diagnostic report
+      become: false
+      copy:
+        content: |
+          === Container Diagnostic Report ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          Container Health:
+          ----------------
+          {{ container_health | to_nice_yaml | indent(2) }}
+
+          Network Health:
+          --------------
+          {{ network_health | to_nice_yaml | indent(2) }}
+
+          {% if check_services | default(true) %}
+          Service Health:
+          --------------
+          {{ service_health | default({}) | to_nice_yaml | indent(2) }}
+          {% endif %}
+
+        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/diagnostics/report-{{ ansible_date_time.epoch }}.yml"
+        mode: "0644"
+      delegate_to: localhost
