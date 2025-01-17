@@ -29,7 +29,7 @@ env:
 jobs:
   molecule:
     name: Molecule
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -56,8 +56,8 @@ jobs:
 
       - name: Pull Docker images
         run: |
-          docker pull geerlingguy/docker-debian12-ansible:latest
-          docker pull geerlingguy/docker-rockylinux9-ansible:latest
+          docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
       - name: Create required directories
