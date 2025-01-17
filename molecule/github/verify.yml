@@ -2,7 +2,14 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    # Only check container and network health
+    check_services: false
+
   tasks:
+    #
+    # .....................................................................
+    #
     - name: Ensure verify_output directory exists
       ansible.builtin.file:
         path: "{{ report_root }}"
@@ -11,6 +18,12 @@
       delegate_to: localhost
       become: false
 
+    # .....................................................................
+    - name: Run container diagnostics
+      ansible.builtin.include_tasks:
+        file: ../../shared/diagnostics/tasks/main.yml
+
+    # .....................................................................
     # Enhanced service verification with retries and detailed diagnostics
     - name: Verify all required services
       block:
@@ -22,6 +35,7 @@
           delay: 2
           changed_when: false
 
+    # .....................................................................
     - name: Check ports
       wait_for:
         port: "{{ item }}"
@@ -31,9 +45,11 @@
         - 8086 # InfluxDB
         - 3100 # Loki
 
+    # .....................................................................
     - name: Check service statuses
       ansible.builtin.service_facts:
 
+    # .....................................................................
     - name: Verify required services are running
       ansible.builtin.assert:
         that:

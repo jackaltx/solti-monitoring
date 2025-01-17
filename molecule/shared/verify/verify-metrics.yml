@@ -2,10 +2,20 @@
 - name: Verify
   hosts: all
   become: true
-  # vars:
-  #   project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}"
+  vars:
+    # Only check container and network health
+    check_services: false
 
   tasks:
+    #
+    # .....................................................................
+    - name: Run container diagnostics
+      ansible.builtin.include_tasks:
+        file: ../diagnostics/tasks/main.yml
+      vars:
+        report_suffix: "pre-verify"
+
+    # .....................................................................
     - name: Verify InfluxDB is running
       ansible.builtin.service_facts:
 
@@ -38,7 +48,7 @@
       delay: 10 # 10 seconds between retries
       changed_when: false
 
-      # ......................................................................................
+    # ......................................................................................
     - name: Verify Telegraf connection to InfluxDB exists
       ansible.builtin.assert:
         that:
@@ -203,6 +213,6 @@
           {% endif %}
           Last 50 log entries:
             {{ telegraf_logs.stdout_lines | to_nice_yaml | indent(8) }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/metrics_collection_integration_results.yml"
+        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/metrics-collection-{{ ansible_date_time.epoch }}.yml"
         mode: "0644"
       delegate_to: localhost
