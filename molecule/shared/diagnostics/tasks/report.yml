@@ -30,6 +30,6 @@
           {{ service_health | default({}) | to_nice_yaml | indent(2) }}
           {% endif %}
 
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/diagnostics/report-{{ ansible_date_time.epoch }}.yml"
+        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/diagnostics/report-{{ report_suffix }}-{{ ansible_date_time.epoch }}.yml"
         mode: "0644"
       delegate_to: localhost

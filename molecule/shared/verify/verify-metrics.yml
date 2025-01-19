@@ -4,7 +4,7 @@
   become: true
   vars:
     # Only check container and network health
-    check_services: false
+    check_services: true
 
   tasks:
     #

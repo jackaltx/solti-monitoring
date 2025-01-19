@@ -28,9 +28,10 @@
       set_fact:
         service_health: "{{ service_health | combine({
           item: {
-            'state': ansible_facts.services[item + '.service'].state | default('not found'),
-            'status': ansible_facts.services[item + '.service'].status | default('not found'),
-            'process': service_processes.results | selectattr('item', 'equalto', item) | map(attribute='stdout') | first | default('not running')
+          'state': ansible_facts.services[item + '.service'].state | default('not found'),
+          'status': ansible_facts.services[item + '.service'].status | default('not found'),
+          'process': service_processes.results | selectattr('item', 'equalto', item) | map(attribute='stdout') | first | default('not running')
           }
-        }) }}"
+          })
+          }}"
       loop: "{{ monitored_services | default(['loki', 'influxdb', 'telegraf', 'alloy']) }}"
