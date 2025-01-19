@@ -4,7 +4,7 @@
   become: true
   vars:
     # Only check container and network health
-    check_services: false
+    check_services: true
 
   tasks:
     #
@@ -12,7 +12,8 @@
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
         file: ../diagnostics/tasks/main.yml
-
+      vars:
+        report_suffix: "pre-verify"
     # .....................................................................
     # Service readiness checks
     - name: Wait for services to fully initialize
