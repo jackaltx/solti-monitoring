@@ -141,19 +141,19 @@ jobs:
 
       # .......................................................................
       # Optional: Comment on PR with status URL
-      - name: Comment PR
-        if: github.event_name == 'pull_request' && success()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const statusUrl = fs.readFileSync('verify_output/status_url.txt', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
-            });
+      # - name: Comment PR
+      #   if: github.event_name == 'pull_request' && success()
+      #   uses: actions/github-script@v6
+      #   with:
+      #     script: |
+      #       const fs = require('fs');
+      #       const statusUrl = fs.readFileSync('verify_output/status_url.txt', 'utf8');
+      #       github.rest.issues.createComment({
+      #         issue_number: context.issue.number,
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
+      #       });
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
