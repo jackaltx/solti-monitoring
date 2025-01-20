@@ -1,11 +1,12 @@
 ---
 - name: Main tasks
-  hosts: molecule
+  hosts: all
   gather_facts: true
   tasks:
     - name: Debug connection info
       debug:
         msg:
+          - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
           - "Ansible host: {{ ansible_host | default('undefined') }}"
           - "Ansible port: {{ ansible_port | default('undefined') }}"
           - "Ansible user: {{ ansible_user | default('undefined') }}"
@@ -35,7 +36,7 @@
             cache_valid_time: 3600
           become: true
 
-        - name: Install required packages
+        - name: Install required packages (podman-debian)
           apt:
             name:
               - gpg
@@ -51,10 +52,11 @@
     - name: Branch on Rocky
       when: ansible_distribution == "Rocky"
       block:
-        - name: Install required packages
+        - name: Install required packages (podman-rocky)
           dnf:
             name:
               - lsof
+              - procps-ng
             state: present
             update_cache: yes
           become: true

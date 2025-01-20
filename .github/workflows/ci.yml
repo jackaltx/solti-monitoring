@@ -17,8 +17,13 @@ on:
       - 'molecule/**'
     # paths-ignore:
     #   - "**.md"
-  # Allow manual trigger
+  # Allow manual trigger on any branch (including dev)
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: true
+        default: 'dev'
 
 env:
   DEBUG_MODE: save   # OR none OR interactive
@@ -29,7 +34,7 @@ env:
 jobs:
   molecule:
     name: Molecule
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -56,8 +61,8 @@ jobs:
 
       - name: Pull Docker images
         run: |
-          docker pull geerlingguy/docker-debian12-ansible:latest
-          docker pull geerlingguy/docker-rockylinux9-ansible:latest
+          docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
       - name: Create required directories
@@ -136,19 +141,19 @@ jobs:
 
       # .......................................................................
       # Optional: Comment on PR with status URL
-      - name: Comment PR
-        if: github.event_name == 'pull_request' && success()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const statusUrl = fs.readFileSync('verify_output/status_url.txt', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
-            });
+      # - name: Comment PR
+      #   if: github.event_name == 'pull_request' && success()
+      #   uses: actions/github-script@v6
+      #   with:
+      #     script: |
+      #       const fs = require('fs');
+      #       const statusUrl = fs.readFileSync('verify_output/status_url.txt', 'utf8');
+      #       github.rest.issues.createComment({
+      #         issue_number: context.issue.number,
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
+      #       });
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
