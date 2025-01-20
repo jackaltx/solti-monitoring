@@ -2,7 +2,14 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    # Only check container and network health
+    check_services: false
+
   tasks:
+    #
+    # .....................................................................
+    #
     - name: Ensure verify_output directory exists
       ansible.builtin.file:
         path: "{{ report_root }}"
@@ -11,9 +18,47 @@
       delegate_to: localhost
       become: false
 
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+
+    - name: Run container diagnostics
+      ansible.builtin.include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
+      vars:
+        report_suffix: "pre-verify"
+
+    # .....................................................................
+    # Enhanced service verification with retries and detailed diagnostics
+    - name: Verify all required services
+      block:
+        - name: Wait for systemd to settle
+          command: systemctl is-system-running
+          register: systemd_status
+          until: systemd_status.stdout == "running" or systemd_status.stdout == "degraded"
+          retries: 30
+          delay: 2
+          changed_when: false
+
+    # .....................................................................
+    - name: Check ports
+      wait_for:
+        port: "{{ item }}"
+        timeout: 30
+        state: started
+      loop:
+        - 8086 # InfluxDB
+        - 3100 # Loki
+
+    # .....................................................................
     - name: Check service statuses
       ansible.builtin.service_facts:
 
+    # .....................................................................
     - name: Verify required services are running
       ansible.builtin.assert:
         that:
@@ -26,14 +71,14 @@
           - "'alloy.service' in ansible_facts.services"
           - "ansible_facts.services['alloy.service'].state == 'running'"
 
-    - name: Check ports
-      wait_for:
-        port: "{{ item }}"
-        timeout: 30
-        state: started
-      loop:
-        - 8086 # InfluxDB
-        - 3100 # Loki
+    # - name: Check ports
+    #   wait_for:
+    #     port: "{{ item }}"
+    #     timeout: 30
+    #     state: started
+    #   loop:
+    #     - 8086 # InfluxDB
+    #     - 3100 # Loki
 
     # ..................................................................................
     # New data ingestion checks
