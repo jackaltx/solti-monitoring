@@ -5,3 +5,6 @@ influx_pkgs:
   Rocky:
     - influxdb2
     - influxdb2-cli
+  Ubuntu:
+    - influxdb2
+    - influxdb2-cli
