@@ -17,8 +17,13 @@ on:
       - 'molecule/**'
     # paths-ignore:
     #   - "**.md"
-  # Allow manual trigger
+  # Allow manual trigger on any branch (including dev)
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: true
+        default: 'dev'
 
 env:
   DEBUG_MODE: save   # OR none OR interactive
