@@ -9,11 +9,20 @@
   tasks:
     #
     # .....................................................................
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
-        file: ../diagnostics/tasks/main.yml
+        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
       vars:
         report_suffix: "pre-verify"
+
     # .....................................................................
     # Service readiness checks
     - name: Wait for services to fully initialize
