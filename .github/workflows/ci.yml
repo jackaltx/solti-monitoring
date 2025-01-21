@@ -37,11 +37,11 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
-      matrix:
-        distro:
-          - debian12
-          # - rocky9
-          # - ubuntu24
+      # matrix:
+      #   distro:
+      #     - debian12
+      #     # - rocky9
+      #     # - ubuntu24
 
     steps:
       - name: Check out code
@@ -105,10 +105,9 @@ jobs:
 
       # ......................................................................
       # Save container artifact approach
-      - name: Save failed Rocky container
+      - name: Save failed container
         if: |
           failure() && 
-          matrix.distro == 'rocky9' && 
           env.DEBUG_MODE == 'save'
         run: |
           CONTAINER_ID=$(docker ps -a | grep rocky | awk '{print $1}')
@@ -116,10 +115,9 @@ jobs:
           docker commit $CONTAINER_ID debug-rocky-container
           docker save debug-rocky-container > rocky-debug.tar
 
-      - name: Upload Rocky container artifact
+      - name: Upload failed container artifact
         if: |
           failure() && 
-          matrix.distro == 'rocky9' && 
           env.DEBUG_MODE == 'save'
         uses: actions/upload-artifact@v4
         with:
@@ -128,10 +126,9 @@ jobs:
 
       # ......................................................................
       # Interactive debugging approach
-      - name: Interactive Debug Session for Rocky
+      - name: Interactive Debug Session
         if: |
           failure() && 
-          matrix.distro == 'rocky9' && 
           env.DEBUG_MODE == 'interactive'
         uses: mxschmitt/action-tmate@v3
         with:
