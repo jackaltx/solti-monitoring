@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Testing capability: {{ testing_capabilities }}"
+
+    # .......................................................................
+    - name: Run container diagnostics
+      include_tasks:
+        file: "../diagnostics/tasks/main.yml"
+      vars:
+        report_suffix: "pre-verify"
+
+    # .......................................................................
+    - name: Run capability-specific verifications
+      include_tasks: "../verify/verify-{{ capability }}.yml"
+      loop: "{{ testing_capabilities }}"
+      loop_control:
+        loop_var: capability
+        label: "Verifying {{ capability }} capability"
