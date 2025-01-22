@@ -39,7 +39,7 @@
         - name: Wait for systemd to settle
           command: systemctl is-system-running
           register: systemd_status
-          until: systemd_status.stdout == "running" or systemd_status.stdout == "degraded"
+          until: systemd_status.stdout in ['running', 'degraded']
           retries: 30
           delay: 2
           changed_when: false
