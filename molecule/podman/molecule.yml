@@ -25,6 +25,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
+    # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
     network: monitoring-net
     command: "/sbin/init"
@@ -58,7 +59,8 @@ provisioner:
   playbooks:
     create: "../../molecule/shared/podman/create.yml"
     prepare: "../../molecule/shared/podman/prepare.yml"
-    verify: "../../molecule/shared/verify/verify-metrics.yml"
+    converge: "../../molecule/shared/podman/converge.yml"
+    verify: "../../molecule/shared/podman/verify.yml"
     destroy: "../../molecule/shared/podman/destroy.yml"
   config_options:
     defaults:
@@ -78,6 +80,14 @@ provisioner:
         ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
         ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
 
+        # this is temporary, used in new shared converge
+        testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
+
+        # "logs" capability
+        loki_local_storage: true
+        alloy_loki_endpoint: "127.0.0.1"
+
+        # "metrics" capability
         influxdb_test: true
         influxdb_configure: true
         telgraf2influxdb_configs:
@@ -98,7 +108,7 @@ provisioner:
           }
 
 scenario:
-  name: podman-metrics
+  name: podman
   test_sequence:
     - destroy
     - create
