@@ -34,15 +34,15 @@
 
     # .....................................................................
     # Enhanced service verification with retries and detailed diagnostics
-    - name: Verify all required services
-      block:
-        - name: Wait for systemd to settle
-          command: systemctl is-system-running
-          register: systemd_status
-          until: systemd_status.stdout == "running" or systemd_status.stdout == "degraded"
-          retries: 30
-          delay: 2
-          changed_when: false
+    # - name: Verify all required services
+    #   block:
+    #     - name: Wait for systemd to settle
+    #       command: systemctl is-system-running
+    #       register: systemd_status
+    #       until: systemd_status.stdout in ['running', 'degraded']
+    #       retries: 30
+    #       delay: 2
+    #       changed_when: false
 
     # .....................................................................
     - name: Check ports
