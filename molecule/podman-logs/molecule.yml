@@ -25,6 +25,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
+    # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
     network: monitoring-net
     command: "/sbin/init"
