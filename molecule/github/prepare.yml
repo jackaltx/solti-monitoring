@@ -24,7 +24,7 @@
             update_cache: yes
             cache_valid_time: 3600
 
-        - name: Install required packages
+        - name: Install required packages  (github-debian)
           apt:
             name:
               - gpg
@@ -59,6 +59,7 @@
               - gpg
               - ca-certificates
               - lsof
+              - procps-ng
             state: present
             update_cache: yes
           register: dnf_result
