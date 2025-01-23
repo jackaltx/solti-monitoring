@@ -125,46 +125,46 @@
     # ..................................................................
     # TODO:  evaluate this as it seems overkill.
     #
-    - name: Configure container for systemd
-      block:
-        - name: Create systemd directories
-          file:
-            path: "{{ item }}"
-            state: directory
-          loop:
-            - /run/systemd
-            - /run/dbus
-            - /var/run/dbus
+    # - name: Configure container for systemd
+    #   block:
+    #     - name: Create systemd directories
+    #       file:
+    #         path: "{{ item }}"
+    #         state: directory
+    #       loop:
+    #         - /run/systemd
+    #         - /run/dbus
+    #         - /var/run/dbus
 
-        - name: Configure systemd for Debian/Ubuntu
-          when: ansible_os_family == "Debian"
-          block:
-            - name: Initialize systemd
-              command: "{{ item }}"
-              loop:
-                - systemctl daemon-reexec
-                - systemctl restart dbus
-              changed_when: false
+    #     - name: Configure systemd for Debian/Ubuntu
+    #       when: ansible_os_family == "Debian"
+    #       block:
+    #         - name: Initialize systemd
+    #           command: "{{ item }}"
+    #           loop:
+    #             - systemctl daemon-reexec
+    #             - systemctl restart dbus
+    #           changed_when: false
 
-        - name: Configure systemd for RedHat
-          when: ansible_os_family == "RedHat"
-          block:
-            - name: Start messagebus
-              command: /usr/lib/systemd/systemd-machined
-              ignore_errors: true
-              changed_when: false
+    #     - name: Configure systemd for RedHat
+    #       when: ansible_os_family == "RedHat"
+    #       block:
+    #         - name: Start messagebus
+    #           command: /usr/lib/systemd/systemd-machined
+    #           ignore_errors: true
+    #           changed_when: false
 
-            - name: Initialize dbus socket
-              copy:
-                dest: /run/dbus/system_bus_socket
-                content: ""
-                force: false
-                mode: "0755"
+    #         - name: Initialize dbus socket
+    #           copy:
+    #             dest: /run/dbus/system_bus_socket
+    #             content: ""
+    #             force: false
+    #             mode: "0755"
 
-        - name: Wait for systemd bus
-          wait_for:
-            path: /run/systemd/private
-            timeout: 30
+    #     - name: Wait for systemd bus
+    #       wait_for:
+    #         path: /run/systemd/private
+    #         timeout: 30
 
     # ..................................................................................
     # Test systemd functionality
@@ -177,3 +177,8 @@
       debug:
         var: systemd_check.stdout_lines
         verbosity: 1
+
+    - name: Configure container for systemd operation
+      command: systemctl daemon-reexec
+      when: systemd_check is success
+      become: true
