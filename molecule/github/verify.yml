@@ -71,15 +71,6 @@
           - "'alloy.service' in ansible_facts.services"
           - "ansible_facts.services['alloy.service'].state == 'running'"
 
-    # - name: Check ports
-    #   wait_for:
-    #     port: "{{ item }}"
-    #     timeout: 30
-    #     state: started
-    #   loop:
-    #     - 8086 # InfluxDB
-    #     - 3100 # Loki
-
     # ..................................................................................
     # New data ingestion checks
     #
