@@ -71,6 +71,12 @@ provisioner:
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
 
+        # this is temporary, used in new shared converge
+        testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
+
+        # metrics
+        influxdb_test: true
+        influxdb_configure: true
         telgraf2influxdb_configs:
           localhost:
             url: "http://127.0.0.1"
@@ -83,19 +89,19 @@ provisioner:
             ping_timeout: "0s"
             read_idle_timeout: "0s"
             insecure_skip_verify: false
+
+        # logs
         loki_local_storage: true
-        influxdb_test: true
-        influxdb_configure: true
         alloy_loki_endpoint: "127.0.0.1"
 
-    host_vars:
-      debian-instance:
-        ansible_connection: docker
-        ansible_user: root
+    # host_vars:
+    #   debian-instance:
+    #     ansible_connection: docker
+    #     ansible_user: root
 
-      rocky-instance:
-        ansible_connection: docker
-        ansible_user: root
+    #   rocky-instance:
+    #     ansible_connection: docker
+    #     ansible_user: root
 
 scenario:
   name: github
