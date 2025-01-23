@@ -114,3 +114,28 @@
       command: systemctl daemon-reexec
       when: systemd_check is success
       become: true
+
+    # ..................................................................................
+    - name: Debug systemd environment
+      block:
+        - name: Check cgroup mounts
+          shell: "mount | grep cgroup"
+          register: cgroup_mounts
+          changed_when: false
+          ignore_errors: true
+
+        - name: Check systemd paths
+          stat:
+            path: "{{ item }}"
+          loop:
+            - /run/systemd/system
+            - /sys/fs/cgroup/systemd
+          register: systemd_paths
+
+        - name: Show systemd env debug info
+          debug:
+            msg:
+              - "Cgroup mounts:"
+              - "{{ cgroup_mounts.stdout_lines }}"
+              - "Systemd paths:"
+              - "{{ systemd_paths.results | map(attribute='stat') | list }}"
