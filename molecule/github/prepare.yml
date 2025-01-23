@@ -134,12 +134,7 @@
           loop:
             - /run/systemd
             - /run/dbus
-
-        - name: Configure D-Bus socket directory
-          file:
-            path: /var/run/dbus
-            state: directory
-            mode: "0755"
+            - /var/run/dbus
 
         - name: Initialize D-Bus machine id
           copy:
@@ -155,12 +150,8 @@
             force: no
             mode: "0755"
 
-        - name: Start dbus without systemctl
-          command: /usr/bin/dbus-daemon --system --nofork --nopidfile
-          async: 45
-          poll: 0
-          ignore_errors: true
-          changed_when: false
+        - name: Configure systemd by distribution
+          include_tasks: "systemd-{{ ansible_os_family }}.yml"
 
         - name: Wait for dbus socket
           wait_for:
