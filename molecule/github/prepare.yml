@@ -55,10 +55,11 @@
 
     # ..................................................................................
     # ..................................................................................
-    - name: Debug information
+    - name: Playbook Debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
+          - "Molecule Project dir: {{ MOLECULE_PROJECT_DIRECTORY }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
           - "Distribution: {{ ansible_distribution }}"
@@ -66,7 +67,7 @@
 
     - name: Load capability role definitions
       include_vars:
-        file: "../vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
     - debug:
         var: monitoring_capabilities
