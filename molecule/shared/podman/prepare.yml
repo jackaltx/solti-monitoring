@@ -2,8 +2,10 @@
 - name: Main tasks
   hosts: all
   gather_facts: true
+
   tasks:
-    - name: Debug connection info
+    # ..................................................................................
+    - name: Debug connection information
       debug:
         msg:
           - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
@@ -27,49 +29,76 @@
           - "Distribution: {{ ansible_distribution }}"
           - "Package Manager: {{ ansible_pkg_mgr }}"
 
-    - name: Branch on Debian
-      when: ansible_distribution in ["Debian", "Ubuntu"]
-      block:
-        - name: Update apt cache
-          apt:
-            update_cache: yes
-            cache_valid_time: 3600
-          become: true
+    # ..................................................................................
+    # ..................................................................................
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Testing capability: {{ testing_capabilities }}"
 
-        - name: Install required packages (podman-debian)
+    - name: Load capability role definitions
+      include_vars:
+        file: "../vars/capabilities.yml"
+
+    - debug:
+        var: monitoring_capabilities
+        verbosity: 1
+
+    # ..................................................................................
+    - name: Get required packages for each tested capability
+      set_fact:
+        combined_required_packages: >-
+          {{
+            testing_capabilities | 
+            map('extract', monitoring_capabilities) |
+            map(attribute='required_packages') |
+            map(attribute=ansible_os_family) |
+            flatten | unique | list
+          }}
+
+    # ..................................................................................
+    - name: Debug package selection
+      debug:
+        msg:
+          - "Testing Capabilities: {{ testing_capabilities }}"
+          - "Required Packages: {{ combined_required_packages }}"
+        verbosity: 0
+
+    # ..................................................................................
+    - name: Handle Debian/Ubuntu systems
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Install required Debian packages
           apt:
-            name:
-              - gpg
-              - ca-certificates
-              - lsof
+            name: "{{ combined_required_packages }}"
             state: present
-          become: true
+            update_cache: yes
           register: pkg_install
           retries: 3
           delay: 10
           until: pkg_install is success
+          become: true
 
-    - name: Branch on Rocky
-      when: ansible_distribution == "Rocky"
+    # ..................................................................................
+    - name: Handle RedHat systems
+      when: ansible_os_family == "RedHat"
       block:
-        - name: Install required packages (podman-rocky)
+        - name: Install required RedHat packages
           dnf:
-            name:
-              - lsof
-              - procps-ng
+            name: "{{ combined_required_packages }}"
             state: present
             update_cache: yes
-          become: true
           register: pkg_install
           retries: 3
           delay: 10
           until: pkg_install is success
+          become: true
 
-    - name: Fail for unsupported distribution
-      fail:
-        msg: "Distribution {{ ansible_distribution }} not supported"
-      when: ansible_distribution not in ["Debian", "Rocky", "Ubuntu"]
-
+    # ..................................................................................
     # Test systemd functionality
     - name: Ensure systemd is available
       command: systemctl --version
@@ -79,8 +108,34 @@
     - name: Show systemd version
       debug:
         var: systemd_check.stdout_lines
+        verbosity: 1
 
     - name: Configure container for systemd operation
       command: systemctl daemon-reexec
       when: systemd_check is success
       become: true
+
+    # ..................................................................................
+    - name: Debug systemd environment
+      block:
+        - name: Check cgroup mounts
+          shell: "mount | grep cgroup"
+          register: cgroup_mounts
+          changed_when: false
+          ignore_errors: true
+
+        - name: Check systemd paths
+          stat:
+            path: "{{ item }}"
+          loop:
+            - /run/systemd/system
+            - /sys/fs/cgroup/systemd
+          register: systemd_paths
+
+        - name: Show systemd env debug info
+          debug:
+            msg:
+              - "Cgroup mounts:"
+              - "{{ cgroup_mounts.stdout_lines }}"
+              - "Systemd paths:"
+              - "{{ systemd_paths.results | map(attribute='stat') | list }}"
