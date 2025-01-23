@@ -16,64 +16,7 @@
         mode: "0777"
 
     # ..................................................................
-    - name: Debian specific tasks
-      when: ansible_os_family == "Debian"
-      block:
-        - name: Update apt cache
-          apt:
-            update_cache: yes
-            cache_valid_time: 3600
-
-        - name: Install required packages  (github-debian)
-          apt:
-            name:
-              - gpg
-              - ca-certificates
-              - lsof
-            state: present
-            update_cache: yes
-          register: apt_result
-          retries: 3
-          delay: 10
-          until: apt_result is success
-
-        # Wait for any automated apt activities to finish
-        - name: Wait for dpkg lock
-          shell: |
-            while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-              echo "Waiting for apt lock to be released..."
-              sleep 5
-            done
-          changed_when: false
-          # Add a reasonable timeout
-          async: 300
-          poll: 5
-
-    # ..................................................................
-    - name: Rocky Linux specific tasks
-      when: ansible_os_family == "RedHat"
-      block:
-        - name: Install required packages
-          dnf:
-            name:
-              - gpg
-              - ca-certificates
-              - lsof
-              - procps-ng
-            state: present
-            update_cache: yes
-          register: dnf_result
-          retries: 3
-          delay: 10
-          until: dnf_result is success
-
-# ..................................................................
-# ..................................................................
-# ..................................................................
-- name: Create required local directories
-  hosts: localhost
-  gather_facts: false
-  tasks:
+    # SMELL  location?
     - name: Create project directories
       ansible.builtin.file:
         path: "{{ item }}"
@@ -84,3 +27,132 @@
         - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
       delegate_to: localhost
       become: false
+
+    # ..................................................................................
+    - name: Debug connection information
+      debug:
+        msg:
+          - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
+          - "Ansible host: {{ ansible_host | default('undefined') }}"
+          - "Ansible port: {{ ansible_port | default('undefined') }}"
+          - "Ansible user: {{ ansible_user | default('undefined') }}"
+          - "Connection type: {{ ansible_connection | default('undefined') }}"
+      delegate_to: localhost
+
+    - name: Get basic system info
+      setup:
+        gather_subset:
+          - "!all"
+          - "!any"
+          - "distribution"
+          - "pkg_mgr"
+
+    - name: Debug system info
+      debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Package Manager: {{ ansible_pkg_mgr }}"
+
+    # ..................................................................................
+    # ..................................................................................
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Testing capability: {{ testing_capabilities }}"
+
+    - name: Load capability role definitions
+      include_vars:
+        file: "../vars/capabilities.yml"
+
+    - debug:
+        var: monitoring_capabilities
+        verbosity: 1
+
+    # ..................................................................................
+    - name: Get required packages for each tested capability
+      set_fact:
+        combined_required_packages: >-
+          {{
+            testing_capabilities | 
+            map('extract', monitoring_capabilities) |
+            map(attribute='required_packages') |
+            map(attribute=ansible_os_family) |
+            flatten | unique | list
+          }}
+
+    # ..................................................................................
+    - name: Debug package selection
+      debug:
+        msg:
+          - "Testing Capabilities: {{ testing_capabilities }}"
+          - "Required Packages: {{ combined_required_packages }}"
+        verbosity: 0
+
+    # ..................................................................................
+    - name: Handle Debian/Ubuntu systems
+      when: ansible_os_family == "Debian"
+      block:
+        - name: Install required Debian packages
+          apt:
+            name: "{{ combined_required_packages }}"
+            state: present
+            update_cache: yes
+          register: pkg_install
+          retries: 3
+          delay: 10
+          until: pkg_install is success
+          become: true
+
+    # ..................................................................................
+    - name: Handle RedHat systems
+      when: ansible_os_family == "RedHat"
+      block:
+        - name: Install required RedHat packages
+          dnf:
+            name: "{{ combined_required_packages }}"
+            state: present
+            update_cache: yes
+          register: pkg_install
+          retries: 3
+          delay: 10
+          until: pkg_install is success
+          become: true
+
+    # ..................................................................
+    - name: Configure container for systemd
+      block:
+        - name: Create systemd directories
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+            - /run/systemd
+            - /run/dbus
+
+        - name: Initialize systemd in container
+          command: "{{ item }}"
+          loop:
+            - systemctl daemon-reexec
+            - systemctl restart dbus
+          changed_when: false
+
+        - name: Wait for systemd bus
+          wait_for:
+            path: /run/systemd/private
+            timeout: 30
+
+    # ..................................................................................
+    # Test systemd functionality
+    - name: Ensure systemd is available
+      command: systemctl --version
+      changed_when: false
+      register: systemd_check
+
+    - name: Show systemd version
+      debug:
+        var: systemd_check.stdout_lines
+        verbosity: 1
