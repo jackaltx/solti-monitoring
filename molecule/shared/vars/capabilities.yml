@@ -1,0 +1,35 @@
+---
+monitoring_capabilities:
+  logs:
+    roles:
+      - loki
+      - alloy
+    required_packages:
+      Debian: &debian_logs_deps
+        - gpg
+        - ca-certificates
+        - lsof
+      Ubuntu: *debian_logs_deps # Reuse Debian dependencies
+      RedHat: &redhat_logs_deps
+        - gpg
+        - ca-certificates
+        - lsof
+        - procps-ng
+      Rocky: *redhat_logs_deps # Reuse RedHat dependencies
+
+  metrics:
+    roles:
+      - influxdb
+      - telegraf
+    required_packages:
+      Debian: &debian_metrics_deps
+        - gpg
+        - ca-certificates
+        - lsof
+      Ubuntu: *debian_metrics_deps
+      RedHat: &redhat_metrics_deps
+        - gpg
+        - ca-certificates
+        - lsof
+        - procps-ng
+      Rocky: *redhat_metrics_deps

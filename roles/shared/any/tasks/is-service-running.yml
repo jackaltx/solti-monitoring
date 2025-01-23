@@ -3,7 +3,7 @@
 
 # .....................................................................................
 - name: Populate service facts
-  no_log: "{{ mylab_nolog | default(true) }}"
+  # no_log: "{{ mylab_nolog | default(true) }}"
   ansible.builtin.service_facts:
 
 - name: "Check if service is running"
