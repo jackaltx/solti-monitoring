@@ -14,10 +14,10 @@ platforms:
 
 provisioner:
   name: ansible
-  playbooks:
-    create: "../../molecule/shared/proxmox/create.yml"
-    prepare: "../../molecule/shared/proxmox/prepare.yml"
-    destroy: "../../molecule/shared/proxmox/destroy.yml"
+  # playbooks:
+  #   create: "../../molecule/shared/proxmox/create.yml"
+  #   prepare: "../../molecule/shared/proxmox/prepare.yml"
+  #   destroy: "../../molecule/shared/proxmox/destroy.yml"
   log: true
   config_options:
     defaults:
