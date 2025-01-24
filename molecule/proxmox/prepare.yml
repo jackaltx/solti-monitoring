@@ -1,0 +1,73 @@
+---
+- name: Prepare VM
+  hosts: localhost
+  tasks:
+    - name: Start the VM
+      community.general.proxmox_kvm:
+        api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
+        api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
+        api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+        api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+        node: "{{ lookup('env', 'PROXMOX_NODE') }}"
+        vmid: "{{ proxmox_vmid }}"
+        state: started
+        timeout: 300
+
+    - name: Wait for VM to boot
+      pause:
+        seconds: 30
+
+    - name: Wait for SSH
+      wait_for:
+        host: "{{ molecule_ip }}"
+        port: 22
+        timeout: 300
+
+    - name: Display connection status
+      debug:
+        msg: "VM id: {{ proxmox_vmid }} named: {{ proxmox_vm_name }} at ip {{ molecule_ip }} is ready"
+
+- name: Install prerequisites
+  hosts: all
+  become: true
+  tasks:
+    - name: Wait for cloud-init to finish
+      shell: cloud-init status
+      register: cloud_init_status
+      until: "'status: done' in cloud_init_status.stdout"
+      retries: 30
+      delay: 10
+
+    - name: Branch on Debian
+      when: ansible_distribution == "Debian"
+      block:
+        - name: Install required packages
+          apt:
+            name:
+              - gpg
+              - ca-certificates
+              - qemu-guest-agent
+              - lsof
+            update_cache: yes
+            state: present
+
+        - name: Ensure qemu-guest-agent is running
+          systemd:
+            name: qemu-guest-agent
+            state: started
+            enabled: true
+
+    - name: Branch on Rocky
+      when: ansible_distribution == "Rocky"
+      block:
+        - name: Install required packages
+          dnf:
+            name:
+              - lsof
+            update_cache: yes
+            state: present
+
+    - name: Fail for unsupported
+      fail:
+        msg: "Distribution {{ ansible_distribution }} not supported"
+      when: ansible_distribution != "Debian" and ansible_distribution != "Rocky"

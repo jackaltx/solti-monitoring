@@ -16,13 +16,15 @@
     # .......................................................................
     - name: Run container diagnostics
       include_tasks:
-        file: "../diagnostics/tasks/main.yml"
+        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
       vars:
         report_suffix: "pre-verify"
 
     # .......................................................................
+    # Claude this is where we will build up the output for verify_output/ ....then do the wiki stuff after (if we are on github main)
+    # goal is the share this file.
     - name: Run capability-specific verifications
-      include_tasks: "../verify/verify-{{ capability }}.yml"
+      include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
       loop_control:
         loop_var: capability
