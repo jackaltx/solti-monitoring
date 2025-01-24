@@ -1,0 +1,82 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ../../molecule/shared/requirements.yml
+    ignore-errors: true
+
+driver:
+  name: default
+
+platforms:
+  - name: "uut-vm" # hardcode this as it is ugly to watch the lookup
+    template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+
+provisioner:
+  name: ansible
+  playbooks:
+    create: "../../molecule/shared/proxmox/create.yml"
+    prepare: "../../molecule/shared/proxmox/prepare.yml"
+    destroy: "../../molecule/shared/proxmox/destroy.yml"
+  log: true
+  config_options:
+    defaults:
+      roles_path: roles
+      interpreter_python: auto_silent
+      host_key_checking: false
+  inventory:
+    group_vars:
+      all:
+        proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | default('9100', true) | int }}"
+        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+        proxmox_vm_name: "uut-vm" # "{{ lookup('env', 'MOLECULE_NAME') | default('debian12-test',true) }}" # not used
+        molecule_ip: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+
+        project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+        report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+
+    host_vars:
+      uut-vm:
+        ansible_host: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        ansible_connection: ssh
+        ansible_user: "${USER}"
+
+        # this is temporary, used in new shared converge
+        testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
+
+        # "logs" capability
+        loki_local_storage: true
+        alloy_loki_endpoint: "127.0.0.1"
+
+        # "metrics" capability
+        influxdb_test: true
+        influxdb_configure: true
+        telgraf2influxdb_configs:
+          {
+            "localhost":
+              {
+                "url": "http://127.0.0.1",
+                "token": "",
+                "bucket": "telegraf",
+                "org": "lavnet",
+                "namedrop": '["influxdb_oss"]',
+                "bucket_tag": "",
+                "exclude_bucket_tag": "",
+                "ping_timeout": "0s",
+                "read_idle_timeout": "0s",
+                "insecure_skip_verify": false,
+              },
+          }
+
+scenario:
+  name: proxmox
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
+
+verifier:
+  name: ansible
