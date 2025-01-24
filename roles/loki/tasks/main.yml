@@ -62,7 +62,7 @@
         modification_time: preserve
         access_time: preserve
       loop:
-        # - /tmp/loki
+        - /tmp/loki
         # - /tmp/loki/tsdb-shipper-active
         # - /tmp/loki/tsdb-shipper-active/scratch
         - /var/lib/loki
