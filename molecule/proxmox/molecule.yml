@@ -14,14 +14,10 @@ platforms:
 
 provisioner:
   name: ansible
-  playbooks:
-    # create: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/create.yml"
-    # prepare: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/prepare.yml"
-    # destroy: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/molecule/shared/proxmox/destroy.yml"
-    create: "../../molecule/shared/proxmox/create.yml"
-    prepare: "../../molecule/shared/proxmox/prepare.yml"
-    verify: "../../molecule/shared/verify/verify-metrics.yml"
-    destroy: "../../molecule/shared/proxmox/destroy.yml"
+  # playbooks:
+  #   create: "../../molecule/shared/proxmox/create.yml"
+  #   prepare: "../../molecule/shared/proxmox/prepare.yml"
+  #   destroy: "../../molecule/shared/proxmox/destroy.yml"
   log: true
   config_options:
     defaults:
@@ -38,12 +34,21 @@ provisioner:
 
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+
     host_vars:
       uut-vm:
         ansible_host: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
         ansible_connection: ssh
         ansible_user: "${USER}"
 
+        # this is temporary, used in new shared converge
+        testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
+
+        # "logs" capability
+        loki_local_storage: true
+        alloy_loki_endpoint: "127.0.0.1"
+
+        # "metrics" capability
         influxdb_test: true
         influxdb_configure: true
         telgraf2influxdb_configs:
@@ -64,7 +69,7 @@ provisioner:
           }
 
 scenario:
-  name: proxmox-metrics
+  name: proxmox
   test_sequence:
     - destroy
     - create

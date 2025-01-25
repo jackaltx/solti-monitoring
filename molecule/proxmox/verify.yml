@@ -16,13 +16,13 @@
     # .......................................................................
     - name: Run container diagnostics
       include_tasks:
-        file: "../diagnostics/tasks/main.yml"
+        file: "../shared/diagnostics/tasks/main.yml"
       vars:
         report_suffix: "pre-verify"
 
     # .......................................................................
     - name: Run capability-specific verifications
-      include_tasks: "../verify/verify-{{ capability }}.yml"
+      include_tasks: "../shared/verify/verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
       loop_control:
         loop_var: capability

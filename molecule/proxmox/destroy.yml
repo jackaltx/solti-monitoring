@@ -1,0 +1,91 @@
+---
+- name: Destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('pve',true) }}"
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
+    proxmox_api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
+    proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+    proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+
+  tasks:
+    - name: Proxmox vmid
+      ansible.builtin.debug:
+        var: proxmox_vmid
+        verbosity: 1
+
+    - name: Get VM info
+      community.general.proxmox_vm_info:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ proxmox_vmid }}"
+      register: vm_info
+
+    - name: Handle non-existent VM
+      when: not vm_info.proxmox_vms
+      block:
+        - debug:
+            msg: "VM with ID '{{ proxmox_vmid }}' not found. Skipping removal."
+        - meta: end_play
+
+    - name: Check VM status
+      set_fact:
+        vm_status: "{{ vm_info.proxmox_vms[0].status }}"
+      when: vm_info.proxmox_vms
+
+    - name: Attempt graceful shutdown of VM
+      when:
+        - vm_info.proxmox_vms
+        - vm_status == 'running'
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ proxmox_vmid }}"
+        state: stopped
+        timeout: 180
+      ignore_errors: true
+
+    - name: Wait for VM to fully stop
+      when: vm_status == 'running'
+      wait_for:
+        timeout: 10
+
+    - name: Force stop VM if still running
+      when: vm_status == 'running'
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ proxmox_vmid }}"
+        state: stopped
+        force: yes
+
+    - name: Wait for VM to fully stop
+      when: vm_status == 'running'
+      wait_for:
+        timeout: 10
+
+    - name: Remove VM
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ proxmox_vmid }}"
+        state: absent
+
+    - name: Remove any lingering VMID file
+      file:
+        path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/vmid"
+        state: absent

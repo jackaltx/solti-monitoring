@@ -1,0 +1,31 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Testing capability: {{ testing_capabilities }}"
+
+    # .......................................................................
+    - name: Run container diagnostics
+      include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
+      vars:
+        report_suffix: "pre-verify"
+
+    # .......................................................................
+    # Claude this is where we will build up the output for verify_output/ ....then do the wiki stuff after (if we are on github main)
+    # goal is the share this file.
+    - name: Run capability-specific verifications
+      include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
+      loop: "{{ testing_capabilities }}"
+      loop_control:
+        loop_var: capability
+        label: "Verifying {{ capability }} capability"
