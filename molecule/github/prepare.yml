@@ -1,7 +1,4 @@
 ---
-# ..................................................................
-# ..................................................................
-# ..................................................................
 - name: Prepare
   hosts: all
   become: true
@@ -38,6 +35,11 @@
           - "Ansible user: {{ ansible_user | default('undefined') }}"
           - "Connection type: {{ ansible_connection | default('undefined') }}"
       delegate_to: localhost
+
+    - name: Install Python 3.11 on Ubuntu
+      raw: apt-get update && apt-get install -y python3.11
+      when: inventory_hostname == "uut-ct2"
+      changed_when: false
 
     - name: Get basic system info
       setup:
