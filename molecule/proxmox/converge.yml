@@ -2,7 +2,7 @@
 - name: Converge
   hosts: all
   become: true
-  # serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   tasks:
     - name: Debug information

@@ -23,7 +23,7 @@ on:
       branch:
         description: 'Branch to run tests on'
         required: true
-        default: 'dev'
+        default: '*'
 
 env:
   DEBUG_MODE: save   # OR none OR interactive

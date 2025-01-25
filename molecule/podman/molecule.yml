@@ -56,12 +56,12 @@ provisioner:
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-  playbooks:
-    create: "../../molecule/shared/podman/create.yml"
-    prepare: "../../molecule/shared/podman/prepare.yml"
-    converge: "../../molecule/shared/podman/converge.yml"
-    verify: "../../molecule/shared/podman/verify.yml"
-    destroy: "../../molecule/shared/podman/destroy.yml"
+  # playbooks:
+  #   create: "../../molecule/shared/podman/create.yml"
+  #   prepare: "../../molecule/shared/podman/prepare.yml"
+  #   converge: "../../molecule/shared/podman/converge.yml"
+  #   verify: "../../molecule/shared/podman/verify.yml"
+  #   destroy: "../../molecule/shared/podman/destroy.yml"
   config_options:
     defaults:
       roles_path: roles
