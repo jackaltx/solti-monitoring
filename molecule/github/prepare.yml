@@ -36,6 +36,15 @@
           - "Connection type: {{ ansible_connection | default('undefined') }}"
       delegate_to: localhost
 
+    - name: List available Python packages
+      raw: apt-cache search python3 | grep -E '^python3\.[0-9]+ '
+      register: python_pkgs
+      when: inventory_hostname == "uut-ct2"
+
+    - name: Display Python packages
+      debug:
+        var: python_pkgs
+
     - name: Install Python 3.11 on Ubuntu
       raw: apt-get update && apt-get install -y python3.11
       when: inventory_hostname == "uut-ct2"
