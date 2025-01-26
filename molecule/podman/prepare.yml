@@ -1,11 +1,11 @@
 ---
-- name: Main tasks
+- name: Prepare
   hosts: all
   gather_facts: true
 
   tasks:
     # ..................................................................................
-    - name: Playbook Prepare connection information
+    - name: Connection information from lochost
       debug:
         msg:
           - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
@@ -16,7 +16,29 @@
           - "Connection type: {{ ansible_connection | default('undefined') }}"
       delegate_to: localhost
 
-    # ..................................................................................
+    # ..................................................................
+    - name: Ensure project directories exist on localhost
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/data"
+        - "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+      delegate_to: localhost
+      become: false
+
+    # ..................................................................
+    - name: Ensure ansible temp directory exists with proper permissions
+      become: true
+      ansible.builtin.file:
+        path: /tmp/ansible-tmp
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
+
+    # ..................................................................
     - name: Get basic system info
       setup:
         gather_subset:
@@ -52,7 +74,7 @@
         - MOLECULE_PROJECT_DIRECTORY
 
     # ..................................................................................
-    - name: Prepare Playbook Debug information
+    - name: Prepare debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
@@ -63,7 +85,6 @@
 
     - name: Load capability role definitions
       include_vars:
-        # file: "../vars/capabilities.yml"
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
     - name: Debug monitoring_capabilities
@@ -139,27 +160,27 @@
       become: true
 
     # ..................................................................................
-    - name: Debug systemd environment
-      block:
-        - name: Check cgroup mounts
-          shell: "mount | grep cgroup"
-          register: cgroup_mounts
-          changed_when: false
-          ignore_errors: true
+    # - name: Debug systemd environment
+    #   block:
+    #     - name: Check cgroup mounts
+    #       shell: "mount | grep cgroup"
+    #       register: cgroup_mounts
+    #       changed_when: false
+    #       ignore_errors: true
 
-        - name: Check systemd paths
-          stat:
-            path: "{{ item }}"
-          loop:
-            - /run/systemd/system
-            - /sys/fs/cgroup/systemd
-          register: systemd_paths
+    #     - name: Check systemd paths
+    #       stat:
+    #         path: "{{ item }}"
+    #       loop:
+    #         - /run/systemd/system
+    #         - /sys/fs/cgroup/systemd
+    #       register: systemd_paths
 
-        - name: Show systemd env debug info
-          debug:
-            msg:
-              - "Cgroup mounts:"
-              - "{{ cgroup_mounts.stdout_lines }}"
-              - "Systemd paths:"
-              - "{{ systemd_paths.results | map(attribute='stat') | list }}"
-            verbosity: 1
+    #     - name: Show systemd env debug info
+    #       debug:
+    #         msg:
+    #           - "Cgroup mounts:"
+    #           - "{{ cgroup_mounts.stdout_lines }}"
+    #           - "Systemd paths:"
+    #           - "{{ systemd_paths.results | map(attribute='stat') | list }}"
+    #         verbosity: 1

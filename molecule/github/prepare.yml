@@ -1,20 +1,23 @@
 ---
 - name: Prepare
   hosts: all
-  become: true
+  gather_facts: true
+
   tasks:
-    # ..................................................................
-    - name: Ensure ansible temp directory exists with proper permissions
-      file:
-        path: /tmp/ansible-tmp
-        state: directory
-        owner: root
-        group: root
-        mode: "0777"
+    # ..................................................................................
+    - name: Connection information from lochost
+      debug:
+        msg:
+          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
+          - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
+          - "Ansible host: {{ ansible_host | default('undefined') }}"
+          - "Ansible port: {{ ansible_port | default('undefined') }}"
+          - "Ansible user: {{ ansible_user | default('undefined') }}"
+          - "Connection type: {{ ansible_connection | default('undefined') }}"
+      delegate_to: localhost
 
     # ..................................................................
-    # SMELL  location?
-    - name: Create project directories
+    - name: Ensure project directories exist on localhost
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -25,17 +28,17 @@
       delegate_to: localhost
       become: false
 
-    # ..................................................................................
-    - name: Debug connection information
-      debug:
-        msg:
-          - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
-          - "Ansible host: {{ ansible_host | default('undefined') }}"
-          - "Ansible port: {{ ansible_port | default('undefined') }}"
-          - "Ansible user: {{ ansible_user | default('undefined') }}"
-          - "Connection type: {{ ansible_connection | default('undefined') }}"
-      delegate_to: localhost
+    # ..................................................................
+    - name: Ensure ansible temp directory exists with proper permissions
+      become: true
+      ansible.builtin.file:
+        path: /tmp/ansible-tmp
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
 
+    # ..................................................................
     - name: Get basic system info
       setup:
         gather_subset:
@@ -51,8 +54,27 @@
           - "Package Manager: {{ ansible_pkg_mgr }}"
 
     # ..................................................................................
+    - name: Debug Molecule environment vars
+      ansible.builtin.debug:
+        msg: |
+          Debug: {{ item }} = {{ lookup('env', item) }}
+      loop:
+        - MOLECULE_DEBUG
+        - MOLECULE_INSTANCE_NAME
+        - MOLECULE_SCENARIO_NAME
+        - MOLECULE_FILE
+        - MOLECULE_INVENTORY_FILE
+        - MOLECULE_DEPENDENCY_NAME
+        - MOLECULE_DRIVER_NAME
+        - MOLECULE_VERIFIER_NAME
+        - MOLECULE_PROVISIONER_NAME
+        - MOLECULE_STATE_FILE
+        - MOLECULE_EPHEMERAL_DIRECTORY
+        - MOLECULE_DIRECTORY
+        - MOLECULE_PROJECT_DIRECTORY
+
     # ..................................................................................
-    - name: Playbook Debug information
+    - name: Prepare debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
