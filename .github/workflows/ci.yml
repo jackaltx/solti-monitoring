@@ -35,15 +35,9 @@ jobs:
   molecule:
     name: Molecule
     runs-on: ubuntu-20.04
-    env:
-      IS_CI: ${{ github.env.CI }}
     strategy:
       fail-fast: false
-      # matrix:
-      #   distro:
-      #     - debian12
-      #     # - rocky9
-      #     # - ubuntu24
+
 
     steps:
       - name: Check out code
@@ -97,6 +91,7 @@ jobs:
         run: molecule test -s github
         continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
+          IS_CI: ${{ github.env.CI }}
           LOG_DURATION: "5m"
           GITHUB_WORKSPACE: ${{ github.workspace }}/main
           MOLECULE_DISTRO: ${{ matrix.distro }}
