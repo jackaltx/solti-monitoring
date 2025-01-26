@@ -30,6 +30,7 @@ env:
   MOLECULE_NO_LOG: false
   PY_COLORS: 1
   ANSIBLE_FORCE_COLOR: 1
+  IS_CI: ${{ env.CI }}
 
 jobs:
   molecule:
