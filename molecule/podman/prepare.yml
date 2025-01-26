@@ -5,10 +5,9 @@
 
   tasks:
     # ..................................................................................
-    - name: Connection information from lochost
+    - name: Connection information from localhost
       debug:
         msg:
-          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
           - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
           - "Ansible host: {{ ansible_host | default('undefined') }}"
           - "Ansible port: {{ ansible_port | default('undefined') }}"
@@ -77,6 +76,7 @@
     - name: Prepare debug information
       debug:
         msg:
+          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
