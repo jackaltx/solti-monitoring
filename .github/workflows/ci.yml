@@ -36,7 +36,7 @@ jobs:
     name: Molecule
     runs-on: ubuntu-20.04
     env:
-      IS_CI: ${{ env.CI }}
+      IS_CI: ${{ github.env.CI }}
     strategy:
       fail-fast: false
       # matrix:
