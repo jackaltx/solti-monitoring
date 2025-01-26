@@ -30,12 +30,13 @@ env:
   MOLECULE_NO_LOG: false
   PY_COLORS: 1
   ANSIBLE_FORCE_COLOR: 1
-  IS_CI: ${{ env.CI }}
 
 jobs:
   molecule:
     name: Molecule
     runs-on: ubuntu-20.04
+    env:
+      IS_CI: ${{ env.CI }}
     strategy:
       fail-fast: false
       # matrix:
