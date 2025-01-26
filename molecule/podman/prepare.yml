@@ -5,9 +5,10 @@
 
   tasks:
     # ..................................................................................
-    - name: Debug connection information
+    - name: Playbook Prepare connection information
       debug:
         msg:
+          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
           - "Running on {{ inventory_hostname }} with IP {{ ansible_host }}"
           - "Ansible host: {{ ansible_host | default('undefined') }}"
           - "Ansible port: {{ ansible_port | default('undefined') }}"
@@ -15,6 +16,7 @@
           - "Connection type: {{ ansible_connection | default('undefined') }}"
       delegate_to: localhost
 
+    # ..................................................................................
     - name: Get basic system info
       setup:
         gather_subset:
@@ -30,8 +32,27 @@
           - "Package Manager: {{ ansible_pkg_mgr }}"
 
     # ..................................................................................
+    - name: Debug Molecule environment vars
+      ansible.builtin.debug:
+        msg: |
+          Debug: {{ item }} = {{ lookup('env', item) }}
+      loop:
+        - MOLECULE_DEBUG
+        - MOLECULE_INSTANCE_NAME
+        - MOLECULE_SCENARIO_NAME
+        - MOLECULE_FILE
+        - MOLECULE_INVENTORY_FILE
+        - MOLECULE_DEPENDENCY_NAME
+        - MOLECULE_DRIVER_NAME
+        - MOLECULE_VERIFIER_NAME
+        - MOLECULE_PROVISIONER_NAME
+        - MOLECULE_STATE_FILE
+        - MOLECULE_EPHEMERAL_DIRECTORY
+        - MOLECULE_DIRECTORY
+        - MOLECULE_PROJECT_DIRECTORY
+
     # ..................................................................................
-    - name: Debug information
+    - name: Prepare Playbook Debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
@@ -44,7 +65,9 @@
       include_vars:
         # file: "../vars/capabilities.yml"
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
-    - debug:
+
+    - name: Debug monitoring_capabilities
+      debug:
         var: monitoring_capabilities
         verbosity: 1
 
@@ -139,3 +162,4 @@
               - "{{ cgroup_mounts.stdout_lines }}"
               - "Systemd paths:"
               - "{{ systemd_paths.results | map(attribute='stat') | list }}"
+            verbosity: 1

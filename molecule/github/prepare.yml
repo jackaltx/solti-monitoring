@@ -65,7 +65,8 @@
       include_vars:
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
-    - debug:
+    - name: Debug monitoring_capabilities
+      debug:
         var: monitoring_capabilities
         verbosity: 1
 
