@@ -91,7 +91,7 @@ jobs:
         run: molecule test -s github
         continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
-          IS_CI: true
+          IN_GITHUB_CI: true
           LOG_DURATION: "5m"
           GITHUB_WORKSPACE: ${{ github.workspace }}/main
           MOLECULE_DISTRO: ${{ matrix.distro }}
