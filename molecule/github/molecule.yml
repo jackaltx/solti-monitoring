@@ -10,6 +10,12 @@ driver:
   options:
     managed: true
 
+# these are the customized instances build by my test_containers repos.
+# These should have a running systemd, prepared ssh, with enough tooling
+# to get status.
+#
+# - I did not create the base image, only added layers.
+#
 platforms:
   - name: "uut-ct0"
     image: "ghcr.io/jackaltx/testing-containers/debian12-ssh:latest"
@@ -36,6 +42,8 @@ platforms:
     ssh_port: 2222
     ssh_user: "jackaltx"
     connection: ssh
+
+  # ubuntu image is a problem on github, not locally on my Fedora development machine.
 
   # - name: "uut-ct2"
   #   image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
@@ -93,15 +101,6 @@ provisioner:
         # logs
         loki_local_storage: true
         alloy_loki_endpoint: "127.0.0.1"
-
-    # host_vars:
-    #   debian-instance:
-    #     ansible_connection: docker
-    #     ansible_user: root
-
-    #   rocky-instance:
-    #     ansible_connection: docker
-    #     ansible_user: root
 
 scenario:
   name: github
