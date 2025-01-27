@@ -4,7 +4,7 @@
   gather_facts: true
 
   vars:
-    on_github: "{{ lookup('env', 'IN_GITHUB_CI') | default('local', true) }}"
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
     #
@@ -201,10 +201,11 @@
         var: systemd_check.stdout_lines
         verbosity: 1
 
-    # - name: Configure container for systemd operation
-    #   command: systemctl daemon-reexec
-    #   when: systemd_check is success
-    #   become: true
+    # SMELL  this is umbuntu thing ???
+    - name: Configure container for systemd operation
+      command: systemctl daemon-reexec
+      when: systemd_check is success and not on_github
+      become: true
 
     # ..................................................................................
     # - name: Debug systemd environment

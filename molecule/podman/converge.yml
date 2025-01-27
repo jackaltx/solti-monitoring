@@ -2,27 +2,29 @@
 - name: Converge
   hosts: all
   become: true
-  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+  # serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+
+  vars:
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
-    - name: Playbook Converge Debug information
+    - name: Debug information
       debug:
         msg:
-          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
+          - "GithubCi: {{ on_github }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
           - "Distribution: {{ ansible_distribution }}"
           - "Testing capability: {{ testing_capabilities }}"
 
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
     - name: Load capability role definitions
       include_vars:
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
-    - debug:
-        var: monitoring_capabilities
-        verbosity: 1
-
+    # ................................................................
     - name: Validate testing capabilities
       assert:
         that:
@@ -33,6 +35,7 @@
       loop_control:
         loop_var: capability
 
+    # ................................................................
     - name: Get roles for selected capabilities
       set_fact:
         roles_to_include: >-
@@ -44,6 +47,7 @@
             list
           }}
 
+    # ................................................................
     - name: Debug role inclusion
       debug:
         msg:
@@ -51,6 +55,7 @@
           - "Roles to Include: {{ roles_to_include }}"
         verbosity: 0
 
+    # ................................................................
     - name: Include roles to be tested
       include_role:
         name: "{{ project_root }}/roles/{{ role_name }}"
