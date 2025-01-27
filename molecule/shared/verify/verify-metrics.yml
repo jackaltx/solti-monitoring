@@ -160,6 +160,7 @@
 
 # ......................................................................
 - name: Set metrics test results fact
+  no_log: "{{ molecule_nolog | default(true) }}"
   ansible.builtin.set_fact:
     metrics_test_results: |
       === Monitor Stack Integration Test Results ===
