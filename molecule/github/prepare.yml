@@ -86,7 +86,6 @@
     - name: Prepare debug information
       debug:
         msg:
-          # - "Running in github {{ lookup('env', 'IN_GITHUB_CI') | default('local', true) }} environment"
           - "GithubCi: {{ on_github }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
