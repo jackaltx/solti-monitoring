@@ -4,7 +4,7 @@
   gather_facts: true
 
   vars:
-    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=False) }}"
 
   tasks:
     #
@@ -51,8 +51,7 @@
     - name: Get basic system info
       setup:
         gather_subset:
-          - "!all"
-          - "!any"
+          - "min"
           - "distribution"
           - "pkg_mgr"
 
@@ -107,13 +106,14 @@
       set_fact:
         combined_required_packages: >-
           {{
-            testing_capabilities | 
-            map('extract', monitoring_capabilities) |
-            map(attribute='required_packages') |
-            map(attribute=ansible_os_family) |
-            flatten | unique | list
+            testing_capabilities
+            | map('extract', monitoring_capabilities)
+            | map(attribute='required_packages')
+            | map(attribute=ansible_os_family)
+            | flatten
+            | unique
+            | list
           }}
-
     # ..................................................................................
     - name: Debug package selection
       debug:
@@ -203,9 +203,9 @@
 
     # SMELL  this is umbuntu thing ???
     - name: Configure container for systemd operation
+      become: true
       command: systemctl daemon-reexec
       when: systemd_check is success and not on_github
-      become: true
 
     # ..................................................................................
     # - name: Debug systemd environment

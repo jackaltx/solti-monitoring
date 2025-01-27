@@ -19,7 +19,7 @@ driver:
 platforms:
   - name: "uut-ct0"
     image: "ghcr.io/jackaltx/testing-containers/debian12-ssh:latest"
-    network: monitoring-net"
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -32,7 +32,7 @@ platforms:
 
   - name: "uut-ct1"
     image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
-    network: monitoring-net
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
