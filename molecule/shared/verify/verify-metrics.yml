@@ -211,7 +211,7 @@
 - name: Save integration test results
   become: false
   ansible.builtin.copy:
-    content: "{{ logs_test_results }}"
+    content: "{{ metrics_test_results }}"
     dest: "{{ report_root }}/{{ ansible_distribution | lower }}/metrics-collection-{{ ansible_date_time.epoch }}.yml"
     mode: "0644"
   delegate_to: localhost
