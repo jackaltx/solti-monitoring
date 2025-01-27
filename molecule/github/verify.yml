@@ -61,6 +61,7 @@
       changed_when: false
 
     - name: Filter lsof output
+      no_log: true
       when: process_info is defined
       set_fact:
         process_filtered: {}
