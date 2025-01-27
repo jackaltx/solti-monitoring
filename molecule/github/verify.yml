@@ -110,13 +110,6 @@
           - Commit: {{ git_info.commit }}
           - Status: {{ 'Clean' if not git_info.status else 'Modified' }}
 
-
-          Data Ingestion Status:
-
-          - InfluxDB Data: {{ influx_data.stdout }}
-
-          - Loki Data: {{ loki_data.stdout }}
-
           Process Information:
 
 

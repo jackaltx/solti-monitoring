@@ -5,6 +5,7 @@
   vars:
     # Only check container and network health
     check_services: false
+    molecule_nolog: true
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
