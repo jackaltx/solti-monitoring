@@ -13,7 +13,7 @@ driver:
 platforms:
   - name: "uut-ct0"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest"
-    network: monitoring-net
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -27,7 +27,7 @@ platforms:
   - name: "uut-ct1"
     # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
-    network: monitoring-net
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -40,7 +40,7 @@ platforms:
 
   - name: "uut-ct2"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
-    network: monitoring-net
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -98,7 +98,7 @@ provisioner:
                 "token": "",
                 "bucket": "telegraf",
                 "org": "lavnet",
-                "namedrop": '["influxdb_oss"]',
+                "namedrop": ["influxdb_oss"],
                 "bucket_tag": "",
                 "exclude_bucket_tag": "",
                 "ping_timeout": "0s",

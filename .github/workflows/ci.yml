@@ -52,7 +52,8 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
-
+    env:
+      DEBUG_MODE: save
 
     steps:
       - name: Check out code
@@ -134,11 +135,11 @@ jobs:
       # SMELL this this is two if's that should be a block. ;(
       # 
       - name: Save failed containers
-        if: failure() && env.DEBUG_MODE == 'save'
+        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
         run: |
           for os in rocky debian ubuntu; do
             CONTAINER_ID=$(docker ps -a | grep $os | awk '{print $1}')
-            if [ ! -z "$CONTAINER_ID" ]; then
+            if [ -n "$CONTAINER_ID" ]; then
               echo "Saving $os container: $CONTAINER_ID"
               docker commit $CONTAINER_ID debug-$os-container
               docker save debug-$os-container > $os-debug.tar
@@ -146,7 +147,7 @@ jobs:
           done
     
       - name: Upload failed container artifacts
-        if: failure() && env.DEBUG_MODE == 'save'
+        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
         uses: actions/upload-artifact@v4
         with:
           name: debug-containers
@@ -154,17 +155,6 @@ jobs:
             rocky-debug.tar
             debian-debug.tar
             ubuntu-debug.tar
-
-      # ......................................................................
-      # Interactive debugging approach
-      # SMELL: remove as I rarely have enough time to figure it out.
-      - name: Interactive Debug Session
-        if: |
-          failure() && 
-          env.DEBUG_MODE == 'interactive'
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
 
       # ......................................................................
       #  This will block the rest if there are no artifacts!
