@@ -149,22 +149,6 @@
             branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
             commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
             status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
-          services:
-            influxdb:
-              state: "{{ ansible_facts.services['influxdb.service'].state }}"
-              port: 8086
-            telegraf:
-              state: "{{ ansible_facts.services['telegraf.service'].state }}"
-              port: null
-            loki:
-              state: "{{ ansible_facts.services['loki.service'].state }}"
-              port: 3100
-            alloy:
-              state: "{{ ansible_facts.services['alloy.service'].state }}"
-              port: null
-          data_ingestion:
-            influxdb: "{{ influx_data.stdout if influx_data.stdout != '' else 'No data' }}"
-            loki: "{{ loki_data.stdout if loki_data.stdout != '' else 'No data' }}"
           logs: "{{ service_logs.results }}"
           processes: "{{ process_info.results }}"
 
