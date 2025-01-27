@@ -137,109 +137,109 @@
     # Gist and Wiki
     #
 
-    - name: Create common status data structure
-      set_fact:
-        status_data:
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          environment:
-            os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
-            kernel: "{{ ansible_kernel }}"
-            python: "{{ ansible_python_version }}"
-          git:
-            branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
-            commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
-            status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
-          logs: "{{ service_logs.results }}"
-          processes: "{{ process_info.results }}"
+    # - name: Create common status data structure
+    #   set_fact:
+    #     status_data:
+    #       timestamp: "{{ ansible_date_time.iso8601 }}"
+    #       environment:
+    #         os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+    #         kernel: "{{ ansible_kernel }}"
+    #         python: "{{ ansible_python_version }}"
+    #       git:
+    #         branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+    #         commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+    #         status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+    #       logs: "{{ service_logs.results }}"
+    #       processes: "{{ process_info.results }}"
 
-    # ..........................................................................................
-    - name: Format Gist content
-      set_fact:
-        gist_content: |
-          # Monitoring Stack Status Report
-          **Run Date:** {{ status_data.timestamp }}
+    # # ..........................................................................................
+    # - name: Format Gist content
+    #   set_fact:
+    #     gist_content: |
+    #       # Monitoring Stack Status Report
+    #       **Run Date:** {{ status_data.timestamp }}
 
-          ## Environment
-          - OS: {{ status_data.environment.os }}
-          - Kernel: {{ status_data.environment.kernel }}
-          - Python: {{ status_data.environment.python }}
+    #       ## Environment
+    #       - OS: {{ status_data.environment.os }}
+    #       - Kernel: {{ status_data.environment.kernel }}
+    #       - Python: {{ status_data.environment.python }}
 
-          ## Git Status
-          - Branch: {{ status_data.git.branch }}
-          - Commit: {{ status_data.git.commit }}
-          - Working Tree: {{ 'Clean' if status_data.git.status == 'clean' else 'Modified' }}
+    #       ## Git Status
+    #       - Branch: {{ status_data.git.branch }}
+    #       - Commit: {{ status_data.git.commit }}
+    #       - Working Tree: {{ 'Clean' if status_data.git.status == 'clean' else 'Modified' }}
 
-          ## Service Status
-          | Service  | Status | Port | Listening |
-          |----------|--------|------|-----------|
-          {% for name, svc in status_data.services.items() %}
-          | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
-          {% endfor %}
+    #       ## Service Status
+    #       | Service  | Status | Port | Listening |
+    #       |----------|--------|------|-----------|
+    #       {% for name, svc in status_data.services.items() %}
+    #       | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
+    #       {% endfor %}
 
-          ## Data Ingestion
-          ### InfluxDB Metrics
-          ```
-          {{ status_data.data_ingestion.influxdb | trim | indent(2) }}
-          ```
+    #       ## Data Ingestion
+    #       ### InfluxDB Metrics
+    #       ```
+    #       {{ status_data.data_ingestion.influxdb | trim | indent(2) }}
+    #       ```
 
-          ### Loki Logs
-          ```
-          {{ status_data.data_ingestion.loki | trim | indent(2) }}
-          ```
+    #       ### Loki Logs
+    #       ```
+    #       {{ status_data.data_ingestion.loki | trim | indent(2) }}
+    #       ```
 
-          ## Service Logs
-          {% for item in status_data.logs %}
-          ### {{ item.item | upper }}
-          {% for line in (item.stdout_lines[-5:] | default([])) %}
-          - {{ line }}
-          {% endfor %}
+    #       ## Service Logs
+    #       {% for item in status_data.logs %}
+    #       ### {{ item.item | upper }}
+    #       {% for line in (item.stdout_lines[-5:] | default([])) %}
+    #       - {{ line }}
+    #       {% endfor %}
 
-          {% endfor %}
+    #       {% endfor %}
 
-    # .......................................................................................
-    - name: Format Wiki content
-      set_fact:
-        wiki_content: |
-          # Test Results: {{ status_data.timestamp }}
+    # # .......................................................................................
+    # - name: Format Wiki content
+    #   set_fact:
+    #     wiki_content: |
+    #       # Test Results: {{ status_data.timestamp }}
 
-          ## Environment
-          - **OS:** {{ status_data.environment.os }}
-          - **Kernel:** {{ status_data.environment.kernel }}
+    #       ## Environment
+    #       - **OS:** {{ status_data.environment.os }}
+    #       - **Kernel:** {{ status_data.environment.kernel }}
 
-          ## Status Summary
-          {% for name, svc in status_data.services.items() %}
-          - {{ name | capitalize }}: {{ svc.state }}{{ ' (Port ' + svc.port|string + ')' if svc.port }}
-          {% endfor %}
+    #       ## Status Summary
+    #       {% for name, svc in status_data.services.items() %}
+    #       - {{ name | capitalize }}: {{ svc.state }}{{ ' (Port ' + svc.port|string + ')' if svc.port }}
+    #       {% endfor %}
 
-          ## Data Collection
-          - **InfluxDB:** {{ 'Receiving data' if status_data.data_ingestion.influxdb != 'No data' else 'No data received' }}
-          - **Loki:** {{ 'Receiving data' if status_data.data_ingestion.loki != 'No data' else 'No data received' }}
+    #       ## Data Collection
+    #       - **InfluxDB:** {{ 'Receiving data' if status_data.data_ingestion.influxdb != 'No data' else 'No data received' }}
+    #       - **Loki:** {{ 'Receiving data' if status_data.data_ingestion.loki != 'No data' else 'No data received' }}
 
-          ## Service Logs
+    #       ## Service Logs
 
-          {% for item in status_data.logs %}
-          <details>
-          <summary><b>{{ item.item | upper }} Logs</b></summary>
+    #       {% for item in status_data.logs %}
+    #       <details>
+    #       <summary><b>{{ item.item | upper }} Logs</b></summary>
 
-          ```
-          {{ item.stdout | trim }}
-          ```
-          </details>
+    #       ```
+    #       {{ item.stdout | trim }}
+    #       ```
+    #       </details>
 
-          {% endfor %}
+    #       {% endfor %}
 
-          ## Process Information
+    #       ## Process Information
 
-          {% for proc in status_data.processes %}
-          <details>
-          <summary><b>{{ proc.item | upper }} Processes</b></summary>
+    #       {% for proc in status_data.processes %}
+    #       <details>
+    #       <summary><b>{{ proc.item | upper }} Processes</b></summary>
 
-          ```
-          {{ proc.stdout | trim }}
-          ```
-          </details>
+    #       ```
+    #       {{ proc.stdout | trim }}
+    #       ```
+    #       </details>
 
-          {% endfor %}
+    #       {% endfor %}
 
     # # ..........................................................................................
     # # Gist creation task

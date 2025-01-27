@@ -74,8 +74,9 @@ jobs:
       - name: Pull Docker images
         run: |
           docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+
+        # docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+        # docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
       - name: Create required directories
@@ -152,9 +153,10 @@ jobs:
         with:
           name: debug-containers
           path: |
-            rocky-debug.tar
             debian-debug.tar
-            ubuntu-debug.tar
+            
+          # rocky-debug.tar
+          # ubuntu-debug.tar
 
       # ......................................................................
       #  This will block the rest if there are no artifacts!
