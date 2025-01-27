@@ -48,7 +48,6 @@
         mode: "0777"
 
     # ..................................................................
-    - name: Debugging system
     - name: Get basic system info
       setup:
         gather_subset:
