@@ -169,19 +169,9 @@
 #  Output results section
 #
 
-- name: Create local data directory for test results
-  become: false
-  ansible.builtin.file:
-    path: "{{ report_root }}/{{ ansible_distribution | lower }}"
-    state: directory
-    mode: "0755"
-  delegate_to: localhost
-
-# ......................................................................
-- name: Save integration test results
-  become: false
-  ansible.builtin.copy:
-    content: |
+- name: Set logs test results fact
+  ansible.builtin.set_fact:
+    logs_test_results: |
       === Monitor Stack Integration Test Results ===
       Timestamp: {{ ansible_date_time.iso8601 }}
 
@@ -198,28 +188,35 @@
       - Log Query Success: {{ loki_query_result.json.status == 'success' }}
 
       Recent Loki Logs:
-        {{ loki_logs.stdout_lines | to_nice_yaml | indent(8) }}
+      {{ loki_logs.stdout_lines | to_nice_yaml | indent(8) }}
 
       Alloy Integration:
       - Connection Status: Established
       - Network Connections:
-        {{ ss_output.stdout_lines | to_nice_yaml | indent(8) }}
+      {{ ss_output.stdout_lines | to_nice_yaml | indent(8) }}
       - Process Information:
-        {{ lsof_output.stdout_lines | to_nice_yaml | indent(8) }}
+      {{ lsof_output.stdout_lines | to_nice_yaml | indent(8) }}
 
       Recent Log Activity:
       {% if 'error writing' in alloy_logs.stdout %}
       !!! ERRORS DETECTED IN LOGS !!!
       {% endif %}
       Last 50 log entries:
-        {{ alloy_logs.stdout_lines | to_nice_yaml | indent(8) }}
+      {{ alloy_logs.stdout_lines | to_nice_yaml | indent(8) }}
 
-    dest: "{{ report_root }}//{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}.yml"
+# ......................................................................
+- name: Create local data directory for test results
+  become: false
+  ansible.builtin.file:
+    path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Save integration test results
+  become: false
+  ansible.builtin.copy:
+    content: "{{ logs_test_results }}"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}.yml"
     mode: "0644"
-  delegate_to:
-    localhost
-
-    # Alloy Health:
-    # - Metrics Endpoint: {{ alloy_metrics.status == 200 }}
-    # - Publishing Metrics: {{ 'alloy_' in alloy_metrics.content }}
-    # - Sending to Loki: {{ 'loki_' in alloy_metrics.content }}
+  delegate_to: localhost

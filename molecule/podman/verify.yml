@@ -2,11 +2,28 @@
 - name: Verify
   hosts: all
   become: true
+  vars:
+    # Only check container and network health
+    check_services: false
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
+    #
+    # .....................................................................
+    #
+    - name: Ensure verify_output directory exists
+      ansible.builtin.file:
+        path: "{{ report_root }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    # .....................................................................
     - name: Debug information
       debug:
         msg:
+          - "GithubCi: {{ on_github }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
@@ -21,8 +38,6 @@
         report_suffix: "pre-verify"
 
     # .......................................................................
-    # Claude this is where we will build up the output for verify_output/ ....then do the wiki stuff after (if we are on github main)
-    # goal is the share this file.
     - name: Run capability-specific verifications
       include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"

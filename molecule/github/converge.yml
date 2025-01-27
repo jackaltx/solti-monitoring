@@ -5,7 +5,7 @@
   # serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   vars:
-    on_github: "{{ lookup('env', 'IN_GITHUB_CI') | default('local', true) }}"
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
     - name: Debug information

@@ -5,7 +5,6 @@
   vars:
     # Only check container and network health
     check_services: false
-    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
     #
@@ -19,33 +18,153 @@
       delegate_to: localhost
       become: false
 
-    # .....................................................................
     - name: Debug information
       debug:
         msg:
-          - "GithubCi: {{ on_github }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
           - "Distribution: {{ ansible_distribution }}"
-          - "Testing capability: {{ testing_capabilities }}"
 
-    # .....................................................................
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
         file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
       vars:
         report_suffix: "pre-verify"
 
-    # .......................................................................
-    - name: Run capability-specific verifications
-      include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
-      loop: "{{ testing_capabilities }}"
-      loop_control:
-        loop_var: capability
-        label: "Verifying {{ capability }} capability"
+    # .....................................................................
+    # Enhanced service verification with retries and detailed diagnostics
+    # - name: Verify all required services
+    #   block:
+    #     - name: Wait for systemd to settle
+    #       command: systemctl is-system-running
+    #       register: systemd_status
+    #       until: systemd_status.stdout in ['running', 'degraded']
+    #       retries: 30
+    #       delay: 2
+    #       changed_when: false
 
-    # github ONLy AREA
+    # .....................................................................
+    - name: Check ports
+      wait_for:
+        port: "{{ item }}"
+        timeout: 30
+        state: started
+      loop:
+        - 8086 # InfluxDB
+        - 3100 # Loki
+
+    # .....................................................................
+    - name: Check service statuses
+      ansible.builtin.service_facts:
+
+    # .....................................................................
+    - name: Verify required services are running
+      ansible.builtin.assert:
+        that:
+          - "'influxdb.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb.service'].state == 'running'"
+          - "'telegraf.service' in ansible_facts.services"
+          - "ansible_facts.services['telegraf.service'].state == 'running'"
+          - "'loki.service' in ansible_facts.services"
+          - "ansible_facts.services['loki.service'].state == 'running'"
+          - "'alloy.service' in ansible_facts.services"
+          - "ansible_facts.services['alloy.service'].state == 'running'"
+
+    # ..................................................................................
+    # New data ingestion checks
+    #
+    - name: Get InfluxDB token
+      command: "influx auth list --json"
+      register: auth_list
+      changed_when: false
+
+    - name: Set token fact
+      set_fact:
+        influx_token: "{{ (auth_list.stdout | from_json | json_query('[?description==`admin`].token'))[0] }}"
+
+    - name: Check InfluxDB data ingestion
+      command: >
+        influx query --token {{ influx_token }} 
+        'from(bucket:"telegraf")
+        |> range(start: -5m)
+        |> filter(fn: (r) => r["_measurement"] == "cpu" and r["cpu"] == "cpu-total")
+        |> filter(fn: (r) => r["_field"] == "usage_system" or r["_field"] == "usage_user")
+        |> keep(columns: ["_time", "_field", "_value"])
+        |> limit(n: 5)
+        |> yield(name: "result")'
+      register: influx_data
+      failed_when: >
+        influx_data.rc != 0 or
+        influx_data.stdout | trim == ""
+      changed_when: false
+      retries: 3
+      delay: 10
+      until: influx_data is success
+
+    # - name: Check InfluxDB data ingestion
+    #   command: >
+    #     influx query --token {{ influx_token }}
+    #     'from(bucket:"telegraf")
+    #     |> range(start: -5m)
+    #     |> filter(fn: (r) => r["_measurement"] == "cpu" and r["cpu"] == "cpu-total")
+    #     |> filter(fn: (r) => r["_field"] == "usage_user")
+    #     |> keep(columns: ["_time", "_value"])
+    #     |> last()'
+    #   register: influx_data
+    #   failed_when: >
+    #     influx_data.rc != 0 or
+    #     influx_data.stdout | trim == ""
+    #   changed_when: false
+
+    # - name: Check InfluxDB data ingestion
+    #   command: >
+    #     influx query --token {{ influx_token }}
+    #     'from(bucket:"telegraf")
+    #     |> range(start: -5m)
+    #     |> filter(fn: (r) => r["_measurement"] == "cpu")
+    #     |> count()
+    #     |> yield(name: "count")'
+    #   register: influx_data
+    #   failed_when: >
+    #     influx_data.rc != 0 or
+    #     influx_data.stdout | trim | regex_search(',[0-9]+,') is not defined
+    #   changed_when: false
+
+    # ..................................................................................
+    - name: Check for any recent Loki logs
+      command: >
+        logcli --addr="http://localhost:3100" query 
+        '{job="loki.source.journal.read"}'
+        --since=5m
+        --limit=2
+      register: loki_data
+      changed_when: false
+
+    - name: Display Loki query result
+      debug:
+        var: loki_data
+
+    # ..................................................................................
+    - name: Get timestamp for 5 minutes ago
+      command: date -d '5 minutes ago' -u +'%Y-%m-%dT%H:%M:%SZ'
+      register: time_stamp
+      changed_when: false
+
+    - name: Check Loki data ingestion (multiple sources)
+      command: >
+        logcli --addr="http://localhost:3100" query 
+        '{job=~"loki.*|systemd-journal|alloy.*"}' 
+        --from="{{ time_stamp.stdout }}"
+        --limit=10
+      register: loki_data
+      failed_when: >
+        loki_data.rc != 0 or
+        loki_data.stdout | trim == ""
+      changed_when: false
+      retries: 3
+      delay: 10
+      until: loki_data is success
 
     # ..................................................................................
     # Gather detailed information for report
@@ -97,12 +216,12 @@
           === GitHub CI Test Results ===
           Timestamp: {{ ansible_date_time.iso8601 }}
 
-          === Verification Results ===
+          Service Status:
 
-          {{ logs_test_results }}
-
-          {{ metrics_test_results }}
-
+          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+          - Loki: {{ ansible_facts.services['loki.service'].state }}
+          - Alloy: {{ ansible_facts.services['alloy.service'].state }}
 
           Git Repository Status
 
@@ -138,6 +257,16 @@
         mode: "0644"
       delegate_to: localhost
 
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
+    # .......................................................................................
     # .......................................................................................
     # .......................................................................................
     # Gist and Wiki
