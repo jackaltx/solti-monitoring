@@ -161,7 +161,7 @@
 # ......................................................................
 - name: Set metrics test results fact
   ansible.builtin.set_fact:
-    logs_test_results: |
+    metrics_test_results: |
       === Monitor Stack Integration Test Results ===
       Timestamp: {{ ansible_date_time.iso8601 }}
 
