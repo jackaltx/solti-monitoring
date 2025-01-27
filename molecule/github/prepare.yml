@@ -156,6 +156,7 @@
     # TODO:  evaluate this as it seems overkill.
     #
     - name: Configure container for systemd
+      when: on_github == true
       block:
         - name: Create systemd directories
           file:

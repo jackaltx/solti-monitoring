@@ -3,7 +3,12 @@
   hosts: all
   gather_facts: true
 
+  vars:
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI') | default('local', true) }}"
+
   tasks:
+    #
+    # First confirm localhost information and directories
     # ..................................................................................
     - name: Connection information from localhost
       debug:
@@ -28,6 +33,11 @@
       become: false
 
     # ..................................................................
+    # Now work on the instance
+    #
+
+    # ..................................................................
+    # Ubuntu??   the works local, but not on github.
     - name: Ensure ansible temp directory exists with proper permissions
       become: true
       ansible.builtin.file:
@@ -76,7 +86,7 @@
     - name: Prepare debug information
       debug:
         msg:
-          - "Running in {{ lookup('env', 'IS_CI') | default('local', true) }} environment"
+          - "GithubCi: {{ on_github }}"
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
@@ -141,6 +151,43 @@
           delay: 10
           until: pkg_install is success
           become: true
+
+    # ..................................................................
+    # TODO:  evaluate this as it seems overkill.
+    #
+    - name: Configure container for systemd
+      when: on_github == true
+      block:
+        - name: Create systemd directories
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+            - /run/systemd
+            - /run/dbus
+            - /var/run/dbus
+
+        - name: Initialize D-Bus machine id
+          copy:
+            content: ""
+            dest: /etc/machine-id
+            force: no
+            mode: "0444"
+
+        - name: Initialize D-Bus system socket
+          copy:
+            content: ""
+            dest: /var/run/dbus/system_bus_socket
+            force: no
+            mode: "0755"
+
+        - name: Configure systemd by distribution
+          include_tasks: "systemd-{{ ansible_os_family }}.yml"
+
+        - name: Wait for dbus socket
+          wait_for:
+            path: /var/run/dbus/system_bus_socket
+            timeout: 30
 
     # ..................................................................................
     # Test systemd functionality
