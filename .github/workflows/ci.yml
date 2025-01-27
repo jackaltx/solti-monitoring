@@ -138,7 +138,10 @@ jobs:
       - name: Save failed containers
         if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
         run: |
-          for os in rocky debian ubuntu; do
+          echo "=== Currently running podman containers ==="
+          podman ps -a
+
+          for os in uut-ct0 uut-ct1 uut-ct2 ; do
             CONTAINER_ID=$(docker ps -a | grep $os | awk '{print $1}')
             if [ -n "$CONTAINER_ID" ]; then
               echo "Saving $os container: $CONTAINER_ID"
@@ -153,7 +156,7 @@ jobs:
         with:
           name: debug-containers
           path: |
-            debian-debug.tar
+            uut-ct0-debug.tar
             
           # rocky-debug.tar
           # ubuntu-debug.tar
