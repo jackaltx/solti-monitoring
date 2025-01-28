@@ -6,6 +6,7 @@
     # Only check container and network health
     check_services: false
     molecule_nolog: true
+    verify_timestamp: "{{ ansible_date_time.iso8601 }}"
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
@@ -45,3 +46,22 @@
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
+
+    # .......................................................................
+    - name: Create verification status map
+      set_fact:
+        verification_status: >-
+          {{
+            verification_status | default({}) | combine(
+              { capability: hostvars[inventory_hostname][capability + '_verify_failed'] | default(false) }
+            )
+          }}
+      loop: "{{ testing_capabilities }}"
+      loop_control:
+        loop_var: capability
+
+    # .......................................................................
+    - name: Final verification check
+      fail:
+        msg: "Verifications failed: {{ verification_status | dict2items | selectattr('value', 'true') | map(attribute='key') | list | join(', ') }}"
+      when: verification_status.values() | list | select('true') | list | length > 0

@@ -5,6 +5,8 @@
   vars:
     # Only check container and network health
     check_services: false
+    molecule_nolog: true
+    verify_timestamp: "{{ ansible_date_time.iso8601 }}"
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
@@ -44,8 +46,44 @@
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
+      register: verify_results
+      ignore_errors: true
 
-    # github ONLy AREA
+    # .......................................................................
+    - name: Record overall verification status
+      when: verify_results.results | map(attribute='failed') | select('true') | list | length > 0
+      delegate_to: localhost
+      copy:
+        content: |
+          verify_result: {{ 'failed' if (verify_results.results | map(attribute='failed') | select('true') | list | length > 0) else 'passed' }}
+          capabilities_status:
+            {% for result in verify_results.results %}
+            {{ result.item }}:
+              status: {{ 'failed' if result.failed else 'passed' }}
+              included_file: {{ result.include_args.file }}
+            {% endfor %}
+          distribution: {{ ansible_distribution | lower }}
+          timestamp: influxdb_service_check
+        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-summary.yml"
+        mode: "0644"
+
+    # .......................................................................
+    - name: Final verification status
+      fail:
+        msg: "One or more capability verifications failed. Check verify-summary.yml for details."
+      when: verify_results.results | map(attribute='failed') | select('true') | list | length > 0
+
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+    # ..................................................................................
+
+    # Github - this will be moved next interation
 
     # ..................................................................................
     # Gather detailed information for report
@@ -96,7 +134,7 @@
       copy:
         content: |
           === GitHub CI Test Results ===
-          Timestamp: {{ ansible_date_time.iso8601 }}
+          Timestamp: influxdb_service_check
 
           === Verification Results ===
 
@@ -140,7 +178,7 @@
     # - name: Create common status data structure
     #   set_fact:
     #     status_data:
-    #       timestamp: "{{ ansible_date_time.iso8601 }}"
+    #       timestamp: "influxdb_service_check"
     #       environment:
     #         os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
     #         kernel: "{{ ansible_kernel }}"
@@ -365,7 +403,7 @@
     #       copy:
     #         content: |
     #           === Wiki Update Failure ===
-    #           Time: {{ ansible_date_time.iso8601 }}
+    #           Time: influxdb_service_check
     #           Error: {{ wiki_update.stderr if wiki_update.stderr is defined else 'Unknown error' }}
     #           Output: {{ wiki_update.stdout if wiki_update.stdout is defined else 'No output' }}
     #         dest: "{{ report_root }}/{{ ansible_distribution | lower }}/wiki_update_failure.log"
