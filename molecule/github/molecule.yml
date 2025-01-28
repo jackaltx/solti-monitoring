@@ -72,7 +72,7 @@ provisioner:
   playbooks:
     prepare: "../shared/podman/prepare.yml"
     converge: "../shared/podman/converge.yml"
-    verify: "../podman/verify.yml"
+    verify: "../shared/verify/main.yml"
   inventory:
     group_vars:
       all:
