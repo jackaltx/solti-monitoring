@@ -113,6 +113,7 @@
               status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
 
         # ..................................................................................
+
         - name: Create common status data structure
           set_fact:
             status_data:
@@ -125,6 +126,22 @@
                 branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
                 commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
                 status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+              services:
+                influxdb:
+                  state: "{{ ansible_facts.services['influxdb.service'].state }}"
+                  port: 8086
+                telegraf:
+                  state: "{{ ansible_facts.services['telegraf.service'].state }}"
+                  port: null
+                loki:
+                  state: "{{ ansible_facts.services['loki.service'].state }}"
+                  port: 3100
+                alloy:
+                  state: "{{ ansible_facts.services['alloy.service'].state }}"
+                  port: null
+              data_ingestion:
+                influxdb: "{{ metrics_test_results | default('No data') }}"
+                loki: "{{ logs_test_results | default('No data') }}"
               logs: "{{ service_logs.results }}"
               processes: "{{ process_info.results }}"
 
