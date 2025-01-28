@@ -68,5 +68,5 @@
 
     # .......................................................................
     - name: Run Gitlab CI only tasks
-      when: not github
+      when: on_github
       ansible.builtin.include_tasks: "verify-github.yml"
