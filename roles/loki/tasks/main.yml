@@ -6,6 +6,7 @@
 
 - name: Install Loki Package
   when: loki_state == 'present'
+  become: true
   block:
     - name: Is loki running?
       ansible.builtin.include_tasks:
@@ -26,7 +27,6 @@
     # Configure
 
     - name: Template config to  /etc/loki/config.yml
-      become: true
       ansible.builtin.template:
         src: config.yml.j2
         dest: /etc/loki/config.yml
@@ -89,6 +89,7 @@
 #
 - name: Remove Loki Service
   when: loki_state == 'absent'
+  become: true
   block:
     # .................................................................
     - name: Package remove
@@ -103,7 +104,6 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
-      become: true
       loop:
         - /etc/loki
         - /etc/default/loki
@@ -114,5 +114,4 @@
       ansible.builtin.file:
         path: "/var/lib/loki/*"
         state: absent
-      become: true
       when: loki_delete_data

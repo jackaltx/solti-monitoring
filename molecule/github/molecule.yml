@@ -10,10 +10,16 @@ driver:
   options:
     managed: true
 
+# these are the customized instances build by my test_containers repos.
+# These should have a running systemd, prepared ssh, with enough tooling
+# to get status.
+#
+# - I did not create the base image, only added layers.
+#
 platforms:
   - name: "uut-ct0"
     image: "ghcr.io/jackaltx/testing-containers/debian12-ssh:latest"
-    network: monitoring-net"
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -24,31 +30,33 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  - name: "uut-ct1"
-    image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
-    network: monitoring-net
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2222
-    ssh_user: "jackaltx"
-    connection: ssh
+  # - name: "uut-ct1"
+  #   image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
+  #   network: "monitoring-net"
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2222
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
-  - name: "uut-ct2"
-    image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
-    network: monitoring-net
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2224
-    ssh_user: "jackaltx"
-    connection: ssh
+  # ubuntu image is a problem on github, not locally on my Fedora development machine.
+
+  # - name: "uut-ct2"
+  #   image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
+  #   network: monitoring-net
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2224
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
 provisioner:
   name: ansible
@@ -62,7 +70,9 @@ provisioner:
       remote_tmp: /tmp/ansible-tmp
       local_tmp: /tmp/ansible-tmp
   playbooks:
-    prepare: prepare.yml
+    prepare: "../shared/podman/prepare.yml"
+    converge: "../shared/podman/converge.yml"
+    verify: "../shared/verify/main.yml"
   inventory:
     group_vars:
       all:
@@ -71,7 +81,7 @@ provisioner:
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
 
-        # this is temporary, used in new shared converge
+        # TODO: This concept will expand as we add different configurations.
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
 
         # metrics
@@ -93,15 +103,6 @@ provisioner:
         # logs
         loki_local_storage: true
         alloy_loki_endpoint: "127.0.0.1"
-
-    # host_vars:
-    #   debian-instance:
-    #     ansible_connection: docker
-    #     ansible_user: root
-
-    #   rocky-instance:
-    #     ansible_connection: docker
-    #     ansible_user: root
 
 scenario:
   name: github

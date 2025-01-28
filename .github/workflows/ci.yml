@@ -25,23 +25,35 @@ on:
         required: true
         default: '*'
 
+
+# ...............................................................
+#  SMELL I have not had much luck with vars in here.  revisit it later.
+#      
 env:
   DEBUG_MODE: save   # OR none OR interactive
   MOLECULE_NO_LOG: false
   PY_COLORS: 1
   ANSIBLE_FORCE_COLOR: 1
 
+# ...............................................................
+# this where github-ci gets it's "steps"
+# things to know
+# - env vars is how you pass information into the molecule.  
+# - use playbooks to pass those into the ansible tasks/roles/modules
+# - There is a test matrix capability, but allowing molecule 
+#     to build the tests works better
+# - the stage playbooks apply to all works, but it's far from elegant
+# - You can put env vars in a step,  note that I do that for the molecule
+#     
+#
 jobs:
   molecule:
     name: Molecule
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
-      # matrix:
-      #   distro:
-      #     - debian12
-      #     # - rocky9
-      #     # - ubuntu24
+    env:
+      DEBUG_MODE: save
 
     steps:
       - name: Check out code
@@ -62,8 +74,9 @@ jobs:
       - name: Pull Docker images
         run: |
           docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+
+        # docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+        # docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
       - name: Create required directories
@@ -84,58 +97,87 @@ jobs:
             docker \
             jmespath
 
+      # ......................................................................
+      - name: Debug GitHub context
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Repo: ${{ github.repository }}"
+          echo "Workspace: ${{ github.workspace }}"
+
       # .......................................................................
-      # TODO: does it make sense to read the local requirements?  
+      # TODO: This feels wrong....it works.  
+      # I would it make sense to read the local project requirements? 
+      # I need to understand how that works locally as a developers machine is
+      # rarely a good test of an integration
+      # 
       - name: Install galaxy requirements
         run: |
           ansible-galaxy collection install community.general
 
       # .......................................................................
+      # TODO:  move the wiki update logit a run step
+      # this is a github only action.  I want to create a "wiki page" and a "notice" where required
       - name: Run Molecule tests with wiki update
         run: molecule test -s github
         continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
+          IN_GITHUB_CI: true
           LOG_DURATION: "5m"
           GITHUB_WORKSPACE: ${{ github.workspace }}/main
           MOLECULE_DISTRO: ${{ matrix.distro }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
 
-      #######################################################################
-      # Debugging steps
-
       # ......................................................................
       # Save container artifact approach
-      - name: Save failed container
-        if: |
-          failure() && 
-          env.DEBUG_MODE == 'save'
+      # SMELL TODO  make this generic
+      # SMELL this this is two if's that should be a block. ;(
+      # 
+      - name: Save failed containers
+        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
         run: |
-          CONTAINER_ID=$(docker ps -a | grep rocky | awk '{print $1}')
-          echo "Container ID: $CONTAINER_ID"
-          docker commit $CONTAINER_ID debug-rocky-container
-          docker save debug-rocky-container > rocky-debug.tar
+          echo "=== Currently running podman containers ==="
+          podman ps -a
 
-      - name: Upload failed container artifact
-        if: |
-          failure() && 
-          env.DEBUG_MODE == 'save'
+          for os in uut-ct0 uut-ct1 uut-ct2 ; do
+            CONTAINER_ID=$(docker ps -a | grep $os | awk '{print $1}')
+            if [ -n "$CONTAINER_ID" ]; then
+              echo "Saving $os container: $CONTAINER_ID"
+              docker commit $CONTAINER_ID debug-$os-container
+              docker save debug-$os-container > $os-debug.tar
+            fi
+          done
+    
+      - name: Upload failed container artifacts
+        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
         uses: actions/upload-artifact@v4
         with:
-          name: rocky-debug-container
-          path: rocky-debug.tar
+          name: debug-containers
+          path: |
+            uut-ct0-debug.tar
+            
+          # rocky-debug.tar
+          # ubuntu-debug.tar
 
       # ......................................................................
-      # Interactive debugging approach
-      - name: Interactive Debug Session
-        if: |
-          failure() && 
-          env.DEBUG_MODE == 'interactive'
-        uses: mxschmitt/action-tmate@v3
+      #  This will block the rest if there are no artifacts!
+      #  If molecule fails, then it is possible to have no artifacts
+      #
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          limit-access-to-actor: true
-
+          name: monitoring-test-results
+          path: verify_output
+          if-no-files-found: error
+  
+      # SMELL only if we passed?????
       #
       #######################################################################
+      #
+      #... Reporting stuff,  wiki and gist and discord and ....
 
       # .......................................................................
       # Optional: Comment on PR with status URL
@@ -152,14 +194,6 @@ jobs:
       #         repo: context.repo.repo,
       #         body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
       #       });
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: monitoring-test-results
-          path: verify_output
-          if-no-files-found: error
 
       # Only run wiki update on push to main/master
       - name: Configure wiki git
