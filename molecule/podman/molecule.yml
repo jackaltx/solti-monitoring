@@ -111,7 +111,7 @@ scenario:
     - create
     - prepare
     - converge
-    # - idempotence
+    - idempotence
     - verify
     - destroy
 

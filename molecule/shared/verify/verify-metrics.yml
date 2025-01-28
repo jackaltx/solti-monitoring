@@ -249,5 +249,5 @@
       capability: metrics
       distribution: {{ ansible_distribution | lower }}
       timestamp: {{ verify_timestamp }}
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-metrics-status.yml"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-metrics-status-{{ ansible_date_time.epoch }}.yml"
     mode: "0644"
