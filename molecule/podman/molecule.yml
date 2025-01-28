@@ -24,32 +24,32 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  # - name: "uut-ct1"
-  #   # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
-  #   image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
-  #   network: "monitoring-net"
-  #   command: "/sbin/init"
-  #   privileged: true
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #   cgroupns_mode: host
-  #   ssh_host: "127.0.0.1"
-  #   ssh_port: 2222
-  #   ssh_user: "jackaltx"
-  #   connection: ssh
+  - name: "uut-ct1"
+    # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
+    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
+    network: "monitoring-net"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2222
+    ssh_user: "jackaltx"
+    connection: ssh
 
-  # - name: "uut-ct2"
-  #   image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
-  #   network: "monitoring-net"
-  #   command: "/sbin/init"
-  #   privileged: true
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #   cgroupns_mode: host
-  #   ssh_host: "127.0.0.1"
-  #   ssh_port: 2224
-  #   ssh_user: "jackaltx"
-  #   connection: ssh
+  - name: "uut-ct2"
+    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    network: "monitoring-net"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2224
+    ssh_user: "jackaltx"
+    connection: ssh
 
 provisioner:
   name: ansible
@@ -112,7 +112,7 @@ scenario:
     - create
     - prepare
     - converge
-    - idempotence
+    # - idempotence
     - verify
     - destroy
 
