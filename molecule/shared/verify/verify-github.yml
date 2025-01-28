@@ -80,7 +80,7 @@
   ansible.builtin.copy:
     content: |
       === GitHub CI Test Results ===
-      Timestamp: {{ ansible_date_time }}
+      Timestamp: {{ status_data.timestamp | strftime('%Y-%m-%d %H:%M %Z') }}
 
       Git Repository Status
 
@@ -112,7 +112,7 @@
   ansible.builtin.copy:
     content: |
       # Monitoring Stack Status Report
-      **Run Date:** {{ status_data.timestamp }}
+      **Run Date:** {{ status_data.timestamp | strftime('%Y-%m-%d %H:%M %Z') }}
 
       ## Environment
       - OS: {{ status_data.environment.os }}
