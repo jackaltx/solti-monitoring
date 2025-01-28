@@ -203,25 +203,6 @@
               | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
               {% endfor %}
 
-              ## Data Ingestion
-              ### InfluxDB Metrics
-              ```
-              {{ status_data.data_ingestion.influxdb | trim | indent(2) }}
-              ```
-
-              ### Loki Logs
-              ```
-              {{ status_data.data_ingestion.loki | trim | indent(2) }}
-              ```
-
-              ## Service Logs
-              {% for item in status_data.logs %}
-              ### {{ item.item | upper }}
-              {% for line in (item.stdout_lines[-5:] | default([])) %}
-              - {{ line }}
-              {% endfor %}
-
-              {% endfor %}
             dest: "{{ report_root }}/gist_content.md"
             mode: "0644"
           delegate_to: localhost
@@ -270,6 +251,6 @@
               </details>
 
               {% endfor %}
-            dest: "{{ report_root }}/wiki-content.txt"
+            dest: "{{ report_root }}/wiki-content.md"
             mode: "0644"
           delegate_to: localhost
