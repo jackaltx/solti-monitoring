@@ -1,16 +1,15 @@
 ---
 # .....................................................................
 # Service readiness checks
-- name: Wait for services to fully initialize
+#
+- name: Wait for Loki port
   wait_for:
-    port: "{{ item.port }}"
+    port: 3100
     timeout: 30
     state: started
-  loop:
-    - { port: 3100, name: "Loki" } # Loki
-    # - { port: 8086, name: "InfluxDB" } # InfluxDB if present
+  register: service_ports_check
+  ignore_errors: true
 
-# ..................................................................
 - name: Verify Loki is running
   ansible.builtin.service_facts:
 
@@ -20,6 +19,8 @@
       - "'loki.service' in ansible_facts.services"
       - "ansible_facts.services['loki.service'].state == 'running'"
       - "ansible_facts.services['loki.service'].status == 'enabled'"
+  register: loki_service_check
+  ignore_errors: true
 
 - name: Verify Alloy is running
   ansible.builtin.assert:
@@ -27,14 +28,12 @@
       - "'alloy.service' in ansible_facts.services"
       - "ansible_facts.services['alloy.service'].state == 'running'"
       - "ansible_facts.services['alloy.service'].status == 'enabled'"
+  register: alloy_service_check
+  ignore_errors: true
 
 # ......................................................................................
-- name: Check Loki port
-  ansible.builtin.wait_for:
-    port: 3100
-    timeout: 30
-    state: started
-
+# Alloy tests
+#
 - name: Wait for Alloy to establish connection
   command: ss -tpn '( dst :3100 )'
   register: ss_output
@@ -56,6 +55,8 @@
   changed_when: false
 
 # ......................................................................................
+# Loki connection tests
+#
 - name: Check Loki health endpoints
   uri:
     url: "http://localhost:3100/{{ item }}"
@@ -66,7 +67,6 @@
     # - ready
     - metrics
 
-# ................................................................................................
 - name: Query recent Loki logs for Alloy
   uri:
     url: 'http://localhost:3100/loki/api/v1/query_range?query={job="loki.source.journal.read"}&limit=10&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000'
@@ -96,7 +96,9 @@
       Alloy process verification failed:
       {{ lsof_output.stdout }}
 
-# ......................................................................................
+# ......................................................................
+# Fetch the logs
+#
 - name: Check Alloy logs for successful writes
   ansible.builtin.command: journalctl -u alloy --since "5 minute ago" -n 50 --no-pager
   register: alloy_logs
@@ -174,7 +176,7 @@
   ansible.builtin.set_fact:
     logs_test_results: |
       === Monitor Stack Integration Test Results ===
-      Timestamp: {{ ansible_date_time.iso8601 }}
+      Timestamp: {{ verify_timestamp }}
 
       Service Versions:
       - Loki: {{ loki_version.stdout }}
@@ -221,3 +223,30 @@
     dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}.yml"
     mode: "0644"
   delegate_to: localhost
+
+# .......................................................................
+- name: Set verify result fact
+  set_fact:
+    logs_verify_failed: >-
+      {{ 
+        (service_ports_check.failed | default(false)) or 
+        (loki_service_check.failed | default(false)) or 
+        (alloy_service_check.failed | default(false))
+      }}
+
+- name: Record logs verification failed status
+  become: false
+  when: logs_verify_failed | bool
+  delegate_to: localhost
+  ansible.builtin.copy:
+    content: |
+      verify_result: {{ 'failed' if logs_verify_failed else 'passed' }}
+      failed_asserts:
+        service_ports: {{ service_ports_check | to_json }}
+        loki_service: {{ loki_service_check | to_json }}
+        alloy_service: {{ alloy_service_check | to_json }}
+      capability: logs
+      distribution: {{ ansible_distribution | lower }}
+      timestamp: {{ verify_timestamp }}
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-logs-status.yml"
+    mode: "0644"
