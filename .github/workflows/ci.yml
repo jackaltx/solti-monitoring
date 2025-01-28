@@ -169,7 +169,7 @@ jobs:
           
           # First handle individual distribution gists
           for distro in verify_output/*/; do
-            if [ -f "${distro}/gist_content.md" ]; then
+            if [ -f "${distro}/gist-content.md" ]; then
               distro_name=$(basename $distro)
               echo "Processing ${distro_name} results..."
               
@@ -180,10 +180,10 @@ jobs:
                 echo "- Branch: ${{ github.ref_name }}"
                 echo "- Commit: ${{ github.sha }}"
                 echo "- Triggered by: ${{ github.event_name }}"
-              } >> "${distro}/gist_content.md"
+              } >> "${distro}/gist-content.md"
               
               # Create/update gist for this distro
-              if ! gh gist create "${distro}/gist_content.md" \
+              if ! gh gist create "${distro}/gist-content.md" \
                 --public \
                 --desc "Test Results for ${distro_name} (${GITHUB_SHA:0:7})"; then
                 echo "Failed to create gist for ${distro_name}"
@@ -207,14 +207,14 @@ jobs:
             for d in verify_output/*/; do
               distro_name=$(basename $d)
               echo -n "- ${distro_name}: "
-              if [ -f "${d}/gist_content.md" ] && [ -f "${d}/wiki_content.md" ]; then
+              if [ -f "${d}/gist-content.md" ] && [ -f "${d}/wiki-content.md" ]; then
                 echo "✅"
                 echo "  - Gist Content: ✓"
                 echo "  - Wiki Content: ✓"
               else
                 echo "❌"
-                [ -f "${d}/gist_content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
-                [ -f "${d}/wiki_content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
+                [ -f "${d}/gist-content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
+                [ -f "${d}/wiki-content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
               fi
             done
             
