@@ -16,7 +16,7 @@
     # .......................................................................
     - name: Run container diagnostics
       include_tasks:
-        file: "../shared/diagnostics/tasks/main.yml"
+        file: "../shared/diagnostics/main.yml"
       vars:
         report_suffix: "pre-verify"
 

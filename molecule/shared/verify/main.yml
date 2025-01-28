@@ -35,13 +35,13 @@
     # .......................................................................
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
       vars:
         report_suffix: "pre-verify"
 
     # .......................................................................
     - name: Run capability-specific verifications
-      include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
+      include_tasks: "verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
       loop_control:
         loop_var: capability
@@ -66,11 +66,26 @@
         msg: "Verifications failed: {{ verification_status | dict2items | selectattr('value', 'true') | map(attribute='key') | list | join(', ') }}"
       when: verification_status.values() | list | select('true') | list | length > 0
 
-    # .......................................................................
+    # =======================================================================
     # Github Only
     - name: Github CI block
       when: on_github
       block:
+        - name: Create common status data structure
+          set_fact:
+            status_data:
+              timestamp: "{{ ansible_date_time }}"
+              environment:
+                os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+                kernel: "{{ ansible_kernel }}"
+                python: "{{ ansible_python_version }}"
+              git:
+                branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+                commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+                status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+              logs: "{{ service_logs.results }}"
+              processes: "{{ process_info.results }}"
+
         - name: Collect process information
           shell: "lsof -p $(pidof {{ item }})"
           register: process_info
@@ -117,7 +132,7 @@
           ansible.builtin.copy:
             content: |
               === GitHub CI Test Results ===
-              Timestamp: influxdb_service_check
+              Timestamp: {{ ansible_date_time }}
 
               Git Repository Status
 

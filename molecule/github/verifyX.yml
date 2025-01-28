@@ -35,7 +35,7 @@
     # .......................................................................
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
       vars:
         report_suffix: "pre-verify"
 
