@@ -131,7 +131,7 @@
       | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
       {% endfor %}
 
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/gist_content.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/gist-content.md"
     mode: "0644"
   delegate_to: localhost
 
