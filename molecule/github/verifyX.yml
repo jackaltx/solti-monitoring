@@ -32,46 +32,39 @@
           - "Distribution: {{ ansible_distribution }}"
           - "Testing capability: {{ testing_capabilities }}"
 
-    # .....................................................................
+    # .......................................................................
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
         file: "{{ project_root }}/molecule/shared/diagnostics/tasks/main.yml"
       vars:
         report_suffix: "pre-verify"
 
-    # .......................................................................
+      # .......................................................................
     - name: Run capability-specific verifications
       include_tasks: "{{ project_root }}/molecule/shared/verify/verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
-      register: verify_results
-      ignore_errors: true
 
     # .......................................................................
-    - name: Record overall verification status
-      when: verify_results.results | map(attribute='failed') | select('true') | list | length > 0
-      delegate_to: localhost
-      copy:
-        content: |
-          verify_result: {{ 'failed' if (verify_results.results | map(attribute='failed') | select('true') | list | length > 0) else 'passed' }}
-          capabilities_status:
-            {% for result in verify_results.results %}
-            {{ result.item }}:
-              status: {{ 'failed' if result.failed else 'passed' }}
-              included_file: {{ result.include_args.file }}
-            {% endfor %}
-          distribution: {{ ansible_distribution | lower }}
-          timestamp: influxdb_service_check
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-summary.yml"
-        mode: "0644"
+    - name: Create verification status map
+      set_fact:
+        verification_status: >-
+          {{
+            verification_status | default({}) | combine(
+              { capability: hostvars[inventory_hostname][capability + '_verify_failed'] | default(false) }
+            )
+          }}
+      loop: "{{ testing_capabilities }}"
+      loop_control:
+        loop_var: capability
 
     # .......................................................................
-    - name: Final verification status
+    - name: Final verification check
       fail:
-        msg: "One or more capability verifications failed. Check verify-summary.yml for details."
-      when: verify_results.results | map(attribute='failed') | select('true') | list | length > 0
+        msg: "Verifications failed: {{ verification_status | dict2items | selectattr('value', 'true') | map(attribute='key') | list | join(', ') }}"
+      when: verification_status.values() | list | select('true') | list | length > 0
 
     # ..................................................................................
     # ..................................................................................
