@@ -45,7 +45,7 @@
 - name: Create common status data structure
   set_fact:
     status_data:
-      timestamp: "{{ ansible_date_time }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
       environment:
         os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
         kernel: "{{ ansible_kernel }}"
@@ -80,7 +80,7 @@
   ansible.builtin.copy:
     content: |
       === GitHub CI Test Results ===
-      Timestamp: {{ status_data.timestamp | strftime('%Y-%m-%d %H:%M %Z') }}
+      Timestamp: {{ status_data.timestamp }}
 
       Git Repository Status
 
@@ -112,7 +112,7 @@
   ansible.builtin.copy:
     content: |
       # Monitoring Stack Status Report
-      **Run Date:** {{ status_data.timestamp | strftime('%Y-%m-%d %H:%M %Z') }}
+      **Run Date:** {{ status_data.timestamp }}
 
       ## Environment
       - OS: {{ status_data.environment.os }}
