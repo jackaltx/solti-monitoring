@@ -235,10 +235,6 @@
         (telegraf_service_check.failed | default(false))
       }}
 
-- name: Force verify result to fail
-  set_fact:
-    metrics_verify_failed: true
-
 - name: Record metrics verification failed status
   become: false
   when: metrics_verify_failed | bool
