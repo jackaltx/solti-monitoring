@@ -88,25 +88,34 @@ export MOLECULE_TEST_NAME="$TEST_NAME"
 } | tee "$LOG_FILE"
 
 # Run the tests and capture output
+# Using a temporary file to capture the exit code
+TEMP_OUTPUT=$(mktemp)
 {
     molecule test -s podman 2>&1
-    TEST_EXIT_CODE=$?
-    
+    echo $? > "$TEMP_OUTPUT"
+} | tee -a "$LOG_FILE"
+
+# Read the exit code
+TEST_EXIT_CODE=$(cat "$TEMP_OUTPUT")
+rm -f "$TEMP_OUTPUT"
+
+# Append test summary to log
+{
     echo
     echo "=== Test Summary ==="
     echo "Completed at: $(date)"
-    if [ $TEST_EXIT_CODE -eq 0 ]; then
+    if [ "$TEST_EXIT_CODE" -eq 0 ]; then
         echo "Status: SUCCESS"
     else
-        echo "Status: FAILED (exit code: $TEST_EXIT_CODE)"
+        echo "Status: FAILED - Exit code $TEST_EXIT_CODE"
     fi
 } | tee -a "$LOG_FILE"
 
 # Create a symlink to latest log
 ln -sf "${LOG_FILE}" "${OUTPUT_DIR}/latest_test.out"
 
-# Check exit status
-if [ $TEST_EXIT_CODE -eq 0 ]; then
+# Exit with the correct status
+if [ "$TEST_EXIT_CODE" -eq 0 ]; then
     echo "Tests completed successfully. Log saved to $LOG_FILE"
     exit 0
 else

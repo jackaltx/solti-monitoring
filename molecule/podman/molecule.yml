@@ -13,7 +13,7 @@ driver:
 platforms:
   - name: "uut-ct0"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest"
-    network: monitoring-net
+    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -24,44 +24,42 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  - name: "uut-ct1"
-    # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
-    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
-    network: monitoring-net
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2222
-    ssh_user: "jackaltx"
-    connection: ssh
+  # - name: "uut-ct1"
+  #   # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
+  #   image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
+  #   network: "monitoring-net"
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2222
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
-  - name: "uut-ct2"
-    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
-    network: monitoring-net
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2224
-    ssh_user: "jackaltx"
-    connection: ssh
+  # - name: "uut-ct2"
+  #   image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
+  #   network: "monitoring-net"
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2224
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
 provisioner:
   name: ansible
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-  # playbooks:
-  #   create: "../../molecule/shared/podman/create.yml"
-  #   prepare: "../../molecule/shared/podman/prepare.yml"
-  #   converge: "../../molecule/shared/podman/converge.yml"
-  #   verify: "../../molecule/shared/podman/verify.yml"
-  #   destroy: "../../molecule/shared/podman/destroy.yml"
+  playbooks:
+    prepare: "../shared/podman/prepare.yml"
+    converge: "../shared/podman/converge.yml"
+    verify: "../shared/verify/main.yml"
   config_options:
     defaults:
       roles_path: roles
@@ -98,7 +96,7 @@ provisioner:
                 "token": "",
                 "bucket": "telegraf",
                 "org": "lavnet",
-                "namedrop": '["influxdb_oss"]',
+                "namedrop": ["influxdb_oss"],
                 "bucket_tag": "",
                 "exclude_bucket_tag": "",
                 "ping_timeout": "0s",
