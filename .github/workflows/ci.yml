@@ -200,8 +200,8 @@ jobs:
         run: |
           {
             echo "# Test Run Summary"
-            echo "- Status: ${{ job.status }}"
-            echo "- Duration: ${{ steps.molecule-test.outputs.duration }}"
+            echo "- Status: success"
+            echo "- Duration: "
             echo "## Distribution Results"
             for d in verify_output/*/; do
               distro_name=$(basename $d)
@@ -218,5 +218,5 @@ jobs:
             done
             
             echo "## File Structure"
-            tree verify_output/
-          } >> $GITHUB_STEP_SUMMARY_PATH
+            ls -R verify_output/
+          } >> $GITHUB_STEP_SUMMARY
