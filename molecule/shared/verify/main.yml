@@ -71,21 +71,7 @@
     - name: Github CI block
       when: on_github
       block:
-        - name: Create common status data structure
-          set_fact:
-            status_data:
-              timestamp: "{{ ansible_date_time }}"
-              environment:
-                os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
-                kernel: "{{ ansible_kernel }}"
-                python: "{{ ansible_python_version }}"
-              git:
-                branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
-                commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
-                status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
-              logs: "{{ service_logs.results }}"
-              processes: "{{ process_info.results }}"
-
+        # ..................................................................................
         - name: Collect process information
           shell: "lsof -p $(pidof {{ item }})"
           register: process_info
@@ -96,6 +82,7 @@
             - alloy
           changed_when: false
 
+        # ..................................................................................
         - name: Filter lsof output
           no_log: true
           when: process_info is defined
@@ -124,6 +111,22 @@
               branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
               commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
               status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+
+        # ..................................................................................
+        - name: Create common status data structure
+          set_fact:
+            status_data:
+              timestamp: "{{ ansible_date_time }}"
+              environment:
+                os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+                kernel: "{{ ansible_kernel }}"
+                python: "{{ ansible_python_version }}"
+              git:
+                branch: "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}"
+                commit: "{{ lookup('pipe', 'git rev-parse HEAD') }}"
+                status: "{{ lookup('pipe', 'git status --porcelain') | default('clean', true) }}"
+              logs: "{{ service_logs.results }}"
+              processes: "{{ process_info.results }}"
 
         # ..................................................................................
         #  Save as text file
