@@ -146,6 +146,7 @@ jobs:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
 
       # .......................................................................
+      # .......................................................................
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -155,6 +156,8 @@ jobs:
           retention-days: 5  # Limit storage usage
           if-no-files-found: warn
 
+ 
+      # .......................................................................
       # .......................................................................
       - name: Aggregate and publish results
         if: always()  # Run even if molecule tests fail
@@ -190,6 +193,8 @@ jobs:
             fi
           done
 
+      # --------------------------------------------------------------------------------------------
+      # --------------------------------------------------------------------------------------------
       - name: Create job summary
         if: always()
         run: |
@@ -199,7 +204,19 @@ jobs:
             echo "- Duration: ${{ steps.molecule-test.outputs.duration }}"
             echo "## Distribution Results"
             for d in verify_output/*/; do
-              [ -f "${d}/results.yml" ] && echo "- $(basename $d): ✅" || echo "- $(basename $d): ❌"
+              distro_name=$(basename $d)
+              echo -n "- ${distro_name}: "
+              if [ -f "${d}/gist_content.md" ] && [ -f "${d}/wiki_content.md" ]; then
+                echo "✅"
+                echo "  - Gist Content: ✓"
+                echo "  - Wiki Content: ✓"
+              else
+                echo "❌"
+                [ -f "${d}/gist_content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
+                [ -f "${d}/wiki_content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
+              fi
             done
-          } >> $GITHUB_STEP_SUMMARY
-
+            
+            echo "## File Structure"
+            tree verify_output/
+          } >> $GITHUB_STEP_SUMMARY_PATH
