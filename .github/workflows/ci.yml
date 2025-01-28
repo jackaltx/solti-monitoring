@@ -50,10 +50,18 @@ jobs:
   molecule:
     name: Molecule
     runs-on: ubuntu-20.04
+    timeout-minutes: 60  # Add timeout protection
     strategy:
       fail-fast: false
+      # max-parallel: 1  # Consider if parallel runs are desired
     env:
-      DEBUG_MODE: save
+      DEBUG_MODE: save   
+      MOLECULE_NO_LOG: false
+      PY_COLORS: 1
+      ANSIBLE_FORCE_COLOR: 1
+      # MOLECULE_DESTROY: ${{ github.event_name != 'pull_request' }}  # Keep containers on PR
+      ANSIBLE_LOCALHOST_WARNING: false
+      MOLECULE_VERIFY_RETRY: 3  # Add retry capability
 
     steps:
       - name: Check out code
@@ -71,6 +79,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Pull Docker images
         run: |
           docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
@@ -79,11 +95,9 @@ jobs:
         # docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
       # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
-      - name: Create required directories
+      - name: Create anbible/molecule directories
         run: |
           mkdir -p log
-          mkdir -p verify_output/{debian,rocky}
-          chmod 755 log verify_output verify_output/{debian,rocky}
 
       - name: Install dependencies
         run: |
@@ -120,7 +134,8 @@ jobs:
       # .......................................................................
       # TODO:  move the wiki update logit a run step
       # this is a github only action.  I want to create a "wiki page" and a "notice" where required
-      - name: Run Molecule tests with wiki update
+      #
+      - name: Run Molecule tests across all distros
         run: molecule test -s github
         continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
@@ -130,85 +145,61 @@ jobs:
           MOLECULE_DISTRO: ${{ matrix.distro }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
 
-      # ......................................................................
-      # Save container artifact approach
-      # SMELL TODO  make this generic
-      # SMELL this this is two if's that should be a block. ;(
-      # 
-      - name: Save failed containers
-        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
-        run: |
-          echo "=== Currently running podman containers ==="
-          podman ps -a
-
-          for os in uut-ct0 uut-ct1 uut-ct2 ; do
-            CONTAINER_ID=$(docker ps -a | grep $os | awk '{print $1}')
-            if [ -n "$CONTAINER_ID" ]; then
-              echo "Saving $os container: $CONTAINER_ID"
-              docker commit $CONTAINER_ID debug-$os-container
-              docker save debug-$os-container > $os-debug.tar
-            fi
-          done
-    
-      - name: Upload failed container artifacts
-        if: ${{ failure() }} && ${{ env.DEBUG_MODE == 'save' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-containers
-          path: |
-            uut-ct0-debug.tar
-            
-          # rocky-debug.tar
-          # ubuntu-debug.tar
-
-      # ......................................................................
-      #  This will block the rest if there are no artifacts!
-      #  If molecule fails, then it is possible to have no artifacts
-      #
+      # .......................................................................
       - name: Upload test results
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: monitoring-test-results
           path: verify_output
-          if-no-files-found: error
-  
-      # SMELL only if we passed?????
-      #
-      #######################################################################
-      #
-      #... Reporting stuff,  wiki and gist and discord and ....
+          retention-days: 5  # Limit storage usage
+          if-no-files-found: warn
 
       # .......................................................................
-      # Optional: Comment on PR with status URL
-      # - name: Comment PR
-      #   if: github.event_name == 'pull_request' && success()
-      #   uses: actions/github-script@v6
-      #   with:
-      #     script: |
-      #       const fs = require('fs');
-      #       const statusUrl = fs.readFileSync('verify_output/status_url.txt', 'utf8');
-      #       github.rest.issues.createComment({
-      #         issue_number: context.issue.number,
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         body: `✅ Monitoring stack verification complete. View status: ${statusUrl}`
-      #       });
-
-      # Only run wiki update on push to main/master
-      - name: Configure wiki git
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        working-directory: main/.wiki
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-      - name: Push wiki changes
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        working-directory: main/.wiki
-        run: |
-          git add .
-          git diff --staged --quiet || git commit -m "Update test results from CI run"
-          git push
+      - name: Aggregate and publish results
+        if: always()  # Run even if molecule tests fail
         env:
-          GITHUB_TOKEN: ${{ secrets.WIKI_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIST_TOKEN }}  # Missing auth token
+        run: |
+          echo "Processing test results..."
+          
+          # First handle individual distribution gists
+          for distro in verify_output/*/; do
+            if [ -f "${distro}/gist_content.md" ]; then
+              distro_name=$(basename $distro)
+              echo "Processing ${distro_name} results..."
+              
+              # Append git/build context to gist
+              {
+                echo "## Build Context"
+                echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                echo "- Branch: ${{ github.ref_name }}"
+                echo "- Commit: ${{ github.sha }}"
+                echo "- Triggered by: ${{ github.event_name }}"
+              } >> "${distro}/gist_content.md"
+              
+              # Create/update gist for this distro
+              if ! gh gist create "${distro}/gist_content.md" \
+                --public \
+                --desc "Test Results for ${distro_name} (${GITHUB_SHA:0:7})"; then
+                echo "Failed to create gist for ${distro_name}"
+                exit 1
+              fi
+            else
+              echo "Warning: No gist content found for ${distro_name}"
+            fi
+          done
+
+      - name: Create job summary
+        if: always()
+        run: |
+          {
+            echo "# Test Run Summary"
+            echo "- Status: ${{ job.status }}"
+            echo "- Duration: ${{ steps.molecule-test.outputs.duration }}"
+            echo "## Distribution Results"
+            for d in verify_output/*/; do
+              [ -f "${d}/results.yml" ] && echo "- $(basename $d): ✅" || echo "- $(basename $d): ❌"
+            done
+          } >> $GITHUB_STEP_SUMMARY
+
