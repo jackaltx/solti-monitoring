@@ -103,8 +103,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y podman crun
+
+          # Set up systemd requirements
+          sudo mkdir -p /run/shm
+          sudo chmod 1777 /run/shm
+          sudo mkdir -p /run/lock
+          sudo chmod 1777 /run/lock
           
-          # Minimal podman configuration
+          # Set up cgroups v2
+          sudo mkdir -p /sys/fs/cgroup/init.scope
+          sudo mount -t cgroup2 none /sys/fs/cgroup || true
+          
+          # Configure podman
           sudo tee /etc/containers/containers.conf << EOF
           [engine]
           runtime = "crun"
@@ -112,21 +122,24 @@ jobs:
           [containers]
           cgroupns = "host"
           userns = "keep-id"
+          init = false
+          
+          [engine.runtimes]
+          crun = [
+            "/usr/bin/crun"
+          ]
           EOF
 
-          # Basic directory setup
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
-          sudo mkdir -p /run/containers/storage
-          sudo mkdir -p /var/lib/containers/storage
-          sudo chmod -R 777 /run/containers
-          sudo chmod -R 777 /var/lib/containers
-
+          
       - name: Configure storage
         run: |
           sudo tee /etc/containers/storage.conf << EOF
           [storage]
           driver = "vfs"
+          runroot = "/run/containers/storage"
+          graphroot = "/var/lib/containers/storage"
           EOF
 
       # .......................................................................
