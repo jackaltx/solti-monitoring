@@ -52,9 +52,12 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60  # Add timeout protection
     strategy:
+      matrix:
+        platform: ['uut-ct0', 'uut-ct1']  # , 'uut-ct2']
       fail-fast: false
-      # max-parallel: 1  # Consider if parallel runs are desired
+      max-parallel: 1  # Ensure we don't overwhelm resources
     env:
+      MOLECULE_PLATFORM_NAME: ${{ matrix.platform }}
       DEBUG_MODE: save   
       MOLECULE_NO_LOG: false
       PY_COLORS: 1
@@ -101,8 +104,8 @@ jobs:
 
       - name: Pull Docker images
         run: |
-          docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+          podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+          podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
 
         # docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
@@ -121,7 +124,7 @@ jobs:
             molecule-plugins==23.5.3 \
             ansible-lint==24.12.1 \
             yamllint==1.35.1 \
-            docker \
+            podman \
             jmespath
 
       # ......................................................................
