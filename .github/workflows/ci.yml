@@ -29,11 +29,11 @@
   jobs:
     molecule:
       name: Molecule
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-22.04
       timeout-minutes: 60
       strategy:
         matrix:
-          platform: ['uut-ct0', 'uut-ct1']
+          platform: ['uut-ct0'] # , 'uut-ct1']
         fail-fast: false
         max-parallel: 1
       env:
@@ -53,45 +53,62 @@
             path: main/.wiki
             token: ${{ secrets.WIKI_TOKEN }}
   
+        # ------------------------------------------------------
         - name: Set up Python
           uses: actions/setup-python@v5
           with:
             python-version: "3.11"
 
+        - name: Install Python dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install \
+              ansible-core==2.18.1 \
+              molecule==24.12.0 \
+              molecule-plugins==23.5.3 \
+              ansible-lint==24.12.1 \
+              yamllint==1.35.1 \
+              podman \
+              jmespath \
+              molecule[podman]
+
         # ------------------------------------------------------
-        - name: Install Podman
-          uses: gacts/install-podman@v1
-          with:
-            kind: stable
-            options: --force-cgroup-v2=true --runtime=crun
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # - name: Install Podman
+        #   uses: gacts/install-podman@v1
+        #   with:
+        #     kind: stable
+        #     options: --force-cgroup-v2=true --runtime=crun
   
-        - name: Configure Podman for rootful operation
-          run: |
-            # Switch to rootful operation
-            sudo mkdir -p /etc/containers
-            sudo tee /etc/containers/containers.conf << EOF
-            [containers]
-            cgroupns = "host"
-            userns = "host"
+        # - name: Configure Podman for rootful operation
+        #   run: |
+        #     # Switch to rootful operation
+        #     sudo mkdir -p /etc/containers
+        #     sudo tee /etc/containers/containers.conf << EOF
+        #     [containers]
+        #     cgroupns = "host"
+        #     userns = "host"
   
-            [engine]
-            runtime = "crun"
-            cgroup_manager = "systemd"
+        #     [engine]
+        #     runtime = "crun"
+        #     cgroup_manager = "systemd"
   
-            [engine.runtimes]
-            crun = ["/usr/bin/crun"]
-            EOF
+        #     [engine.runtimes]
+        #     crun = ["/usr/bin/crun"]
+        #     EOF
   
-            # Ensure systemd directories exist
-            sudo mkdir -p /run/systemd/system
+        #     # Ensure systemd directories exist
+        #     sudo mkdir -p /run/systemd/system
             
-            # Verify configuration
-            sudo podman system info
+        #     # Verify configuration
+        #     sudo podman system info
   
-        - name: Create required directories
-          run: |
-            sudo mkdir -p /run/lock /run/shm
-            sudo chmod 1777 /run/lock /run/shm
+        # - name: Create required directories
+        #   run: |
+        #     sudo mkdir -p /run/lock /run/shm
+        #     sudo chmod 1777 /run/lock /run/shm
 
 
 
@@ -99,11 +116,13 @@
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------  
-        - name: Verify Podman installation
+        - name: Set up Podman
           run: |
+            sudo apt-get update
+            sudo apt-get install -y podman
             podman version
             podman info
-  
+      
         # ------------------------------------------------------
         # ------------------------------------------------------
         - name: Cache dependencies
@@ -132,19 +151,6 @@
         - name: Create ansible log directory
           run: mkdir -p log
   
-        # ------------------------------------------------------
-        - name: Install Python dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install \
-              ansible-core==2.18.1 \
-              molecule==24.12.0 \
-              molecule-plugins==23.5.3 \
-              ansible-lint==24.12.1 \
-              yamllint==1.35.1 \
-              podman \
-              jmespath \
-              molecule[podman]
   
         - name: Install Ansible collections
           run: ansible-galaxy collection install community.general
