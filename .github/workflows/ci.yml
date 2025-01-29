@@ -112,11 +112,11 @@ jobs:
       
       - name: Pull container images
         run: |
-          podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest
-          podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest
+          podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+          podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
         if: steps.cache.outputs.cache-hit != 'true'
 
-        #           podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest
+        # podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
       - name: Create ansible/molecule directories
         run: |
