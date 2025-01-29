@@ -90,6 +90,7 @@ jobs:
 
       - name: Molecule help
         run: |
+          molecule --version
           molecule --help
           molecule test --help
           molecule verify --help
