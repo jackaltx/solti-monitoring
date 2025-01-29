@@ -155,7 +155,7 @@
           run: |
             mkdir -p log
             mkdir -p verify_output
-            chown -R 777 verify_output
+            chmod -R 777 verify_output
   
   
         - name: Install Ansible collections
