@@ -33,7 +33,7 @@
       timeout-minutes: 60
       strategy:
         matrix:
-          platform: ['uut-ct0'] # , 'uut-ct1']
+          platform: ['uut-ct0'] # , 'uut-ct1', 'uut-ct2']
         fail-fast: false
         max-parallel: 1
       env:
@@ -105,22 +105,24 @@
               uut-ct1)
                 podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
                 ;;
+              uut-ct1)
+                podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+                ;;
             esac
   
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
-        - name: Create ansible log directory
+        - name: Create ansible verify_output and log directories
           run: |
             mkdir -p log
             mkdir -p verify_output
-            sudo chmod -R 777 verify_output
-            ls -la verify_output log
-            sudo chown $USER:$USER verify_output log
+            #sudo chmod -R 777 verify_output
+            #sudo chown $USER:$USER verify_output log
 
             # Verify permissions
-            ls -la verify_output
+            ls -la verify_output log
             id
   
         - name: Install Ansible collections
@@ -158,12 +160,17 @@
           env:
             GH_TOKEN: ${{ secrets.GIST_TOKEN }}
           run: |
+
+            pwd
+            ls -laR verify_output
+            id
+
             echo "Processing test results..."
             for distro in verify_output/*/; do
               if [ -f "${distro}/gist-content.md" ]; then
                 distro_name=$(basename $distro)
 
-                sudo chmod -R 777 "$disto"
+                sudo chmod -R 777 "${disto}"
 
                 echo "Processing ${distro_name} results..."
                 {
