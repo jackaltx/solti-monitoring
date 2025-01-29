@@ -116,6 +116,7 @@
             mkdir -p log
             mkdir -p verify_output
             sudo chmod -R 777 verify_output
+            ls -la verify_output log
             sudo chown $USER:$USER verify_output log
 
             # Verify permissions
@@ -161,6 +162,9 @@
             for distro in verify_output/*/; do
               if [ -f "${distro}/gist-content.md" ]; then
                 distro_name=$(basename $distro)
+
+                sudo chmod -R 777 "$disto"
+
                 echo "Processing ${distro_name} results..."
                 {
                   echo "## Build Context"
