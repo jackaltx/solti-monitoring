@@ -116,10 +116,13 @@
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------  
-        - name: Set up Podman
+        - name: Install Podman
           run: |
             sudo apt-get update
             sudo apt-get install -y podman
+
+        - name: Podman Info
+          run: |
             podman version
             podman info
       
@@ -149,7 +152,10 @@
         # ------------------------------------------------------
         # ------------------------------------------------------
         - name: Create ansible log directory
-          run: mkdir -p log
+          run: |
+            mkdir -p log
+            mkdir -p verify_output
+            chown -R 777 verfiy_output
   
   
         - name: Install Ansible collections
