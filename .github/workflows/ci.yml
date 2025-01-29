@@ -142,7 +142,7 @@ jobs:
           graphroot = "/var/lib/containers/storage"
           EOF
 
-      # .......................................................................i
+      # .......................................................................
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -151,15 +151,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Cache podman images
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/containers/storage
-          key: podman-images-${{ matrix.platform }}-${{ hashFiles('molecule/*/molecule.yml') }}
-          restore-keys: |
-            podman-images-${{ matrix.platform }}-
-            podman-images-
-
+      # ......................................................................
       - name: Pull container images
         run: |
           case ${{ matrix.platform }} in
