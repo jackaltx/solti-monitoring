@@ -6,9 +6,10 @@ dependency:
     ignore-errors: true
 
 driver:
-  name: docker
+  name: podman
   options:
     managed: true
+    platform_name: ${MOLECULE_PLATFORM:-all}
 
 # these are the customized instances build by my test_containers repos.
 # These should have a running systemd, prepared ssh, with enough tooling
@@ -81,7 +82,7 @@ provisioner:
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
 
-        # TODO: This concept will expand as we add different configurations.
+        # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
 
         # metrics
