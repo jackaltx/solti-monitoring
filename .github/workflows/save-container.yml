@@ -92,7 +92,7 @@ jobs:
         run: ansible-galaxy collection install community.general
 
       - name: Run Molecule converge
-        run: molecule --debug converge -s github
+        run: molecule converge -s github  -- --filter-subset '${MOLECULE_PLATFORM_NAME}'
         continue-on-error: true
         env:
           IN_GITHUB_CI: true
