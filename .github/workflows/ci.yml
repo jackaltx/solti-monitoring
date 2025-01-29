@@ -110,10 +110,6 @@ jobs:
           sudo mkdir -p /run/lock
           sudo chmod 1777 /run/lock
           
-          # Set up cgroups v2
-          sudo mkdir -p /sys/fs/cgroup/init.scope
-          sudo mount -t cgroup2 none /sys/fs/cgroup || true
-          
           # Configure podman
           sudo tee /etc/containers/containers.conf << EOF
           [engine]
@@ -141,6 +137,10 @@ jobs:
           runroot = "/run/containers/storage"
           graphroot = "/var/lib/containers/storage"
           EOF
+
+
+
+
 
       # .......................................................................
       - name: Cache dependencies
