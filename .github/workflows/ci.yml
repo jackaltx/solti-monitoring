@@ -94,31 +94,55 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
- 
+
+
+
+
       # .......................................................................
       - name: Set up Podman
         run: |
           sudo apt-get update
           sudo apt-get install -y podman crun
-          # Configure podman to use crun instead of runc
-          sudo mkdir -p /etc/containers
-          echo '[engine]
-          runtime = "crun"' | sudo tee /etc/containers/containers.conf
-          # Set up required directories for systemd containers
+          
+          # Configure crun as runtime and set additional options
+          sudo tee /etc/containers/containers.conf << EOF
+          [engine]
+          runtime = "crun"
+          
+          [containers]
+          userns = "keep-id"
+          cgroupns = "host"
+          cgroups = "enabled"
+          utsns = "private"
+          netns = "private"
+          ipcns = "private"
+          pidns = "private"
+          EOF
+
+          # Create required directories and set permissions
+          sudo mkdir -p /run/containers/storage
+          sudo mkdir -p /var/lib/containers/storage
+          sudo mkdir -p /run/shm
+          sudo chmod 1777 /run/shm
+          
+          # Set up systemd directories
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
-          # used for testing
-          sudo apt-get install -y tree
-
+          
+          # Ensure podman can access cgroups
+          sudo ln -s /sys/fs/cgroup/systemd /sys/fs/cgroup/init.scope || true
 
       # .......................................................................
       - name: Configure podman storage
         run: |
-          echo '[storage]
+          sudo tee /etc/containers/storage.conf << EOF
+          [storage]
           driver = "vfs"
           runroot = "/run/containers/storage"
-          graphroot = "/var/lib/containers/storage"' | sudo tee /etc/containers/storage.conf
+          graphroot = "/var/lib/containers/storage"
+          EOF
 
+      # .......................................................................i
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
