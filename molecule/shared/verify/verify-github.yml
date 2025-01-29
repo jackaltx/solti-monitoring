@@ -109,6 +109,7 @@
 
 # ..........................................................................................
 - name: Format Gist content
+  become: false
   ansible.builtin.copy:
     content: |
       # Monitoring Stack Status Report
@@ -137,6 +138,7 @@
 
 # .......................................................................................
 - name: Format Wiki content
+  become: false
   ansible.builtin.copy:
     content: |
       # Test Results: {{ status_data.timestamp }}
