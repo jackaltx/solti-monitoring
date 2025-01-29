@@ -33,7 +33,7 @@
       timeout-minutes: 60
       strategy:
         matrix:
-          platform: ['uut-ct0'] # , 'uut-ct1', 'uut-ct2']
+          platform: ['uut-ct0', 'uut-ct1', 'uut-ct2']
         fail-fast: false
         max-parallel: 1
       env:
@@ -154,11 +154,6 @@
           env:
             GH_TOKEN: ${{ secrets.GIST_TOKEN }}
           run: |
-
-            id
-            pwd
-            ls -laR verify_output
-
             echo "Processing test results..."
             for distro in verify_output/*/; do
               if [ -f "${distro}/gist-content.md" ]; then
@@ -183,40 +178,8 @@
               fi
             done
  
-        # TODO  jack move this to after the wiki AFTER we get the wiki working
-        - name: Create job summary
-          if: always()
-          run: |
-            {
-              echo "# Test Run Summary"
-              echo "- Status: success"
-              echo "- Duration: "
-              echo "## Distribution Results"
-              for d in verify_output/*/; do
-                distro_name=$(basename $d)
-                echo -n "- ${distro_name}: "
-                if [ -f "${d}/gist-content.md" ] && [ -f "${d}/wiki-content.md" ]; then
-                  echo "✅"
-                  echo "  - Gist Content: ✓"
-                  echo "  - Wiki Content: ✓"
-                else
-                  echo "❌"
-                  [ -f "${d}/gist-content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
-                  [ -f "${d}/wiki-content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
-                fi
-              done
-              echo "## File Structure"
-              tree verify_output/
-            } >> $GITHUB_STEP_SUMMARY
-
-
         # ------------------------------------------------------
         # ------------------------------------------------------
-        # Claude do not make changes above this block. 
-        # We will patch only if required. 
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-
         - name: Update Wiki with Results
           if: always()
           env:
@@ -264,3 +227,33 @@
             git add Results/
             git commit -m "Update test results for ${BRANCH_NAME} [skip ci]"
             git push origin master
+
+
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        - name: Create job summary
+          if: always()
+          run: |
+            {
+              echo "# Test Run Summary"
+              echo "- Status: success"
+              echo "- Duration: "
+              echo "## Distribution Results"
+              for d in verify_output/*/; do
+                distro_name=$(basename $d)
+                echo -n "- ${distro_name}: "
+                if [ -f "${d}/gist-content.md" ] && [ -f "${d}/wiki-content.md" ]; then
+                  echo "✅"
+                  echo "  - Gist Content: ✓"
+                  echo "  - Wiki Content: ✓"
+                else
+                  echo "❌"
+                  [ -f "${d}/gist-content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
+                  [ -f "${d}/wiki-content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
+                fi
+              done
+              echo "## File Structure"
+              tree verify_output/
+            } >> $GITHUB_STEP_SUMMARY
+
+
