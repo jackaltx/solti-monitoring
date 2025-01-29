@@ -92,7 +92,7 @@ jobs:
         run: ansible-galaxy collection install community.general
 
       - name: Run Molecule converge
-        run: molecule converge --debug -s github
+        run: molecule --debug converge -s github
         continue-on-error: true
         env:
           IN_GITHUB_CI: true
