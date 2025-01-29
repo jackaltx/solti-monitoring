@@ -29,7 +29,7 @@
   jobs:
     molecule:
       name: Molecule
-      runs-on: ubuntu-20.04
+      runs-on: ubuntu-latest
       timeout-minutes: 60
       strategy:
         matrix:
@@ -57,17 +57,55 @@
           uses: actions/setup-python@v5
           with:
             python-version: "3.11"
-  
+
+        # ------------------------------------------------------
         - name: Install Podman
           uses: gacts/install-podman@v1
           with:
             kind: stable
+            options: --force-cgroup-v2=true --runtime=crun
   
+        - name: Configure Podman for rootful operation
+          run: |
+            # Switch to rootful operation
+            sudo mkdir -p /etc/containers
+            sudo tee /etc/containers/containers.conf << EOF
+            [containers]
+            cgroupns = "host"
+            userns = "host"
+  
+            [engine]
+            runtime = "crun"
+            cgroup_manager = "systemd"
+  
+            [engine.runtimes]
+            crun = ["/usr/bin/crun"]
+            EOF
+  
+            # Ensure systemd directories exist
+            sudo mkdir -p /run/systemd/system
+            
+            # Verify configuration
+            sudo podman system info
+  
+        - name: Create required directories
+          run: |
+            sudo mkdir -p /run/lock /run/shm
+            sudo chmod 1777 /run/lock /run/shm
+
+
+
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------  
         - name: Verify Podman installation
           run: |
             podman version
             podman info
   
+        # ------------------------------------------------------
+        # ------------------------------------------------------
         - name: Cache dependencies
           uses: actions/cache@v3
           with:
@@ -87,9 +125,14 @@
                 ;;
             esac
   
-        - name: Create directories
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        - name: Create ansible log directory
           run: mkdir -p log
   
+        # ------------------------------------------------------
         - name: Install Python dependencies
           run: |
             python -m pip install --upgrade pip
@@ -105,7 +148,12 @@
   
         - name: Install Ansible collections
           run: ansible-galaxy collection install community.general
-  
+
+          
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
         - name: Run Molecule tests
           run: molecule test -s github
           continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
@@ -115,6 +163,10 @@
             GITHUB_WORKSPACE: ${{ github.workspace }}/main
             GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
   
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # ------------------------------------------------------
         - name: Upload test results
           if: always()
           uses: actions/upload-artifact@v4
