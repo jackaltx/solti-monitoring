@@ -75,46 +75,6 @@
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
-        # ------------------------------------------------------
-        # - name: Install Podman
-        #   uses: gacts/install-podman@v1
-        #   with:
-        #     kind: stable
-        #     options: --force-cgroup-v2=true --runtime=crun
-  
-        # - name: Configure Podman for rootful operation
-        #   run: |
-        #     # Switch to rootful operation
-        #     sudo mkdir -p /etc/containers
-        #     sudo tee /etc/containers/containers.conf << EOF
-        #     [containers]
-        #     cgroupns = "host"
-        #     userns = "host"
-  
-        #     [engine]
-        #     runtime = "crun"
-        #     cgroup_manager = "systemd"
-  
-        #     [engine.runtimes]
-        #     crun = ["/usr/bin/crun"]
-        #     EOF
-  
-        #     # Ensure systemd directories exist
-        #     sudo mkdir -p /run/systemd/system
-            
-        #     # Verify configuration
-        #     sudo podman system info
-  
-        # - name: Create required directories
-        #   run: |
-        #     sudo mkdir -p /run/lock /run/shm
-        #     sudo chmod 1777 /run/lock /run/shm
-
-
-
-        # ------------------------------------------------------
-        # ------------------------------------------------------
-        # ------------------------------------------------------
         # ------------------------------------------------------  
         - name: Install Podman
           run: |
@@ -155,8 +115,12 @@
           run: |
             mkdir -p log
             mkdir -p verify_output
-            chmod -R 777 verify_output
-  
+            sudo chmod -R 777 verify_output
+            sudo chown $USER:$USER verify_output log
+
+            # Verify permissions
+            ls -la verify_output
+            id
   
         - name: Install Ansible collections
           run: ansible-galaxy collection install community.general
@@ -216,7 +180,8 @@
                 echo "Warning: No gist content found for ${distro_name}"
               fi
             done
-  
+ 
+        # TODO  jack move this to after the wiki AFTER we get the wiki working
         - name: Create job summary
           if: always()
           run: |
@@ -241,3 +206,59 @@
               echo "## File Structure"
               tree verify_output/
             } >> $GITHUB_STEP_SUMMARY
+
+
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+        # Claude do not make changes above this block. 
+        # We will patch only if required. 
+        # ------------------------------------------------------
+        # ------------------------------------------------------
+
+        - name: Update Wiki with Results
+          if: always()
+          env:
+            GITHUB_TOKEN: ${{ secrets.WIKI_TOKEN }}
+          run: |
+            # Set Git configuration
+            cd main/.wiki
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+  
+            # Get branch name and create clean version for path
+            BRANCH_NAME="${{ github.ref_name }}"
+            BRANCH_PATH="${BRANCH_NAME//\//-}"
+            
+            # Create results directory structure
+            mkdir -p "Results/${BRANCH_PATH}"
+            
+            # Copy results for each OS
+            for distro in ../../verify_output/*/; do
+              distro_name=$(basename $distro)
+              
+              # Create OS directory
+              results_dir="Results/${BRANCH_PATH}/${distro_name}"
+              mkdir -p "$results_dir"
+              
+              # Copy wiki content if it exists
+              if [ -f "${distro}/wiki-content.md" ]; then
+                cp "${distro}/wiki-content.md" "${results_dir}/$(date +%Y%m%d-%H%M%S)-results.md"
+              fi
+            done
+            
+            # Clean up old results (keep only last 3) for non-main branches
+            if [ "$BRANCH_NAME" != "main" ] && [ "$BRANCH_NAME" != "master" ]; then
+              for distro in Results/${BRANCH_PATH}/*/; do
+                if [ -d "$distro" ]; then
+                  cd "$distro"
+                  # Keep only the 3 most recent files
+                  ls -t | tail -n +4 | xargs -r rm
+                  cd - > /dev/null
+                fi
+              done
+            fi
+            
+            # Commit and push changes
+            git add Results/
+            git commit -m "Update test results for ${BRANCH_NAME} [skip ci]"
+            git push origin master
