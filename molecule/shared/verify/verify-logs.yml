@@ -124,12 +124,12 @@
 
 # ......................................................................
 - name: Get Loki version
-  command: loki --version
+  command: /usr/bin/loki --version
   register: loki_version
   changed_when: false
 
 - name: Get Alloy version
-  command: alloy --version
+  command: /usr/bin/alloy --version
   register: alloy_version
   changed_when: false
 
