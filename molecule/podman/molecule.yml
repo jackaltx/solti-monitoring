@@ -9,7 +9,7 @@ driver:
   name: podman
   options:
     managed: true
-    platform_name: ${MOLECULE_PLATFORM:-all}
+    platform_name: ${MOLECULE_PLATFORM_NAME:-all}
 
 # these are the customized instances build by my test_containers repos.
 # These should have a running systemd, prepared ssh, with enough tooling
