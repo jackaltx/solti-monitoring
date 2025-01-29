@@ -107,6 +107,9 @@ jobs:
           # Set up required directories for systemd containers
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
+          # used for testing
+          sudo apt-get install -y tree
+
 
       # .......................................................................
       - name: Configure podman storage
@@ -146,12 +149,6 @@ jobs:
 
         # podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
-      # .......................................................................
-      - name: Create ansible/molecule directories
-        run: |
-          mkdir -p log
-          sudo apt-get install -y tree
-
       # ......................................................................
       - name: Debug GitHub context
         run: |
@@ -161,6 +158,26 @@ jobs:
           echo "Actor: ${{ github.actor }}"
           echo "Repo: ${{ github.repository }}"
           echo "Workspace: ${{ github.workspace }}"
+
+
+      # .......................................................................
+      - name: Create ansible/molecule directories
+        run: |
+          mkdir -p log
+
+      # .......................................................................
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            ansible-core==2.18.1 \
+            molecule==24.12.0 \
+            molecule-plugins==23.5.3 \
+            ansible-lint==24.12.1 \
+            yamllint==1.35.1 \
+            podman \
+            jmespath \
+            molecule[podman]  # Add this for podman support
 
       # .......................................................................
       # TODO: This feels wrong....it works.  
