@@ -70,6 +70,9 @@ provisioner:
     converge: "../shared/podman/converge.yml"
     verify: "../shared/verify/main.yml"
   inventory:
+    host_vars:
+      all:
+        selected_platform: "${MOLECULE_PLATFORM_NAME}"
     group_vars:
       all:
         # ansible_user: ansible
