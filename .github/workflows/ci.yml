@@ -102,15 +102,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Pull Docker images
+      - name: Cache podman images
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-images-${{ hashFiles('molecule/*/molecule.yml') }}
+          restore-keys: |
+            podman-images-
+      
+      - name: Pull container images
         run: |
-          docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
-          docker pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+          podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest
+          podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest
+        if: steps.cache.outputs.cache-hit != 'true'
 
-        # docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+        #           podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest
 
-      # claude:  should we pass this in as an array.  my lab will have single-board-computer clusters. I may want to do ARM64
-      - name: Create anbible/molecule directories
+      - name: Create ansible/molecule directories
         run: |
           mkdir -p log
           sudo apt-get install -y tree
@@ -124,7 +132,6 @@ jobs:
             molecule-plugins==23.5.3 \
             ansible-lint==24.12.1 \
             yamllint==1.35.1 \
-            docker \
             podman \
             jmespath
 
