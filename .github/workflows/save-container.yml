@@ -88,6 +88,11 @@ jobs:
           mkdir -p log verify_output
           chmod -R 755 verify_output
 
+      - name: Create output directories
+        run: |
+          molecule --help
+                
+
       - name: Install Ansible collections
         run: ansible-galaxy collection install community.general
 
