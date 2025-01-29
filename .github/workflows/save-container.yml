@@ -88,9 +88,11 @@ jobs:
           mkdir -p log verify_output
           chmod -R 755 verify_output
 
-      - name: Create output directories
+      - name: Molecule help
         run: |
           molecule --help
+          molecule test --help
+          molecule verify --help
                 
 
       - name: Install Ansible collections
