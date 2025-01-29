@@ -1,0 +1,179 @@
+---
+  name: CI
+  
+  on:
+    push:
+      branches: [main, master]
+      paths:
+        - 'roles/**'
+        - 'molecule/**'
+        - '.github/**'
+    pull_request:
+      branches: [main, master]
+      paths:
+        - 'roles/**'
+        - 'molecule/**'
+    workflow_dispatch:
+      inputs:
+        branch:
+          description: 'Branch to run tests on'
+          required: true
+          default: '*'
+  
+  env:
+    DEBUG_MODE: save
+    MOLECULE_NO_LOG: false
+    PY_COLORS: 1
+    ANSIBLE_FORCE_COLOR: 1
+  
+  jobs:
+    molecule:
+      name: Molecule
+      runs-on: ubuntu-20.04
+      timeout-minutes: 60
+      strategy:
+        matrix:
+          platform: ['uut-ct0', 'uut-ct1']
+        fail-fast: false
+        max-parallel: 1
+      env:
+        MOLECULE_PLATFORM_NAME: ${{ matrix.platform }}
+        ANSIBLE_LOCALHOST_WARNING: false
+        MOLECULE_VERIFY_RETRY: 3
+        MOLECULE_SERIAL: 1
+  
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v4
+  
+        - name: Check out wiki repository
+          uses: actions/checkout@v4
+          with:
+            repository: ${{ github.repository }}.wiki
+            path: main/.wiki
+            token: ${{ secrets.WIKI_TOKEN }}
+  
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: "3.11"
+  
+        - name: Install Podman
+          uses: gacts/install-podman@v1
+          with:
+            kind: stable
+  
+        - name: Verify Podman installation
+          run: |
+            podman version
+            podman info
+  
+        - name: Cache dependencies
+          uses: actions/cache@v3
+          with:
+            path: ~/.cache/pip
+            key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+            restore-keys: |
+              ${{ runner.os }}-pip-
+  
+        - name: Pull container images
+          run: |
+            case ${{ matrix.platform }} in
+              uut-ct0)
+                podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+                ;;
+              uut-ct1)
+                podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+                ;;
+            esac
+  
+        - name: Create directories
+          run: mkdir -p log
+  
+        - name: Install Python dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install \
+              ansible-core==2.18.1 \
+              molecule==24.12.0 \
+              molecule-plugins==23.5.3 \
+              ansible-lint==24.12.1 \
+              yamllint==1.35.1 \
+              podman \
+              jmespath \
+              molecule[podman]
+  
+        - name: Install Ansible collections
+          run: ansible-galaxy collection install community.general
+  
+        - name: Run Molecule tests
+          run: molecule test -s github
+          continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
+          env:
+            IN_GITHUB_CI: true
+            LOG_DURATION: "5m"
+            GITHUB_WORKSPACE: ${{ github.workspace }}/main
+            GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+  
+        - name: Upload test results
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: monitoring-test-results
+            path: verify_output
+            retention-days: 5
+            if-no-files-found: warn
+  
+        - name: Aggregate and publish results
+          if: always()
+          env:
+            GH_TOKEN: ${{ secrets.GIST_TOKEN }}
+          run: |
+            echo "Processing test results..."
+            for distro in verify_output/*/; do
+              if [ -f "${distro}/gist-content.md" ]; then
+                distro_name=$(basename $distro)
+                echo "Processing ${distro_name} results..."
+                {
+                  echo "## Build Context"
+                  echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  echo "- Branch: ${{ github.ref_name }}"
+                  echo "- Commit: ${{ github.sha }}"
+                  echo "- Triggered by: ${{ github.event_name }}"
+                } >> "${distro}/gist-content.md"
+                
+                if ! gh gist create "${distro}/gist-content.md" \
+                  --public \
+                  --desc "Test Results for ${distro_name} (${GITHUB_SHA:0:7})"; then
+                  echo "Failed to create gist for ${distro_name}"
+                  exit 1
+                fi
+              else
+                echo "Warning: No gist content found for ${distro_name}"
+              fi
+            done
+  
+        - name: Create job summary
+          if: always()
+          run: |
+            {
+              echo "# Test Run Summary"
+              echo "- Status: success"
+              echo "- Duration: "
+              echo "## Distribution Results"
+              for d in verify_output/*/; do
+                distro_name=$(basename $d)
+                echo -n "- ${distro_name}: "
+                if [ -f "${d}/gist-content.md" ] && [ -f "${d}/wiki-content.md" ]; then
+                  echo "✅"
+                  echo "  - Gist Content: ✓"
+                  echo "  - Wiki Content: ✓"
+                else
+                  echo "❌"
+                  [ -f "${d}/gist-content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
+                  [ -f "${d}/wiki-content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
+                fi
+              done
+              echo "## File Structure"
+              tree verify_output/
+            } >> $GITHUB_STEP_SUMMARY
