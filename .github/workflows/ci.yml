@@ -118,17 +118,11 @@
           run: |
             mkdir -p log
             mkdir -p verify_output
-            #sudo chmod -R 777 verify_output
-            #sudo chown $USER:$USER verify_output log
-
-            # Verify permissions
-            ls -la verify_output log
-            id
+            chmod -R 755 verify_output
   
         - name: Install Ansible collections
           run: ansible-galaxy collection install community.general
 
-          
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -141,7 +135,7 @@
             LOG_DURATION: "5m"
             GITHUB_WORKSPACE: ${{ github.workspace }}/main
             GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
-  
+
         # ------------------------------------------------------
         # ------------------------------------------------------
         # ------------------------------------------------------
@@ -161,17 +155,14 @@
             GH_TOKEN: ${{ secrets.GIST_TOKEN }}
           run: |
 
+            id
             pwd
             ls -laR verify_output
-            id
 
             echo "Processing test results..."
             for distro in verify_output/*/; do
               if [ -f "${distro}/gist-content.md" ]; then
                 distro_name=$(basename $distro)
-
-                sudo chmod -R 777 "${disto}"
-
                 echo "Processing ${distro_name} results..."
                 {
                   echo "## Build Context"
