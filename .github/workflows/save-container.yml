@@ -92,14 +92,14 @@ jobs:
         run: ansible-galaxy collection install community.general
 
       - name: Run Molecule converge
-        run: molecule converge -s github
+        run: molecule converge -s github --platform-name ${{ github.event.inputs.platform }}
         continue-on-error: true
         env:
           IN_GITHUB_CI: true
 
       - name: Run Molecule verify 
         if: always()
-        run: molecule verify -s github
+        run: molecule verify -s github --platform-name ${{ github.event.inputs.platform }}
         continue-on-error: true
         env:
           IN_GITHUB_CI: true
