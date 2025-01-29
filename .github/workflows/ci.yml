@@ -104,43 +104,49 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman crun
           
-          # Configure crun as runtime and set additional options
+          # Configure podman to use systemd inside container
+          sudo mkdir -p /etc/containers
           sudo tee /etc/containers/containers.conf << EOF
-          [engine]
-          runtime = "crun"
-          
           [containers]
-          userns = "keep-id"
+          volumes = [
+            "/sys/fs/cgroup:/sys/fs/cgroup:rw"
+          ]
           cgroupns = "host"
           cgroups = "enabled"
           utsns = "private"
-          netns = "private"
-          ipcns = "private"
-          pidns = "private"
+          userns = "host"
+          
+          [engine]
+          runtime = "crun"
+          cgroup_manager = "cgroupfs"
+          events_logger = "file"
+          
+          [network]
+          network_backend = "cni"
           EOF
-
-          # Create required directories and set permissions
-          sudo mkdir -p /run/containers/storage
-          sudo mkdir -p /var/lib/containers/storage
-          sudo mkdir -p /run/shm
-          sudo chmod 1777 /run/shm
+          
+          # Create necessary directories with proper permissions
+          sudo mkdir -p /run/containers
+          sudo chmod 777 /run/containers
+          sudo mkdir -p /var/lib/containers
+          sudo chmod 777 /var/lib/containers
           
           # Set up systemd directories
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
-          
-          # Ensure podman can access cgroups
-          sudo ln -s /sys/fs/cgroup/systemd /sys/fs/cgroup/init.scope || true
 
-      # .......................................................................
-      - name: Configure podman storage
+      - name: Configure storage
         run: |
           sudo tee /etc/containers/storage.conf << EOF
           [storage]
-          driver = "vfs"
+          driver = "overlay"
           runroot = "/run/containers/storage"
           graphroot = "/var/lib/containers/storage"
+          [storage.options]
+          mount_program = "/usr/bin/fuse-overlayfs"
           EOF
+
+
 
       # .......................................................................
       - name: Cache dependencies
