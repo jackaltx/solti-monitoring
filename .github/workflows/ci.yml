@@ -139,10 +139,10 @@ jobs:
         run: |
           case ${{ matrix.platform }} in
             uut-ct0)
-              podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest
+              podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
               ;;
             uut-ct1)
-              podman pull gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest
+              podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
               ;;
           esac
         if: steps.cache-images.outputs.cache-hit != 'true'
