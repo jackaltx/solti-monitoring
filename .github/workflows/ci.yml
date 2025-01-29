@@ -107,16 +107,14 @@ jobs:
           # Set up required directories for systemd containers
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
-          
+
+      # .......................................................................
       - name: Configure podman storage
         run: |
-          echo '{
-            "storage": {
-              "driver": "vfs",
-              "runroot": "/run/containers/storage",
-              "graphroot": "/var/lib/containers/storage"
-            }
-          }' | sudo tee /etc/containers/storage.conf
+          echo '[storage]
+          driver = "vfs"
+          runroot = "/run/containers/storage"
+          graphroot = "/var/lib/containers/storage"' | sudo tee /etc/containers/storage.conf
 
       - name: Cache dependencies
         uses: actions/cache@v3
@@ -145,8 +143,6 @@ jobs:
               podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
               ;;
           esac
-        if: steps.cache-images.outputs.cache-hit != 'true'
-
 
         # podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
 
