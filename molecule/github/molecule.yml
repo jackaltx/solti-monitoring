@@ -7,7 +7,6 @@ dependency:
 
 driver:
   name: podman
-  options:
     managed: true
     platform_name: ${MOLECULE_PLATFORM:-all}
 
