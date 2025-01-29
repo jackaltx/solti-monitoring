@@ -42,19 +42,17 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  # ubuntu image is a problem on github, not locally on my Fedora development machine.
-
-  # - name: "uut-ct2"
-  #   image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
-  #   command: "/sbin/init"
-  #   privileged: true
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #   cgroupns_mode: host
-  #   ssh_host: "127.0.0.1"
-  #   ssh_port: 2224
-  #   ssh_user: "jackaltx"
-  #   connection: ssh
+  - name: "uut-ct2"
+    image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2224
+    ssh_user: "jackaltx"
+    connection: ssh
 
 provisioner:
   name: ansible
