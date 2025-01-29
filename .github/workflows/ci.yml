@@ -62,6 +62,18 @@ jobs:
       # MOLECULE_DESTROY: ${{ github.event_name != 'pull_request' }}  # Keep containers on PR
       ANSIBLE_LOCALHOST_WARNING: false
       MOLECULE_VERIFY_RETRY: 3  # Add retry capability
+      MOLECULE_SERIAL: 1
+      # IN_GITHUB_CI: true
+      # Additional useful vars:
+      # ANSIBLE_VERBOSITY: 1                    # Increase ansible verbosity (0-4)
+      # MOLECULE_DEBUG: true                    # Enable molecule debug output
+      # MOLECULE_EPHEMERAL_DIRECTORY: ../cache  # Control where temporary files go
+      # TESTINFRA_INTERACTIVE: false           # Disable interactive mode for testinfra
+      # MOLECULE_PODMAN_CMD: /usr/bin/podman   # Explicitly set podman path
+      # ANSIBLE_DISPLAY_SKIPPED_HOSTS: false   # Reduce log noise
+      # ANSIBLE_DISPLAY_OK_HOSTS: false        # Reduce log noise further
+      # ANSIBLE_RETRY_FILES_ENABLED: false     # Prevent retry file creation
+      # PODMAN_MEMORY_RESERVATION: 512m        # Control container memory
 
     steps:
       - name: Check out code
