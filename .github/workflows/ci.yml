@@ -104,49 +104,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman crun
           
-          # Configure podman to use systemd inside container
-          sudo mkdir -p /etc/containers
+          # Minimal podman configuration
           sudo tee /etc/containers/containers.conf << EOF
-          [containers]
-          volumes = [
-            "/sys/fs/cgroup:/sys/fs/cgroup:rw"
-          ]
-          cgroupns = "host"
-          cgroups = "enabled"
-          utsns = "private"
-          userns = "host"
-          
           [engine]
           runtime = "crun"
-          cgroup_manager = "cgroupfs"
-          events_logger = "file"
           
-          [network]
-          network_backend = "cni"
+          [containers]
+          cgroupns = "host"
+          userns = "keep-id"
           EOF
-          
-          # Create necessary directories with proper permissions
-          sudo mkdir -p /run/containers
-          sudo chmod 777 /run/containers
-          sudo mkdir -p /var/lib/containers
-          sudo chmod 777 /var/lib/containers
-          
-          # Set up systemd directories
+
+          # Basic directory setup
           sudo mkdir -p /etc/systemd/system
           sudo mkdir -p /run/systemd/system
+          sudo mkdir -p /run/containers/storage
+          sudo mkdir -p /var/lib/containers/storage
+          sudo chmod -R 777 /run/containers
+          sudo chmod -R 777 /var/lib/containers
 
       - name: Configure storage
         run: |
           sudo tee /etc/containers/storage.conf << EOF
           [storage]
-          driver = "overlay"
-          runroot = "/run/containers/storage"
-          graphroot = "/var/lib/containers/storage"
-          [storage.options]
-          mount_program = "/usr/bin/fuse-overlayfs"
+          driver = "vfs"
           EOF
-
-
 
       # .......................................................................
       - name: Cache dependencies
