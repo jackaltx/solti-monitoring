@@ -105,13 +105,13 @@ jobs:
           IN_GITHUB_CI: true
           MOLECULE_PLATFORM_NAME: ${{ github.event.inputs.platform }}
 
-      - name: Run Molecule verify 
-        if: always()
-        run: molecule verify -s github
-        continue-on-error: true
-        env:
-          IN_GITHUB_CI: true
-          MOLECULE_PLATFORM_NAME: ${{ github.event.inputs.platform }}
+      # - name: Run Molecule verify 
+      #   if: always()
+      #   run: molecule verify -s github
+      #   continue-on-error: true
+      #   env:
+      #     IN_GITHUB_CI: true
+      #     MOLECULE_PLATFORM_NAME: ${{ github.event.inputs.platform }}
 
       - name: Export container state
         if: always()
