@@ -129,7 +129,7 @@
   changed_when: false
 
 - name: Get Alloy version
-  command: /usr/bin/alloy --version
+  shell: /usr/bin/alloy --version
   register: alloy_version
   changed_when: false
 
