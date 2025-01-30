@@ -2,6 +2,7 @@
 - name: Prepare
   hosts: all
   gather_facts: true
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   vars:
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=False) }}"

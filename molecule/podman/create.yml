@@ -15,6 +15,9 @@
         name: "{{ item.network }}"
         state: present
       loop: "{{ molecule_yml.platforms }}"
+      when:
+        - item.network is defined
+        - item.network != ''
 
     # .....................................................................
     - name: Create a container

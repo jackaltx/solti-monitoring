@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+
   vars:
     # Only check container and network health
     check_services: false

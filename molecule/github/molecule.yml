@@ -6,9 +6,10 @@ dependency:
     ignore-errors: true
 
 driver:
-  name: docker
+  name: podman
   options:
     managed: true
+    platform_name: ${MOLECULE_PLATFORM_NAME:-all}
 
 # these are the customized instances build by my test_containers repos.
 # These should have a running systemd, prepared ssh, with enough tooling
@@ -19,7 +20,6 @@ driver:
 platforms:
   - name: "uut-ct0"
     image: "ghcr.io/jackaltx/testing-containers/debian12-ssh:latest"
-    network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -30,33 +30,29 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  # - name: "uut-ct1"
-  #   image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
-  #   network: "monitoring-net"
-  #   command: "/sbin/init"
-  #   privileged: true
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #   cgroupns_mode: host
-  #   ssh_host: "127.0.0.1"
-  #   ssh_port: 2222
-  #   ssh_user: "jackaltx"
-  #   connection: ssh
+  - name: "uut-ct1"
+    image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2222
+    ssh_user: "jackaltx"
+    connection: ssh
 
-  # ubuntu image is a problem on github, not locally on my Fedora development machine.
-
-  # - name: "uut-ct2"
-  #   image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
-  #   network: monitoring-net
-  #   command: "/sbin/init"
-  #   privileged: true
-  #   volumes:
-  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
-  #   cgroupns_mode: host
-  #   ssh_host: "127.0.0.1"
-  #   ssh_port: 2224
-  #   ssh_user: "jackaltx"
-  #   connection: ssh
+  - name: "uut-ct2"
+    image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2224
+    ssh_user: "jackaltx"
+    connection: ssh
 
 provisioner:
   name: ansible
@@ -74,6 +70,9 @@ provisioner:
     converge: "../shared/podman/converge.yml"
     verify: "../shared/verify/main.yml"
   inventory:
+    host_vars:
+      all:
+        selected_platform: "${MOLECULE_PLATFORM_NAME}"
     group_vars:
       all:
         # ansible_user: ansible
@@ -81,7 +80,7 @@ provisioner:
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
 
-        # TODO: This concept will expand as we add different configurations.
+        # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
 
         # metrics
