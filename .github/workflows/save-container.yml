@@ -87,14 +87,13 @@ jobs:
         run: |
           mkdir -p log verify_output
           chmod -R 755 verify_output
-
+          
       - name: Molecule help
         run: |
           molecule --version
           molecule --help
           molecule test --help
           molecule verify --help
-                
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install community.general
@@ -142,4 +141,6 @@ jobs:
           name: ${{ github.event.inputs.container_name }}-test-results
           path: verify_output
           retention-days: 5
+
           if-no-files-found: warn
+
