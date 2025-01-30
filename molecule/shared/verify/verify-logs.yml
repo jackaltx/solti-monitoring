@@ -42,10 +42,6 @@
   delay: 10 # 10 seconds between retries
   changed_when: false
 
-- name: Alloy connection debug
-  debug:
-    var: ss_output
-
 # ......................................................................................
 - name: Verify Alloy connection to Loki exists
   ansible.builtin.assert:
@@ -128,30 +124,30 @@
 
 # ......................................................................
 - name: Get Loki version
-  command: /usr/bin/loki --version
+  command: loki --version
   register: loki_version
   changed_when: false
 
-# - name: Get Alloy version
-#   command: /usr/bin/alloy --version
-#   register: alloy_version
-#   changed_when: false
-
-- name: Get Alloy version with timeout
+# This has failed on github ci....it sticks here.
+- name: Get Alloy version
   block:
-    - name: Get Alloy version
-      command: /usr/bin/alloy --version
+    - name: Retrieve Alloy version
+      command: alloy --version
       register: alloy_version
       changed_when: false
-      async: 30 # 30 second timeout
-      poll: 2 # Check every 2 seconds
-  rescue:
-    - name: Record Alloy version failure
+      failed_when: false
+
+    - name: Fallback if version retrieval fails
       set_fact:
         alloy_version:
-          stdout: "Version check failed"
-          stderr: "Command timed out or failed"
-          failed: true
+          stdout: "Version retrieval failed"
+      when: alloy_version.rc != 0
+
+  rescue:
+    - name: Handle unexpected errors
+      set_fact:
+        alloy_version:
+          stdout: "Unexpected error during version retrieval"
 
 # ......................................................................
 # - name: Get current timestamp
