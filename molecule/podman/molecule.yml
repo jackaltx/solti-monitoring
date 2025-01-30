@@ -2,14 +2,21 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: ../../molecule/shared/requirements.yml
+    requirements-file: ../shared/requirements.yml
     ignore-errors: true
 
 driver:
   name: podman
   options:
     managed: true
+    platform_name: ${MOLECULE_PLATFORM_NAME:-all}
 
+# these are the customized instances build by my test_containers repos.
+# These should have a running systemd, prepared ssh, with enough tooling
+# to get status.
+#
+# - I did not create the base image, only added layers.
+#
 platforms:
   - name: "uut-ct0"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest"
@@ -25,7 +32,6 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    # image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
     image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
     network: "monitoring-net"
     command: "/sbin/init"
@@ -75,15 +81,11 @@ provisioner:
         # DEBUG: Add explicit SSH settings
         # ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
         # ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
-        ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+        # ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
+        # ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
 
-        # this is temporary, used in new shared converge
+        # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
-
-        # "logs" capability
-        loki_local_storage: true
-        alloy_loki_endpoint: "127.0.0.1"
 
         # "metrics" capability
         influxdb_test: true
@@ -104,6 +106,10 @@ provisioner:
                 "insecure_skip_verify": false,
               },
           }
+
+        # "logs" capability
+        loki_local_storage: true
+        alloy_loki_endpoint: "127.0.0.1"
 
 scenario:
   name: podman

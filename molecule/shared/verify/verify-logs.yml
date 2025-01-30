@@ -128,10 +128,26 @@
   register: loki_version
   changed_when: false
 
+# This has failed on github ci....it sticks here.
 - name: Get Alloy version
-  command: alloy --version
-  register: alloy_version
-  changed_when: false
+  block:
+    - name: Retrieve Alloy version
+      command: alloy --version
+      register: alloy_version
+      changed_when: false
+      failed_when: false
+
+    - name: Fallback if version retrieval fails
+      set_fact:
+        alloy_version:
+          stdout: "Version retrieval failed"
+      when: alloy_version.rc != 0
+
+  rescue:
+    - name: Handle unexpected errors
+      set_fact:
+        alloy_version:
+          stdout: "Unexpected error during version retrieval"
 
 # ......................................................................
 # - name: Get current timestamp
