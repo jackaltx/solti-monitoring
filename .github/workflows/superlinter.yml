@@ -14,7 +14,7 @@ on:
           description: 'Branch to run tests on'
           required: true
           default: '*'
-  
+
 jobs:
   super-lint:
     name: Lint Code Base
@@ -26,7 +26,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run Super-Linter
-        uses: super-linter/super-linter@v7.2.1
+        uses: github/super-linter@v7
+        # uses: super-linter/super-linter@v7.2.1
         env:
           DEFAULT_BRANCH: dev
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
