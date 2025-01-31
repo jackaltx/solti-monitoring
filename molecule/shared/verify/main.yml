@@ -42,12 +42,26 @@
         report_suffix: "pre-verify"
 
     # .......................................................................
+    # Version 2
+    #
+    # This is a nested loop that iterates over the testing_capabilities
+    # The inner loop is a short included script.
+    #
     - name: Run capability-specific verifications
-      include_tasks: "verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
+      include_tasks: verify-capability.yml
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
+
+    # .......................................................................
+    # Version 1
+    # - name: Run capability-specific verifications (Version 1)
+    #   include_tasks: "verify-{{ capability }}.yml"
+    #   loop: "{{ testing_capabilities }}"
+    #   loop_control:
+    #     loop_var: capability
+    #     label: "Verifying {{ capability }} capability"
 
     # .......................................................................
     - name: Create verification status map
