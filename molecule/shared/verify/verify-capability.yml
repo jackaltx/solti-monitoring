@@ -1,0 +1,10 @@
+---
+#
+# This is an inner loop over the verify_tasks list for version 2
+#
+- name: Run verification tasks for {{ capability }}
+  include_tasks: "{{ verify_task }}"
+  loop: "{{ monitoring_capabilities[capability].verify_tasks }}"
+  loop_control:
+    loop_var: verify_task
+    label: "Running {{ verify_task }}"

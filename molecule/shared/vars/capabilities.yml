@@ -1,4 +1,6 @@
 ---
+# ..............................................................
+# Version 2
 monitoring_capabilities:
   logs:
     roles:
@@ -16,6 +18,9 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_logs_deps # Reuse RedHat dependencies
+      verify_tasks:
+        - verify-logs.yml
+        - verify-logs1.yml
 
   metrics:
     roles:
@@ -33,3 +38,44 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_metrics_deps
+      verify_tasks:
+        - verify-metrics.yml
+        - verify-metrics1yml
+        - verify-metrics2.yml
+# .............................................................
+# Version 1
+# monitoring_capabilities:
+#   logs:
+#     roles:
+#       - loki
+#       - alloy
+#     required_packages:
+#       Debian: &debian_logs_deps
+#         - gpg
+#         - ca-certificates
+#         - lsof
+#       Ubuntu: *debian_logs_deps # Reuse Debian dependencies
+#       RedHat: &redhat_logs_deps
+#         - gpg
+#         - ca-certificates
+#         - lsof
+#         - procps-ng
+#       Rocky: *redhat_logs_deps # Reuse RedHat dependencies
+
+#   metrics:
+#     roles:
+#       - influxdb
+#       - telegraf
+#     required_packages:
+#       Debian: &debian_metrics_deps
+#         - gpg
+#         - ca-certificates
+#         - lsof
+#       Ubuntu: *debian_metrics_deps
+#       RedHat: &redhat_metrics_deps
+#         - gpg
+#         - ca-certificates
+#         - lsof
+#         - procps-ng
+#       Rocky: *redhat_metrics_deps
+
