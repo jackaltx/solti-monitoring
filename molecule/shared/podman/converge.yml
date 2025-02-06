@@ -1,6 +1,6 @@
 ---
 - name: Converge
-  hosts: all
+  hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
   become: true
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
