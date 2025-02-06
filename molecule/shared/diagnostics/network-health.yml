@@ -11,11 +11,14 @@
       register: port_info
       changed_when: false
 
+    - debug:
+        var: container_service_ports
+
     - name: Container Diagnostics -> Check service port bindings
-      command: "ss -lptn sport = :{{ item.port }}"
+      command: "ss -lptn sport = :{{ item }}"
       register: service_ports
-      loop: "{{ service_ports | default([]) }}"
-      when: service_ports is defined and service_ports | length > 0
+      loop: "{{ container_service_ports | default([]) }}"
+      when: container_service_ports is defined and container_service_ports | length > 0
       changed_when: false
       failed_when: false
 

@@ -1,6 +1,6 @@
 ---
 - name: Prepare
-  hosts: all
+  hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
   gather_facts: true
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 

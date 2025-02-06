@@ -8,12 +8,12 @@ on:
   pull_request:
     branches: 
       - '*'
-    workflow_dispatch:
-      inputs:
-        branch:
-          description: 'Branch to run tests on'
-          required: true
-          default: '*'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: true
+        default: '*'
 
 jobs:
   super-lint:
