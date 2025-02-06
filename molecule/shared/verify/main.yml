@@ -1,6 +1,6 @@
 ---
 - name: Verify
-  hosts: all
+  hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
   become: true
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
@@ -34,22 +34,55 @@
           - "Distribution: {{ ansible_distribution }}"
           - "Testing capability: {{ testing_capabilities }}"
 
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    # This sets monitoring_capabilities variable. This is a hard-coded for now
+    - name: Load capability role definitions
+      include_vars:
+        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+
     # .......................................................................
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
         file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
       vars:
-        report_suffix: "pre-verify"
+        report_suffix: "preverify"
+
+    # ................................................................
+    # I am assuming that this fact will be used  to store all the output results
+    # in an addressable way.
+    # like  verify_results.logs.tests[0].results
+    # and verify_results.metrics.tests[0].results
+    # and something like that for the error reports    #
+    #
+    - name: Initialize result for capability
+      set_fact:
+        "verify_results": {}
 
     # .......................................................................
+    # Version 2
+    #
+    # This is a nested loop that iterates over the testing_capabilities
+    # The inner loop is a short included script to loop over a list of test tasks
+    #
     - name: Run capability-specific verifications
-      include_tasks: "verify-{{ capability }}.yml"
       loop: "{{ testing_capabilities }}"
+      include_tasks: verify-capability.yml
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
 
     # .......................................................................
+    # Version 1 (deprecated)
+    # - name: Run capability-specific verifications (Version 1)
+    #   include_tasks: "verify-{{ capability }}.yml"
+    #   loop: "{{ testing_capabilities }}"
+    #   loop_control:
+    #     loop_var: capability
+    #     label: "Verifying {{ capability }} capability"
+
+    # .......................................................................
+    # this need to change. we want to loop over all the capabilites and tests for errors.
     - name: Create verification status map
       set_fact:
         verification_status: >-
