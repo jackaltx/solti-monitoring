@@ -14,7 +14,7 @@
 
   pre_tasks:
     - name: Debug variable paths
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Inventory dir: {{ inventory_dir }}"
@@ -23,12 +23,13 @@
 
     - name: Install required packages
       become: true
-      dnf:
+      ansible.builtin.dnf:
         name: lsof
         state: present
 
     - name: Ensure ansible temp directory exists with proper permissions
-      file:
+      become: true
+      ansible.builtin.file:
         path: /tmp/ansible-tmp
         state: directory
         owner: root
@@ -36,11 +37,11 @@
         mode: "0777"
 
     - name: Print all available variables
-      debug:
+      ansible.builtin.debug:
         msg: "{{ vars | to_nice_yaml }}"
 
     - name: Try accessing the specific variable
-      debug:
+      ansible.builtin.debug:
         var: telgraf2influxdb_configs
 
   roles:

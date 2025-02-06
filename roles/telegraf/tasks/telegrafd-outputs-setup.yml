@@ -1,6 +1,6 @@
 ---
 - name: Create telegraf ouput files
-  #no_log: "{{ mylab_nolog | default(true) }}"
+  no_log: "{{ mylab_nolog | default(true) }}"
   ansible.builtin.template:
     src: output.j2
     dest: "/etc/telegraf/telegraf.d/output-{{ item.key }}.conf"

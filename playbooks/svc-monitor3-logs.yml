@@ -3,7 +3,7 @@
 #  Tried LXC...access issues.
 #  Come back to this...fix the ip address and start hardening.
 
-- name: "Configure Monitor2"
+- name: "Configure monitor3"
   hosts: monitor3
 
   vars:
