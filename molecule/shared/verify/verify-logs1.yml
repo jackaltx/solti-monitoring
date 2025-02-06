@@ -79,14 +79,11 @@
     # Simple query test
     - name: Test log query functionality
       ansible.builtin.uri:
-        url: "http://localhost:3100/loki/api/v1/query_range"
+        url: "http://localhost:3100/loki/api/v1/query_range?query=%7Bjob%3D%22loki.source.journal.read%22%7D&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000&limit=5"
         method: GET
         body_format: json
-        body:
-          query: '{job="loki.source.journal.read"}'
-          start: "{{ (ansible_date_time.epoch | int - 300) }}000000000"
-          end: "{{ ansible_date_time.epoch }}000000000"
-          limit: 5
+        return_content: yes
+        validate_certs: no
         status_code: 200
       register: query_check
       ignore_errors: true
@@ -105,7 +102,7 @@
           changed_when: false
 
     # Create test results output
-    - name: Set logs test results fact
+    - name: Set logs_test_results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
         logs_test_results: |
@@ -142,22 +139,23 @@
     # Create output directory
     - name: Create local data directory for test results
       become: false
+      delegate_to: localhost
       ansible.builtin.file:
         path: "{{ report_root }}/{{ ansible_distribution | lower }}"
         state: directory
         mode: "0755"
-      delegate_to: localhost
 
     # Save test results
-    - name: Save integration test results
+    - name: Save logs_test_results to file
       become: false
+      delegate_to: localhost
       ansible.builtin.copy:
         content: "{{ logs_test_results }}"
         dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
-      delegate_to: localhost
 
       # Set verification status
+    - name: Set logs_verify_failed fact
       ansible.builtin.set_fact:
         logs_verify_failed: >-
           {{ 
@@ -170,7 +168,8 @@
 
     # Save verification results
     - name: Save verification status
-      when: "{{ logs_verify_failed | bool }}"
+      become: false
+      when: logs_verify_failed | bool
       delegate_to: localhost
       ansible.builtin.copy:
         content: |
@@ -195,6 +194,7 @@
         logs_verify_failed: true
 
     - name: Log verification failure details
+      become: false
       delegate_to: localhost
       ansible.builtin.copy:
         content: |
