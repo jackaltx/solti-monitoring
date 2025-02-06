@@ -1,6 +1,6 @@
 ---
 namespace: jackaltx
-name: solte_monitoring
+name: solte.monitoring
 version: 1.0.0
 readme: README.md
 authors:

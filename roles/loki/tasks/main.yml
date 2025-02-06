@@ -36,24 +36,47 @@
       notify:
         - Restart loki
 
-- name: Ensure loki group and user exist
-  block:
-    - name: Create loki group
-      group:
-        name: loki
-        system: yes
-        state: present
+    # ........................................................................
+    # this handles where an issue where the package maintainer did not create
+    # a proper loki group for the user.
+    - name: Ensure loki group and user exist
+      become: true
+      block:
+        - name: Check if loki group exists
+          ansible.builtin.getent:
+            database: group
+            key: loki
+          register: loki_group
+          ignore_errors: true
 
-    - name: Add loki user to loki group
-      user:
-        name: loki
-        group: loki
-        state: present
+        - name: Create loki group
+          ansible.builtin.group:
+            name: loki
+            system: yes
+            state: present
+          when: loki_group.failed is defined
 
+        # - name: Check if loki user exists
+        #   ansible.builtin.getent:
+        #     database: passwd
+        #     key: loki
+        #   register: loki_user
+        #   ignore_errors: true
+        #
+        - name: Modify the loki user, which was created by pkg install
+          ansible.builtin.user:
+            name: loki
+            group: loki
+            system: yes
+            state: present
+          # when: loki_user.failed is defined
+
+  # ........................................................................
 - name: Prepare Loki directories
+  become: true
   block:
     - name: Create Loki directories with consistent permissions
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: directory
         owner: loki
@@ -70,12 +93,13 @@
         - /var/lib/loki/rules
       register: loki_dirs
 
-    # - name: Debug directory changes
-    #   debug:
-    #     var: loki_dirs
+    - name: Debug directory changes
+      ansible.builtin.debug:
+        var: loki_dirs
+        verbosity: 1
 
     - name: Ensure consistent SELinux context
-      command: restorecon -Rv "{{ item }}"
+      ansible.builtin.command: restorecon -Rv "{{ item }}"
       loop:
         - /tmp/loki
         - /var/lib/loki
