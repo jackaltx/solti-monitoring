@@ -47,29 +47,21 @@
             database: group
             key: loki
           register: loki_group
-          ignore_errors: true
+          failed_when: false
 
         - name: Create loki group
           ansible.builtin.group:
             name: loki
             system: yes
             state: present
-          when: loki_group.failed is defined
+          when: loki_group.failed is defined or loki_group.rc != 0
 
-        # - name: Check if loki user exists
-        #   ansible.builtin.getent:
-        #     database: passwd
-        #     key: loki
-        #   register: loki_user
-        #   ignore_errors: true
-        #
         - name: Modify the loki user, which was created by pkg install
           ansible.builtin.user:
             name: loki
             group: loki
             system: yes
             state: present
-          # when: loki_user.failed is defined
 
   # ........................................................................
 - name: Prepare Loki directories

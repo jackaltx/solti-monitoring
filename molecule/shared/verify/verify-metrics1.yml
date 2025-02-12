@@ -6,6 +6,7 @@
 
 - name: Verify metrics system components
   block:
+    # ...............................................................................
     # Basic service checks
     - name: Check service statuses
       ansible.builtin.service_facts:
@@ -30,6 +31,7 @@
       register: telegraf_service_check
       ignore_errors: true
 
+    # ...............................................................................
     # Network connectivity checks
     - name: Verify InfluxDB port is listening
       ansible.builtin.wait_for:
@@ -45,6 +47,7 @@
       changed_when: false
       failed_when: false
 
+    # ...............................................................................
     # Configuration and bucket checks
     - name: Verify bucket exists and is accessible
       ansible.builtin.command: influx bucket list --name telegraf --json
@@ -57,6 +60,7 @@
         bucket_info_parsed: "{{ bucket_check.stdout | from_json }}"
       when: bucket_check is success
 
+    # ...............................................................................
     # API Health checks
     - name: Check InfluxDB API health
       ansible.builtin.uri:
@@ -75,6 +79,7 @@
       register: ping_check
       ignore_errors: true
 
+    # ...............................................................................
     # Data write and query tests
     - name: Test write capability
       ansible.builtin.command: >
@@ -95,18 +100,16 @@
       failed_when: query_check.rc != 0
       ignore_errors: true
 
-    # Log level verification
+    # ...............................................................................
     - name: Check recent logs for errors
       ansible.builtin.shell: |
         journalctl -u {{ item }} --since "5 minutes ago" -p err
       register: error_logs
       changed_when: false
       failed_when: false
-      loop:
-        - influxdb
-        - telegraf
+      loop: "{{ monitoring_capabilities[capability].service_names }}"
 
-    # Get versions for reporting
+    # ...............................................................................
     - name: Get service versions
       block:
         - name: Get InfluxDB version
@@ -114,6 +117,13 @@
           register: influx_version
           changed_when: false
 
+        - name: Get Telegraf version
+          command: telegraf --version
+          register: influx_version
+          changed_when: false
+
+    # ...............................................................................
+    # ...............................................................................
     # Create test results output
     - name: Set metrics test results fact
       no_log: "{{ molecule_nolog | default(true) }}"
@@ -145,11 +155,32 @@
           - Network Connections:
           {{ connection_check.stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
-          Recent Error Logs:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          Recent Log Activity:
+          {% set real_errors = [] %}
+          {% for result in error_logs.results %}
+            {% if result.stdout != "-- No entries --" %}
+              {% set _ = real_errors.append(result) %}
+            {% endif %}
+          {% endfor %}
+          {% if real_errors %}
           !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {% for error in real_errors %}
+          Service: {{ error.item }}
+          {{ error.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endfor %}
+          {% else %}
+          ✓ No errors found in logs for services:
+          {% for result in error_logs.results %}
+            - {{ result.item }}
+          {% endfor %}
           {% endif %}
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
+
+    # .........................................................................................................
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_results | combine({'metrics': metrics_test_results}) }}"
 
     # Create output directory
     - name: Create local data directory for test results
@@ -181,6 +212,11 @@
             (write_check.failed | default(false)) or
             (query_check.failed | default(false))
           }}
+
+    # Add to all_verify_results using task name as key
+    - name: Add metrics failed results to dictionary
+      set_fact:
+        all_verify_failed: "{{ all_verify_failed | combine({'metrics': metrics_verify_failed}) }}"
 
     # Save verification results
     - name: Record metrics verification failed status
