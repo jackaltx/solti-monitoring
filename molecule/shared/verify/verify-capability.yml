@@ -7,23 +7,6 @@
 # this was loaded in the outer loop
 # do we need to read in here????
 #
-# - name: Load capability definitions
-#   include_vars:
-#     file: "{{ playbook_dir }}/shared/vars/capabilities.yml"
-
-# Initialize result structure for this capability if not already present
-- name: Initialize result for capability
-  set_fact:
-    verify_results: >-
-      {{ 
-        verify_results | default({}) | combine({
-          capability: {
-            'tests': [],
-            'errors': [],
-            'status': 'pending'
-          }
-        }) 
-      }}
 
 # Run all verification tasks for this capability
 - name: Run verification tasks for {{ capability }}
@@ -32,16 +15,3 @@
   loop_control:
     loop_var: verify_task
     label: "Running {{ verify_task }}"
-
-# Aggregate the test results
-- name: Aggregate capability results
-  set_fact:
-    test_result_data: >-
-      {{
-        test_result_data | default({}) | combine({
-          capability: {
-            'results': verify_results[capability],
-            'status': 'failed' if (capability + '_verify_failed') | bool else 'success'
-          }
-        }, recursive=true)
-      }}

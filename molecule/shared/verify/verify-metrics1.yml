@@ -151,6 +151,11 @@
           {% endif %}
           {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
 
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_results | combine({'metrics': metrics_test_results}) }}"
+
     # Create output directory
     - name: Create local data directory for test results
       become: false
@@ -181,6 +186,11 @@
             (write_check.failed | default(false)) or
             (query_check.failed | default(false))
           }}
+
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_failed | combine({'metrics': metrics_verify_failed}) }}"
 
     # Save verification results
     - name: Record metrics verification failed status
