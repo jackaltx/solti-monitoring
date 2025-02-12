@@ -145,12 +145,28 @@
           - Network Connections:
           {{ connection_check.stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
-          Recent Error Logs:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          Recent Log Activity:
+          {% set real_errors = [] %}
+          {% for result in error_logs.results %}
+            {% if result.stdout != "-- No entries --" %}
+              {% set _ = real_errors.append(result) %}
+            {% endif %}
+          {% endfor %}
+          {% if real_errors %}
           !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {% for error in real_errors %}
+          Service: {{ error.item }}
+          {{ error.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endfor %}
+          {% else %}
+          ✓ No errors found in logs for services:
+          {% for result in error_logs.results %}
+            - {{ result.item }}
+          {% endfor %}
           {% endif %}
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
 
+    # .........................................................................................................
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
