@@ -41,18 +41,38 @@
       include_vars:
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
-    # .......................................................................
-    - name: Run container diagnostics
-      ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
-      vars:
-        report_suffix: "preverify"
+    # ................................................................
+    - name: Get listing ports for selected capabilities
+      set_fact:
+        container_service_ports: >-
+          {{
+            testing_capabilities |
+            map('extract', monitoring_capabilities) |
+            map(attribute='service_ports') |
+            flatten |
+            list
+          }}
+
+    # ................................................................
+    - name: Debug service ports
+      debug:
+        msg:
+          - "Testing Capabilities: {{ testing_capabilities }}"
+          - "Roles to Include: {{ container_service_ports }}"
+        verbosity: 0
 
     # ................................................................
     - name: Initialize result for capability
       set_fact:
         all_verify_results: {}
         all_verify_failed: {}
+
+    # .......................................................................
+    - name: Run pre-verify container diagnostics
+      ansible.builtin.include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+      vars:
+        report_suffix: "preverify"
 
     # .......................................................................
     # Version 2
@@ -68,6 +88,13 @@
         label: "Verifying {{ capability }} capability"
 
     # .......................................................................
+    - name: Run post-verify container diagnostics
+      ansible.builtin.include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+      vars:
+        report_suffix: "postverify"
+
+    # .......................................................................
     - name: Display all results
       debug:
         msg: "{{ all_verify_results }}"
@@ -77,7 +104,7 @@
         msg: "{{ all_verify_failed }}"
 
     # .......................................................................
-    # this need to change. we want to loop over all the capabilites and tests for errors.
+    # TODO: review this.
     - name: Create verification status map
       set_fact:
         verification_status: >-

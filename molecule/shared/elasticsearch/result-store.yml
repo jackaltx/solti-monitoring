@@ -1,0 +1,74 @@
+# tasks/es-results.yml
+
+- name: Store test results in Elasticsearch
+  when: lookup('env', 'ES_RW_TOKEN') | length > 0
+  block:
+    # First verify ES is accessible
+    - name: Check Elasticsearch connectivity
+      uri:
+        url: "http://127.0.0.1:9200/_cluster/health"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'ES_RW_TOKEN') }}"
+        status_code: [200]
+        validate_certs: no
+      register: es_health
+      delegate_to: localhost
+
+    - name: Generate test run ID for correlation
+      set_fact:
+        test_run_id: "{{ ansible_date_time.epoch }}-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=8') }}"
+
+    - name: Prepare test results document
+      set_fact:
+        es_doc:
+          {
+            "test_run_id": "{{ test_run_id }}",
+            "timestamp": "{{ ansible_date_time.iso8601 }}",
+            "environment":
+              {
+                "distribution": "{{ ansible_distribution }}",
+                "version": "{{ ansible_distribution_version }}",
+                "molecule_scenario": "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}",
+                "git_branch": "{{ lookup('pipe', 'git rev-parse --abbrev-ref HEAD') }}",
+                "git_commit": "{{ lookup('pipe', 'git rev-parse HEAD') }}",
+              },
+            "test_results":
+              {
+                "logs": "{{ all_verify_results.logs | default({}) | to_json }}",
+                "metrics": "{{ all_verify_results.metrics | default({}) | to_json }}",
+              },
+            "test_status":
+              {
+                "logs": "{{ all_verify_failed.logs | default(false) }}",
+                "metrics": "{{ all_verify_failed.metrics | default(false) }}",
+                "overall_status": "{{ all_verify_failed.values() | select('true') | list | length == 0 }}",
+              },
+          }
+
+    - name: Index test results to Elasticsearch
+      uri:
+        url: "http://127.0.0.1:9200/molecule-tests/_doc"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'ES_RW_TOKEN') }}"
+        body: "{{ es_doc }}"
+        body_format: json
+        status_code: [201]
+        validate_certs: no
+      register: es_result
+      delegate_to: localhost
+
+    - name: Debug ES indexing result
+      debug:
+        msg: "Successfully stored test results with ID: {{ es_result.json._id }}"
+        verbosity: 1
+
+  rescue:
+    - name: Log Elasticsearch storage failure
+      debug:
+        msg:
+          - "Failed to store test results in Elasticsearch"
+          - "Health check status: {{ es_health.status | default('unknown') }}"
+          - "Index response: {{ es_result | default('unknown') }}"
+      failed_when: false
