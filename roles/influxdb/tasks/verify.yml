@@ -1,0 +1,218 @@
+---
+# Verify core functionality of log collection system
+# Facts set by this task:
+# - logs_verify_failed: boolean indicating if any verification check failed
+# - logs_test_results: formatted string containing full test results and system status
+#
+# Required vars:
+# - verify_test_print
+#
+- name: Verify Metrics system components
+  block:
+    #
+    # facts created:
+    #   metrics_test_results
+    #   metrics_verify_failed
+    #
+    #   bucket_info_parsed
+    # ......................................................................................
+    - name: Wait for InfluxDB port
+      wait_for:
+        port: 8086
+        timeout: 30
+        state: started
+      register: service_ports_check
+      ignore_errors: true
+
+    # ......................................................................................
+    - name: Verify InfluxDB is running
+      ansible.builtin.service_facts:
+
+    - name: Assert InfluxDB service status
+      ansible.builtin.assert:
+        that:
+          - "'influxdb.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb.service'].state == 'running'"
+          - "ansible_facts.services['influxdb.service'].status == 'enabled'"
+      register: influxdb_service_check
+      ignore_errors: true
+
+    # ......................................................................................
+    - name: Check InfluxDB health
+      uri:
+        url: "http://localhost:8086/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      failed_when: health_check.json.status != "pass"
+
+    - name: Verify InfluxDB API is ready
+      uri:
+        url: "http://localhost:8086/ping"
+        method: GET
+        status_code: 204
+      register: ping_check
+
+    # ......................................................................
+    # Test API
+    - name: Check InfluxDB write permissions
+      command: influx write --bucket telegraf --precision s "test,tag=molecule value=1"
+      register: write_test
+      changed_when: false
+
+    - name: Verify data can be queried
+      command: >
+        influx query 'from(bucket:"telegraf")
+        |> range(start: -1m)
+        |> filter(fn: (r) => r["_measurement"] == "test")'
+      register: query_test
+      changed_when: false
+
+    # ......................................................................
+    - name: Check InfluxDB logs
+      ansible.builtin.shell: 'journalctl -u influxdb --since "2 minute ago" -n 12 --no-pager'
+      register: influxdb_logs
+      changed_when: false
+
+    - name: Verify no critical errors in InfluxDB logs
+      ansible.builtin.assert:
+        that:
+          - "'error' not in influxdb_logs.stdout.lower() or 'level=error' not in influxdb_logs.stdout.lower()"
+        fail_msg: "Found errors in InfluxDB logs"
+
+    # ..........................................................................
+    - name: Get InfluxDB version
+      command: influx version
+      register: influx_version
+      changed_when: false
+
+    # ..........................................................................
+    # Log level verification
+    - name: Check recent logs for errors
+      ansible.builtin.shell: |
+        journalctl -u {{ item }} --since "5 minutes ago" -p err
+      register: error_logs
+      changed_when: false
+      failed_when: false
+      loop:
+        - loki
+
+    # ..........................................................................
+    - name: Get bucket information
+      command: influx bucket list --name telegraf -json
+      register: bucket_info
+      changed_when: false
+
+    - name: Parse bucket information
+      ansible.builtin.set_fact:
+        bucket_info_parsed: "{{ bucket_info.stdout | from_json }}"
+
+    - name: Check InfluxDB write permissions
+      command: influx write --bucket telegraf --precision s "test,tag=molecule value=1"
+      register: write_test
+      changed_when: false
+
+    - name: Verify data can be queried
+      command: >
+        influx query 'from(bucket:"telegraf")
+        |> range(start: -1m)
+        |> filter(fn: (r) => r["_measurement"] == "test")'
+      register: query_test
+      changed_when: false
+
+    # ######################################################################
+    # Reporting section
+    #   - set facts
+    #   - print log, if  verify_test_print: true
+    #   - log fact to ES, if verify_es_log: true
+    #   - Add notice to mattermost, if verify_mm_log: true
+    # ......................................................................
+
+    # ......................................................................
+    - name: Set metrics test results fact
+      no_log: "{{ molecule_nolog | default(true) }}"
+      ansible.builtin.set_fact:
+        metrics_test_results: |
+          === Monitor Stack Integration Test Results ===
+          Timestamp: {{ verify_timestamp }}
+
+          Service Versions:
+            - InfluxDB: {{ influx_version.stdout }}
+
+          Service Status:
+          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+
+          Service Health:
+          - Version: {{ influx_version.stdout }}
+          - Health Check: {{ health_check.json.status }}
+          - API Status: {{ ping_check.status == 204 }}
+          - Write Test Success: {{ write_test.rc == 0 }}
+          - Query Test Success: {{ query_test.rc == 0 }}
+          - Bucket Configuration:
+              Name: {{ bucket_info_parsed[0].name }}
+              ID: {{ bucket_info_parsed[0].id }}
+              Retention: {{ bucket_info_parsed[0].retentionPeriod | default('infinite') }}
+              Organization ID: {{ bucket_info_parsed[0].orgID }}
+
+          Recent Service Logs:
+            {{ influxdb_logs.stdout_lines | to_nice_yaml | indent(8) }}
+
+          Log Error Check:
+          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          !!! ERRORS DETECTED IN LOGS !!!
+          {% endif %}
+          Last error entries:
+          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
+
+    # .......................................................................
+    - name: Set verify result fact
+      ansible.builtin.set_fact:
+        metrics_verify_failed: >-
+          {{ 
+            (service_ports_check.failed | default(false)) or 
+            (influxdb_service_check.failed | default(false)) or 
+            (telegraf_service_check.failed | default(false))
+          }}
+
+    # .......................................................................
+    # .......................................................................
+    - name: Save Local block
+      when: "{{ verify_test_print | default(true) }}"
+      ansible.builtin.set_fact:
+      block:
+        #
+        # .......................................................................
+        - name: Create local data directory for test results
+          become: false
+          ansible.builtin.file:
+            path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+            state: directory
+            mode: "0755"
+          delegate_to: localhost
+
+        # .......................................................................
+        - name: Save integration test results
+          become: false
+          ansible.builtin.copy:
+            content: "{{ metrics_test_results }}"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/unit-influxdb-{{ ansible_date_time.epoch }}.yml"
+            mode: "0644"
+          delegate_to: localhost
+
+        # .......................................................................
+        - name: Record metrics verification failed status
+          become: false
+          when: metrics_verify_failed | bool
+          delegate_to: localhost
+          copy:
+            content: |
+              verify_result: {{ 'failed' if metrics_verify_failed else 'passed' }}
+              failed_asserts:
+                service_ports: {{ service_ports_check | to_json }}
+                influxdb_service: {{ influxdb_service_check | to_json }}
+                telegraf_service: {{ telegraf_service_check | to_json }}
+              capability: metrics
+              distribution: {{ ansible_distribution | lower }}
+              timestamp: {{ verify_timestamp }}
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-metrics-status-{{ ansible_date_time.epoch }}.yml"
+            mode: "0644"

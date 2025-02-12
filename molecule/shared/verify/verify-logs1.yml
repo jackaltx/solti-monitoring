@@ -6,6 +6,7 @@
 #
 - name: Verify logging system components
   block:
+    # .....................................................................
     # Basic service checks
     - name: Check service statuses
       ansible.builtin.service_facts:
@@ -30,6 +31,7 @@
       register: alloy_service_check
       ignore_errors: true
 
+    # .....................................................................
     # Network connectivity checks
     - name: Verify Loki port is listening
       ansible.builtin.wait_for:
@@ -45,6 +47,7 @@
       changed_when: false
       failed_when: false
 
+    # .....................................................................
     # Configuration checks
     - name: Verify critical files exist
       ansible.builtin.stat:
@@ -56,6 +59,7 @@
         - /var/lib/loki/rules
       failed_when: not file_checks.stat.exists
 
+    # .....................................................................
     # Basic API health check
     - name: Check Loki API health
       ansible.builtin.uri:
@@ -65,6 +69,7 @@
       register: api_check
       ignore_errors: true
 
+    # .....................................................................
     # Log level verification
     - name: Check recent logs for errors
       ansible.builtin.shell: |
@@ -72,10 +77,9 @@
       register: error_logs
       changed_when: false
       failed_when: false
-      loop:
-        - loki
-        - alloy
+      loop: "{{ monitoring_capabilities[capability].service_names }}"
 
+    # .....................................................................
     # Simple query test
     - name: Test log query functionality
       ansible.builtin.uri:
@@ -88,6 +92,7 @@
       register: query_check
       ignore_errors: true
 
+    # .....................................................................
     # Get service versions for reporting
     - name: Get service versions
       block:
@@ -101,7 +106,8 @@
           register: alloy_version
           changed_when: false
 
-    # Create test results output
+    # ......................................................................................................
+    # ......................................................................................................
     - name: Set logs_test_results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
@@ -130,12 +136,34 @@
           {{ connection_check.stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
           Recent Log Activity:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          {% set real_errors = [] %}
+          {% for result in error_logs.results %}
+            {% if result.stdout != "-- No entries --" %}
+              {% set _ = real_errors.append(result) %}
+            {% endif %}
+          {% endfor %}
+          {% if real_errors %}
           !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {% for error in real_errors %}
+          Service: {{ error.item }}
+          {{ error.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endfor %}
+          {% else %}
+          ✓ No errors found in logs for services:
+          {% for result in error_logs.results %}
+            - {{ result.item }}
+          {% endfor %}
           {% endif %}
-          Last error entries:
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
 
+    # .............................................................................................
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_results | combine({'logs': logs_test_results}) }}"
+
+    # ......................................................................................................
+    # ......................................................................................................
     # Create output directory
     - name: Create local data directory for test results
       become: false
@@ -154,7 +182,10 @@
         dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
 
-      # Set verification status
+    # ......................................................................................................
+    # ......................................................................................................
+    # ......................................................................................................
+    # Set verification status
     - name: Set logs_verify_failed fact
       ansible.builtin.set_fact:
         logs_verify_failed: >-
@@ -165,6 +196,11 @@
             (api_check.failed | default(false)) or
             (query_check.failed | default(false))
           }}
+
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_failed: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
 
     # Save verification results
     - name: Save verification status
@@ -188,7 +224,11 @@
         dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-logs-status-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
 
+  # ......................................................................................................
+  # ......................................................................................................
   rescue:
+    # ......................................................................................................
+    # ......................................................................................................
     - name: Record verification failure
       ansible.builtin.set_fact:
         logs_verify_failed: true
