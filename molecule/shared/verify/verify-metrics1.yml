@@ -119,7 +119,7 @@
 
         - name: Get Telegraf version
           command: telegraf --version
-          register: influx_version
+          register: telegraf_version
           changed_when: false
 
     # ...............................................................................
@@ -131,6 +131,10 @@
         metrics_test_results: |
           === Monitor Stack Integration Test Results ===
           Timestamp: {{ verify_timestamp }}
+
+          Service Versions:
+          - InfluxDB: {{ influx_version.stdout }}
+          - Telegraf: {{ telegraf_version.stdout }}
 
           Service Status:
           - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
