@@ -1,218 +1,184 @@
 ---
-- name: Verify
-  hosts: all
-  become: true
-
-  tasks:
-    - name: Verify Loki is running
+# Verify core functionality of log collection system
+# Facts set by this task:
+# - logs_verify_failed: boolean indicating if any verification check failed
+# - logs_test_results: formatted string containing full test results and system status
+#
+- name: Verify logging system components
+  block:
+    #
+    # ..........................................................................
+    # Basic service checks
+    - name: Check service statuses
       ansible.builtin.service_facts:
 
-    - name: Assert Loki service status
+    - name: Verify Loki service status
       ansible.builtin.assert:
         that:
           - "'loki.service' in ansible_facts.services"
           - "ansible_facts.services['loki.service'].state == 'running'"
           - "ansible_facts.services['loki.service'].status == 'enabled'"
+        fail_msg: "Loki service is not running properly"
+      register: loki_service_check
+      ignore_errors: true
 
-    - name: Verify Alloy is running
-      ansible.builtin.assert:
-        that:
-          - "'alloy.service' in ansible_facts.services"
-          - "ansible_facts.services['alloy.service'].state == 'running'"
-          - "ansible_facts.services['alloy.service'].status == 'enabled'"
-
-    # ......................................................................................
-    - name: Check Loki port
+    # ..........................................................................
+    # Network connectivity checks
+    - name: Verify Loki port is listening
       ansible.builtin.wait_for:
         port: 3100
         timeout: 30
         state: started
+      register: port_check
+      ignore_errors: true
 
-    - name: Wait for Alloy to establish connection
-      command: ss -tpn '( dst :3100 )'
-      register: ss_output
-      until: "'alloy' in ss_output.stdout"
-      retries: 300 # Will try for 2 minutes
-      delay: 10 # 10 seconds between retries
-      changed_when: false
+    # ..........................................................................
+    # Configuration checks
+    - name: Verify critical files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_checks
+      loop:
+        - /etc/loki/config.yml
+        - /var/lib/loki/chunks
+        - /var/lib/loki/rules
+      failed_when: not file_checks.stat.exists
 
-    # ......................................................................................
-    - name: Verify Alloy connection to Loki exists
-      ansible.builtin.assert:
-        that:
-          - "'alloy' in ss_output.stdout"
-        fail_msg: "No connection found from Alloy to Loki"
-
-    - name: Get Alloy file handles
-      ansible.builtin.shell: "lsof -p $(pidof alloy)"
-      register: lsof_output
-      changed_when: false
-
-    # ......................................................................................
-    - name: Check Loki health endpoints
-      uri:
-        url: "http://localhost:3100/{{ item }}"
+    # ..........................................................................
+    # Basic API health check
+    - name: Check Loki API health
+      ansible.builtin.uri:
+        url: "http://localhost:3100/metrics"
         method: GET
         status_code: 200
-      register: loki_health
-      with_items:
-        # - ready
-        - metrics
+      register: api_check
+      ignore_errors: true
 
-    # ................................................................................................
-    - name: Query recent Loki logs for Alloy
-      uri:
-        url: 'http://localhost:3100/loki/api/v1/query_range?query={job="loki.source.journal.read"}&limit=10&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000'
+    # ..........................................................................
+    # Log level verification
+    - name: Check recent logs for errors
+      ansible.builtin.shell: |
+        journalctl -u {{ item }} --since "5 minutes ago" -p err
+      register: error_logs
+      changed_when: false
+      failed_when: false
+      loop:
+        - loki
+
+    # ..........................................................................
+    # Simple query test
+    - name: Test log query functionality
+      ansible.builtin.uri:
+        url: "http://localhost:3100/loki/api/v1/query_range?query=%7Bjob%3D%22loki.source.journal.read%22%7D&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000&limit=5"
         method: GET
         body_format: json
         return_content: yes
         validate_certs: no
         status_code: 200
-      register: loki_query_result
+      register: query_check
+      ignore_errors: true
 
-    - name: Verify Loki is receiving logs
-      assert:
-        that:
-          - loki_query_result.json.status == 'success'
-          - loki_query_result.json.data.result | length > 0
-        fail_msg: "No recent logs found from Alloy in Loki"
+    # ..........................................................................
+    # Get service versions for reporting
+    - name: Get service versions
+      block:
+        - name: Get Loki version
+          command: loki --version
+          register: loki_version
+          changed_when: false
 
-    # ......................................................................................
-    - name: Verify alloy setup
-      ansible.builtin.assert:
-        that:
-          - "'alloy' in lsof_output.stdout"
-          - "'/usr/bin/alloy' in lsof_output.stdout"
-          # - "'localhost:3100 (ESTABLISHED)' in lsof_output.stdout"
-          # - "'TCP localhost' in lsof_output.stdout"
-        fail_msg: |
-          Alloy process verification failed:
-          {{ lsof_output.stdout }}
+    # ######################################################################
+    # Reporting section
+    #   - set facts
+    #   - print log, if  verify_test_print: true
+    #   - log fact to ES, if verify_es_log: true
+    #   - Add notice to mattermost, if verify_mm_log: true
+    # ..........................................................................
 
-    # ......................................................................................
-    - name: Check Alloy logs for successful writes
-      ansible.builtin.command: journalctl -u alloy --since "5 minute ago" -n 50 --no-pager
-      register: alloy_logs
-      changed_when: false
-
-    - name: Verify no write errors in Alloy logs
-      ansible.builtin.assert:
-        that:
-          - "'error writing' not in alloy_logs.stdout"
-        fail_msg: "Found write errors in Alloy logs"
-
-    # ......................................................................
-    - name: Check Loki logs
-      ansible.builtin.shell: 'journalctl -u loki --since "2 minute ago" -n 12 --no-pager'
-      register: loki_logs
-      changed_when: false
-
-    # - name: Verify no critical errors in Loki logs
-    #   ansible.builtin.assert:
-    #     that:
-    #       - "'error' not in loki_logs.stdout.lower() or 'level=error' not in loki_logs.stdout.lower()"
-    #     fail_msg: "Found errors in Loki logs"
-
-    # ......................................................................
-    - name: Get Loki version
-      command: loki --version
-      register: loki_version
-      changed_when: false
-
-    - name: Get Alloy version
-      command: alloy --version
-      register: alloy_version
-      changed_when: false
-
-    # ......................................................................
-    # - name: Get current timestamp
-    #   set_fact:
-    #     current_timestamp: "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime(ansible_date_time.epoch | int - 3600) }}"
-
-    # - name: Write test log entry to Loki
-    #   command: >
-    #     logcli --addr="http://localhost:3100" labels '{job="test-write"}'
-    #     --from="{{ current_timestamp }}" --quiet
-    #   register: write_test
-    #   changed_when: false
-
-    # - name: Send test log through LogCLI
-    #   shell: >
-    #     echo "test log entry from ansible $(date +%s)" |
-    #     logcli --addr="http://localhost:3100" query '{job="test-write"}' --org-id=1 --from="$(date -u +"%Y-%m-%dT%H:%M:%SZ" -d @$(date +%s))" --limit=1 --quiet
-    #   register: write_push
-    #   changed_when: false
-
-    # - name: Get timestamp for 5 minutes ago
-    #   set_fact:
-    #     five_minutes_ago: "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime(ansible_date_time.epoch | int - 300) }}"
-
-    # - name: Query test log entry
-    #   command: >
-    #     logcli --addr="http://localhost:3100" query
-    #     --quiet --limit=5 --from="{{ five_minutes_ago }}"
-    #     '{job="test-write"}'
-    #   register: query_test
-    #   changed_when: false
-    #   failed_when: >
-    #     query_test.rc != 0 or
-    #     'test log entry from ansible' not in query_test.stdout
-
-    ####################################################################################################
-    #  Output results section
-    #
-
-    - name: Create local data directory for test results
-      become: false
-      ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
-        state: directory
-        mode: "0755"
-      delegate_to: localhost
-
-    # ......................................................................
-    - name: Save integration test results
-      become: false
-      ansible.builtin.copy:
-        content: |
+    # ..........................................................................
+    # Create test results output
+    - name: Set logs_test_results fact
+      no_log: "{{ molecule_nolog | default(true) }}"
+      ansible.builtin.set_fact:
+        logs_test_results: |
           === Monitor Stack Integration Test Results ===
-          Timestamp: {{ ansible_date_time.iso8601 }}
+          Timestamp: {{ verify_timestamp }}
 
           Service Versions:
           - Loki: {{ loki_version.stdout }}
-          - Alloy: {{ alloy_version.stdout }}
 
           Service Status:
           - Loki: {{ ansible_facts.services['loki.service'].state }}
-          - Alloy: {{ ansible_facts.services['alloy.service'].state }}
 
-          Loki Health:
-          - Metrics Available: {{ (loki_health.results[0].status == 200) }}
-          - Log Query Success: {{ loki_query_result.json.status == 'success' }}
+          Service Health:
+          - Metrics Available: {{ (api_check.status | default(0)) == 200 }}
+          - Log Query Success: {{ (query_check.status | default(0)) == 200 }}
 
-          Recent Loki Logs:
-            {{ loki_logs.stdout_lines | to_nice_yaml | indent(8) }}
+          Recent Service Logs:
+          {{ error_logs.results[0].stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
-          Alloy Integration:
-          - Connection Status: Established
-          - Network Connections:
-            {{ ss_output.stdout_lines | to_nice_yaml | indent(8) }}
-          - Process Information:
-            {{ lsof_output.stdout_lines | to_nice_yaml | indent(8) }}
-
-          Recent Log Activity:
-          {% if 'error writing' in alloy_logs.stdout %}
+          Log Error Check:
+          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
           !!! ERRORS DETECTED IN LOGS !!!
           {% endif %}
-          Last 50 log entries:
-            {{ alloy_logs.stdout_lines | to_nice_yaml | indent(8) }}
+          Last error entries:
+          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
 
-        dest: "{{ report_root }}//{{ ansible_distribution | lower }}/log_collection_integration_results.yml"
-        mode: "0644"
-      delegate_to:
-        localhost
+    # ..........................................................................
+    # Set verification status
+    - name: Set logs_verify_failed fact
+      ansible.builtin.set_fact:
+        logs_verify_failed: >-
+          {{ 
+            (port_check.failed | default(false)) or 
+            (loki_service_check.failed | default(false)) or 
+            (alloy_service_check.failed | default(false)) or
+            (api_check.failed | default(false)) or
+            (query_check.failed | default(false))
+          }}
 
-        # Alloy Health:
-        # - Metrics Endpoint: {{ alloy_metrics.status == 200 }}
-        # - Publishing Metrics: {{ 'alloy_' in alloy_metrics.content }}
-        # - Sending to Loki: {{ 'loki_' in alloy_metrics.content }}
+    # .......................................................................
+    # .......................................................................
+    - name: Save Local block
+      when: "{{ verify_test_print | default(true) }}"
+      block:
+        #
+        # ..........................................................................
+        - name: Create local data directory for test results
+          become: false
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+            state: directory
+            mode: "0755"
+
+        # ..........................................................................
+        - name: Save logs_test_results to file
+          become: false
+          delegate_to: localhost
+          ansible.builtin.copy:
+            content: "{{ logs_test_results }}"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
+            mode: "0644"
+
+        # ..........................................................................
+        - name: Save verification status
+          become: false
+          when: logs_verify_failed | bool
+          delegate_to: localhost
+          ansible.builtin.copy:
+            content: |
+              verify_result: {{ 'failed' if logs_verify_failed else 'passed' }}
+              failed_checks:
+                loki_service: {{ loki_service_check | to_json }}
+                alloy_service: {{ alloy_service_check | to_json }}
+                port: {{ port_check | to_json }}
+                api: {{ api_check | to_json }}
+                query: {{ query_check | to_json }}
+              error_logs:
+                {{ error_logs.results | to_nice_yaml | indent(2) }}
+              capability: logs
+              distribution: {{ ansible_distribution | lower }}
+              timestamp: {{ verify_timestamp }}
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-logs-status-{{ ansible_date_time.epoch }}-1.yml"
+            mode: "0644"

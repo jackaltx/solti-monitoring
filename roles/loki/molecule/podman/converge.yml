@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
+  become: true
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+
+  vars:
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
+
+  tasks:
+    - name: Debug information
+      debug:
+        msg:
+          - "GithubCi: {{ on_github }}"
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+
+    - name: Include loki role
+      ansible.builtin.include_role:
+        name: "{{ roles_root }}/loki"

@@ -49,15 +49,10 @@
         report_suffix: "preverify"
 
     # ................................................................
-    # I am assuming that this fact will be used  to store all the output results
-    # in an addressable way.
-    # like  verify_results.logs.tests[0].results
-    # and verify_results.metrics.tests[0].results
-    # and something like that for the error reports    #
-    #
     - name: Initialize result for capability
       set_fact:
-        "verify_results": {}
+        all_verify_results: {}
+        all_verify_failed: {}
 
     # .......................................................................
     # Version 2
@@ -71,15 +66,6 @@
       loop_control:
         loop_var: capability
         label: "Verifying {{ capability }} capability"
-
-    # .......................................................................
-    # Version 1 (deprecated)
-    # - name: Run capability-specific verifications (Version 1)
-    #   include_tasks: "verify-{{ capability }}.yml"
-    #   loop: "{{ testing_capabilities }}"
-    #   loop_control:
-    #     loop_var: capability
-    #     label: "Verifying {{ capability }} capability"
 
     # .......................................................................
     # this need to change. we want to loop over all the capabilites and tests for errors.

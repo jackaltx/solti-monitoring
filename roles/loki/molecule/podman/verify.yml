@@ -1,0 +1,40 @@
+---
+- name: Verify
+  hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
+  become: true
+  serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
+
+  vars:
+    # Only check container and network health
+    check_services: false
+    molecule_nolog: true
+    verify_timestamp: "{{ ansible_date_time.iso8601 }}"
+    on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
+
+  tasks:
+    #
+    # .....................................................................
+    #
+    - name: Ensure verify_output directory exists
+      ansible.builtin.file:
+        path: "{{ report_root }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    # .....................................................................
+    - name: Debug information
+      debug:
+        msg:
+          - "GithubCi: {{ on_github }}"
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Roles path: {{ playbook_dir }}/../../roles"
+          - "Project_root: {{ project_root }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Testing capability: {{ testing_capabilities }}"
+
+    - name: Include loki role
+      ansible.builtin.include_role:
+        name: "{{ roles_root }}/loki"
+        tasks_from: verify.yml
