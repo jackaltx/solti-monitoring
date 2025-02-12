@@ -6,6 +6,7 @@
 
 - name: Verify metrics system components
   block:
+    # ...............................................................................
     # Basic service checks
     - name: Check service statuses
       ansible.builtin.service_facts:
@@ -30,6 +31,7 @@
       register: telegraf_service_check
       ignore_errors: true
 
+    # ...............................................................................
     # Network connectivity checks
     - name: Verify InfluxDB port is listening
       ansible.builtin.wait_for:
@@ -45,6 +47,7 @@
       changed_when: false
       failed_when: false
 
+    # ...............................................................................
     # Configuration and bucket checks
     - name: Verify bucket exists and is accessible
       ansible.builtin.command: influx bucket list --name telegraf --json
@@ -57,6 +60,7 @@
         bucket_info_parsed: "{{ bucket_check.stdout | from_json }}"
       when: bucket_check is success
 
+    # ...............................................................................
     # API Health checks
     - name: Check InfluxDB API health
       ansible.builtin.uri:
@@ -75,6 +79,7 @@
       register: ping_check
       ignore_errors: true
 
+    # ...............................................................................
     # Data write and query tests
     - name: Test write capability
       ansible.builtin.command: >
@@ -95,18 +100,16 @@
       failed_when: query_check.rc != 0
       ignore_errors: true
 
-    # Log level verification
+    # ...............................................................................
     - name: Check recent logs for errors
       ansible.builtin.shell: |
         journalctl -u {{ item }} --since "5 minutes ago" -p err
       register: error_logs
       changed_when: false
       failed_when: false
-      loop:
-        - influxdb
-        - telegraf
+      loop: "{{ monitoring_capabilities[capability].service_names }}"
 
-    # Get versions for reporting
+    # ...............................................................................
     - name: Get service versions
       block:
         - name: Get InfluxDB version
@@ -114,6 +117,13 @@
           register: influx_version
           changed_when: false
 
+        - name: Get Telegraf version
+          command: telegraf --version
+          register: influx_version
+          changed_when: false
+
+    # ...............................................................................
+    # ...............................................................................
     # Create test results output
     - name: Set metrics test results fact
       no_log: "{{ molecule_nolog | default(true) }}"
@@ -204,9 +214,9 @@
           }}
 
     # Add to all_verify_results using task name as key
-    - name: Add metrics results to dictionary
+    - name: Add metrics failed results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_failed | combine({'metrics': metrics_verify_failed}) }}"
+        all_verify_failed: "{{ all_verify_failed | combine({'metrics': metrics_verify_failed}) }}"
 
     # Save verification results
     - name: Record metrics verification failed status

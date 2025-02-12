@@ -77,15 +77,7 @@
       register: error_logs
       changed_when: false
       failed_when: false
-      loop:
-        - loki
-        - alloy
-
-    - debug:
-        var: error_logs
-
-      # NOTE:  think about this
-      # loop: "{{ monitoring_capabilities[capability].service_names }}"
+      loop: "{{ monitoring_capabilities[capability].service_names }}"
 
     # .....................................................................
     # Simple query test
@@ -208,7 +200,7 @@
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
+        all_verify_failed: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
 
     # Save verification results
     - name: Save verification status

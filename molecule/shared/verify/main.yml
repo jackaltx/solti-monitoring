@@ -68,6 +68,15 @@
         label: "Verifying {{ capability }} capability"
 
     # .......................................................................
+    - name: Display all results
+      debug:
+        msg: "{{ all_verify_results }}"
+
+    - name: Display all faile results
+      debug:
+        msg: "{{ all_verify_failed }}"
+
+    # .......................................................................
     # this need to change. we want to loop over all the capabilites and tests for errors.
     - name: Create verification status map
       set_fact:
