@@ -1,6 +1,7 @@
 ---
 dependency:
   name: galaxy
+  enabled: false # This tells Molecule to skip the dependency installation step
   options:
     requirements-file: ../shared/requirements.yml
     ignore-errors: true
@@ -77,12 +78,7 @@ provisioner:
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
         ansible_connection: ssh
-        ansible_user: "jackaltx" # "${USER}"
-        # DEBUG: Add explicit SSH settings
-        # ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        # ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        # ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
-        # ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+        ansible_user: "jackaltx"
 
         # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
