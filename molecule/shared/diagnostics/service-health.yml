@@ -1,6 +1,5 @@
 ---
 - name: Check service health
-  when: check_services | default(true)
   block:
     - name: Gather service facts
       service_facts:
