@@ -106,8 +106,14 @@
           register: alloy_version
           changed_when: false
 
-    # ......................................................................................................
-    # ......................................................................................................
+    # ######################################################################
+    # Reporting section
+    #   - set facts
+    #   - print log, if  verify_test_print: true
+    #   - log fact to ES, if verify_es_log: true
+    #   - Add notice to mattermost, if verify_mm_log: true
+    # ..........................................................................
+    #
     - name: Set logs_test_results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
@@ -160,29 +166,30 @@
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'logs': logs_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'logs-shared': logs_test_results}) }}"
 
     # ......................................................................................................
     # ......................................................................................................
-    # Create output directory
-    - name: Create local data directory for test results
-      become: false
-      delegate_to: localhost
-      ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
-        state: directory
-        mode: "0755"
+    - name: Save Local block
+      when: "{{ verify_test_print | default(true) }}"
+      block:
+        #
+        - name: Create local data directory for test results
+          become: false
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+            state: directory
+            mode: "0755"
 
-    # Save test results
-    - name: Save logs_test_results to file
-      become: false
-      delegate_to: localhost
-      ansible.builtin.copy:
-        content: "{{ logs_test_results }}"
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
-        mode: "0644"
+        - name: Save logs_test_results to file
+          become: false
+          delegate_to: localhost
+          ansible.builtin.copy:
+            content: "{{ logs_test_results }}"
+            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
+            mode: "0644"
 
-    # ......................................................................................................
     # ......................................................................................................
     # ......................................................................................................
     # Set verification status
@@ -202,7 +209,7 @@
       set_fact:
         all_verify_failed: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
 
-    # Save verification results
+    # ..........................................................................
     - name: Save verification status
       become: false
       when: logs_verify_failed | bool
@@ -225,10 +232,8 @@
         mode: "0644"
 
   # ......................................................................................................
-  # ......................................................................................................
   rescue:
-    # ......................................................................................................
-    # ......................................................................................................
+    #
     - name: Record verification failure
       ansible.builtin.set_fact:
         logs_verify_failed: true

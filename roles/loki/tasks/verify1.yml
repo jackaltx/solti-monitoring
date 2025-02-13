@@ -8,50 +8,16 @@
   block:
     #
     # ..........................................................................
-    # Basic service checks
-    - name: Check service statuses
-      ansible.builtin.service_facts:
-
-    - name: Verify Loki service status
-      ansible.builtin.assert:
-        that:
-          - "'loki.service' in ansible_facts.services"
-          - "ansible_facts.services['loki.service'].state == 'running'"
-          - "ansible_facts.services['loki.service'].status == 'enabled'"
-        fail_msg: "Loki service is not running properly"
-      register: loki_service_check
-      ignore_errors: true
-
-    # ..........................................................................
-    # Network connectivity checks
-    - name: Verify Loki port is listening
-      ansible.builtin.wait_for:
-        port: 3100
-        timeout: 30
-        state: started
-      register: port_check
-      ignore_errors: true
-
-    # ..........................................................................
-    # Configuration checks
-    - name: Verify critical files exist
-      ansible.builtin.stat:
-        path: "{{ item }}"
-      register: file_checks
-      loop:
-        - /etc/loki/config.yml
-        - /var/lib/loki/chunks
-        - /var/lib/loki/rules
-      failed_when: not file_checks.stat.exists
-
-    # ..........................................................................
-    # Basic API health check
-    - name: Check Loki API health
+    # Simple query test
+    - name: Test log query functionality
       ansible.builtin.uri:
-        url: "http://localhost:3100/metrics"
+        url: "http://localhost:3100/loki/api/v1/query_range?query=%7Bjob%3D%22loki.source.journal.read%22%7D&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000&limit=5"
         method: GET
+        body_format: json
+        return_content: yes
+        validate_certs: no
         status_code: 200
-      register: api_check
+      register: query_check
       ignore_errors: true
 
     # ..........................................................................
@@ -65,15 +31,6 @@
       loop:
         - loki
 
-    # ..........................................................................
-    # Get service versions for reporting
-    - name: Get service versions
-      block:
-        - name: Get Loki version
-          command: loki --version
-          register: loki_version
-          changed_when: false
-
     # ######################################################################
     # Reporting section
     #   - set facts
@@ -81,51 +38,50 @@
     #   - log fact to ES, if verify_es_log: true
     #   - Add notice to mattermost, if verify_mm_log: true
     # ..........................................................................
-
-    # ..........................................................................
-    # Create test results output
+    #
     - name: Set logs_test_results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
         logs_test_results: |
-          === Monitor Stack Integration Test Results ===
+          === Loki Runtime Results ===
           Timestamp: {{ verify_timestamp }}
-
-          Service Versions:
-          - Loki: {{ loki_version.stdout }}
-
-          Service Status:
-          - Loki: {{ ansible_facts.services['loki.service'].state }}
-
-          Service Health:
-          - Metrics Available: {{ (api_check.status | default(0)) == 200 }}
 
           Recent Service Logs:
           {{ error_logs.results[0].stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
-          Log Error Check:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          Recent Log Activity:
+          {% set real_errors = [] %}
+          {% for result in error_logs.results %}
+            {% if result.stdout != "-- No entries --" %}
+              {% set _ = real_errors.append(result) %}
+            {% endif %}
+          {% endfor %}
+          {% if real_errors %}
           !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {% for error in real_errors %}
+          Service: {{ error.item }}
+          {{ error.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endfor %}
+          {% else %}
+          ✓ No errors found in logs for services:
+          {% for result in error_logs.results %}
+            - {{ result.item }}
+          {% endfor %}
           {% endif %}
-          Last error entries:
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
 
     # .............................................................................................
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': logs_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level1': logs_test_results}) }}"
 
-    # ..........................................................................
-    # Set verification status
+    # ..............................................................................................
     - name: Set logs_verify_failed fact
       ansible.builtin.set_fact:
         logs_verify_failed: >-
           {{ 
-            (port_check.failed | default(false)) or 
-            (loki_service_check.failed | default(false)) or 
-            (alloy_service_check.failed | default(false)) or
-            (api_check.failed | default(false))
+            (query_check.failed | default(false))
           }}
 
     # Add to all_verify_results using task name as key
