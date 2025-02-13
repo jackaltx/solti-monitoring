@@ -1,9 +1,8 @@
 ---
 dependency:
   name: galaxy
-  enabled: false # This tells Molecule to skip the dependency installation step
   options:
-    requirements-file: ../shared/requirements.yml
+    requirements-file: ${MOLECULE_EPHEMERAL_DIRECTORY}/requirements.yml
     ignore-errors: true
 
 driver:
@@ -63,15 +62,17 @@ provisioner:
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-  playbooks:
-    prepare: "../shared/podman/prepare.yml"
-    converge: "../shared/podman/converge.yml"
-    verify: "../shared/verify/main.yml"
   config_options:
     defaults:
       roles_path: roles
       interpreter_python: auto_silent
       host_key_checking: false
+  playbooks:
+    create: "../shared/podman/create.yml"
+    prepare: "../shared/podman/prepare.yml"
+    converge: "../shared/podman/converge.yml"
+    verify: "../shared/verify/main.yml"
+    destory: "../shared/podman/destroy.yml"
   inventory:
     group_vars:
       all:

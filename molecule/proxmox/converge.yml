@@ -16,7 +16,7 @@
 
     - name: Load capability role definitions
       include_vars:
-        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
     - debug:
         var: monitoring_capabilities
