@@ -16,7 +16,7 @@
     - name: Check resource usage
       command: "ps aux | grep {{ item }} | grep -v grep"
       register: service_processes
-      loop: "{{ monitored_services | default(['loki', 'influxdb', 'telegraf', 'alloy']) }}"
+      loop: "{{ monitored_services | default([]) }}"
       changed_when: false
       failed_when: false
 
@@ -34,4 +34,4 @@
           }
           })
           }}"
-      loop: "{{ monitored_services | default(['loki', 'influxdb', 'telegraf', 'alloy']) }}"
+      loop: "{{ monitored_services | default([]) }}"

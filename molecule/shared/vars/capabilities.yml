@@ -20,6 +20,12 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_logs_deps # Reuse RedHat dependencies
+    verify_role_tasks:
+      loki:
+        - verify.yml
+        - verify1.yml
+      alloy:
+        - verify.yml
     verify_tasks:
       - verify-logs1.yml
     service_names:
@@ -45,6 +51,9 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_metrics_deps
+    verify_role_tasks:
+      inflxudb:
+        - verify.yml
     verify_tasks:
       - verify-metrics1.yml
     service_names:

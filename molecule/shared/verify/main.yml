@@ -42,13 +42,25 @@
         file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
 
     # ................................................................
-    - name: Get listing ports for selected capabilities
+    - name: Get listening ports for selected capabilities
       set_fact:
         container_service_ports: >-
           {{
             testing_capabilities |
             map('extract', monitoring_capabilities) |
             map(attribute='service_ports') |
+            flatten |
+            list
+          }}
+
+    # ................................................................
+    - name: Get service names for selected capabilities
+      set_fact:
+        monitored_services: >-
+          {{
+            testing_capabilities |
+            map('extract', monitoring_capabilities) |
+            map(attribute='service_names') |
             flatten |
             list
           }}
@@ -95,13 +107,9 @@
         report_suffix: "postverify"
 
     # .......................................................................
-    - name: Display all results
-      debug:
-        msg: "{{ all_verify_results }}"
-
-    - name: Display all faile results
-      debug:
-        msg: "{{ all_verify_failed }}"
+    - name: Report Results
+      ansible.builtin.include_tasks:
+        file: report.yml
 
     # .......................................................................
     # TODO: review this.
