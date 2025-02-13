@@ -16,11 +16,9 @@
           --------------
           {{ network_health | to_nice_yaml | indent(2) }}
 
-          {% if check_services | default(true) %}
           Service Health:
           --------------
           {{ service_health | default({}) | to_nice_yaml | indent(2) }}
-          {% endif %}
 
         dest: "{{ report_root }}/{{ ansible_distribution | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_date_time.epoch }}.yml"
         mode: "0644"
