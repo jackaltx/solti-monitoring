@@ -37,7 +37,7 @@
     # This sets monitoring_capabilities variable. This is a hard-coded for now
     - name: Load capability role definitions
       include_vars:
-        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
     # ................................................................
     - name: Get listening ports for selected capabilities
