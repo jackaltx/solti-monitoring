@@ -1,6 +1,6 @@
 ---
 namespace: jackaltx
-name: solte.monitoring
+name: solti.monitoring
 version: 1.0.0
 readme: README.md
 authors:
@@ -16,9 +16,9 @@ tags: []
 dependencies:
   "community.general": ">=10.0.0"
 
-repository: http://github.com/jackaltx/solte_monitoring_collection
+repository: http://github.com/jackaltx/solti_monitoring_collection
 documentation: http://docs.jackaltx.com
-homepage: http://github.com/jackaltx/solte_monitoring_collection
-issues: http://github.com/jackaltx/solte_monitoring_collection/issue/tracker
+homepage: http://github.com/jackaltx/solti_monitoring_collection
+issues: http://github.com/jackaltx/solti_monitoring_collection/issue/tracker
 
 build_ignore: []
