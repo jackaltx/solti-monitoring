@@ -23,6 +23,8 @@ all:
           ansible_host: "monitor3.a0a0.org"
         monitor4:
           ansible_host: "monitor4.a0a0.org"
+        monitor11:
+          ansible_host: "192.168.55.11"
 
       # .........................................
       # mylab vars
@@ -39,13 +41,21 @@ all:
             monitor4:
               telegraf_outputs: [localhost]
 
+            monitor11:
+              telegraf_outputs: [localhost]
+
+              influxdb_s3: true
+              influxdb_s3_bucket: "influx11"
+              influxdb_s3_endpoint: "jacknas2.a0a0.org:8010"
+              influxdb_s3_access_key: "MonitorStor:AMu1elAHnqNiaNwdXP0L"
+              influxdb_s3_secret_key: "JbmPLwloA0OZvT3N3od2gFdp34r7DHe9"
+              influxdb_s3_path_style: true
+              influxdb_s3_retention_threshold: "30d"
+
           # ........................................
           # metric_collectors only vars
           vars:
             influxdb_level: warn
-
-            # collect influxdb metrics from this server (localhost collection)
-            influxdb_oss_metrics: true
 
         # .....................................
         # used to install common packages

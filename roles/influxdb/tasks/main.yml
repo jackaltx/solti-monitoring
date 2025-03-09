@@ -105,6 +105,19 @@
                 mode: "0644"
               become: true
               notify: Restart influxdb
+
+            # SMELL this is required when we are using S3.
+            # evaluate using "line in file"
+            - name: "Template config for defaults in /etc/default/"
+              ansible.builtin.template:
+                src: etc-default-influxdb.j2
+                dest: /etc/default/influxdb2
+                owner: root
+                group: root
+                mode: "0644"
+              become: true
+              notify: Restart influxdb
+
     # TODO catch failures
 
     # ......................................................................................
