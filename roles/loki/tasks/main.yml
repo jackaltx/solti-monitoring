@@ -26,6 +26,9 @@
     ##################
     # Configure
 
+    - debug:
+        var: loki_local_storage
+
     - name: Template config to  /etc/loki/config.yml
       ansible.builtin.template:
         src: config.yml.j2
