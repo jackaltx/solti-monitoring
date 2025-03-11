@@ -8,7 +8,7 @@ local.file_match "apache_vhost_access" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/other_vhosts_access.log",
-    host        = "angela",
+    host        = "{{ ansible_hostname }}",
     job         = "apache",
     label       = "httpd_access",
   }]
@@ -18,7 +18,7 @@ local.file_match "apache_access" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/access.log",
-    host        = "angela",
+    host        = "{{ ansible_hostname }}",
     job         = "apache",
     label       = "httpd_access",
     vhost       = "SystemRoot",
@@ -29,13 +29,13 @@ local.file_match "apache_error" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/error.log",
-    host        = "angela",
+    host        = "{{ ansible_hostname }}",
     job         = "apache",
     label       = "httpd_error",
   }, {
     __address__ = "localhost",
     __path__    = "/var/log/ispconfig/httpd/*/error.log",
-    host        = "angela",
+    host        = "{{ ansible_hostname }}",
     job         = "apache",
     label       = "httpd_error",
   }]
@@ -85,7 +85,7 @@ loki.process "apache_vhost_access" {
   }
 
   stage.match {
-    selector = "{path=~\"/wp-admin/.*|/wp-login\\.php.*|/wp-content/.*\"}"
+    selector = "{path=~\"/wp-admin/.*|/wp-login\\\\.php.*|/wp-content/.*\"}"
     stage.labels {
       values = {
         application = "wordpress",
@@ -104,7 +104,7 @@ loki.process "apache_vhost_access" {
 
   // Drop noisy monitoring requests
   stage.match {
-    selector = "{action=\"GET\", path=\"/datalogstatus.php\",referer=\"https://angela.lavnet.net:8080/index.php\"}"
+    selector = "{action=\"GET\", path=\"/datalogstatus.php\"}"
     action   = "drop"
   }
 
@@ -220,7 +220,7 @@ loki.process "apache_error" {
 
   // PHP Framework-Specific Errors
   stage.match {
-    selector = "{message=~\".*Illuminate\\\\\\\\.*Exception|Laravel\\\\\\\\.*Exception.*\"}"
+    selector = "{message=~\".*Illuminate.*Exception|Laravel.*Exception.*\"}"
     stage.labels {
       values = {
         framework = "laravel",
@@ -230,7 +230,7 @@ loki.process "apache_error" {
   }
 
   stage.match {
-    selector = "{message=~\".*Symfony\\\\\\\\Component\\\\\\\\.*Exception|Symfony\\\\\\\\Component\\\\\\\\.*Error.*\"}"
+    selector = "{message=~\".*Symfony.*Exception|Symfony.*Error.*\"}"
     stage.labels {
       values = {
         framework = "symfony",
@@ -271,9 +271,6 @@ loki.process "apache_error" {
     }
   }
 
-
-
-  // ...............................................
   // For the PHP error type extraction
   stage.match {
     selector = "{message=~\".*Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError.*\"}"
@@ -281,7 +278,6 @@ loki.process "apache_error" {
       expression = ".*((?P<php_error_type>Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError)).*"
     }
   }
-
 
   // Group by error severity
   stage.match {
@@ -323,7 +319,7 @@ loki.process "apache_error" {
 
   // Session errors
   stage.match {
-    selector = "{message=~\".*session_start\\(\\)|session_regenerate_id\\(\\)|session has been started.*\"}"
+    selector = "{message=~\".*session_start|session_regenerate_id|session has been started.*\"}"
     stage.labels {
       values = {
         php_error_session = "true",
@@ -369,7 +365,7 @@ loki.process "apache_error" {
 
   // Attack Correlation for PHP injection
   stage.match {
-    selector = "{message=~\".*eval\\(\\)|base64_decode\\(|assert\\(|passthru\\(|exec\\(|system\\(.*\"}"
+    selector = "{message=~\".*eval|base64_decode|assert|passthru|exec|system.*\"}"
     stage.labels {
       values = {
         potential_php_injection = "true",
@@ -381,7 +377,7 @@ loki.process "apache_error" {
   stage.match {
     selector = "{message=~\".* in .*? on line \\d+.*\"}"
     stage.regex {
-      expression = ".* in (.*?) on line (\\d+)"
+      expression = ".* in (?P<error_location>.*?) on line (?P<line_number>\\d+)"
     }
   }
 
