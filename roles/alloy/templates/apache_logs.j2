@@ -76,7 +76,7 @@ loki.process "apache_vhost_access" {
 
   // Application identification - useful for Ghost, WordPress, Bookstack
   stage.match {
-    selector = "{path=~\"/ghost/.*\"}"
+    selector = "{path=~\"/ghost\"}"
     stage.labels {
       values = {
         application = "ghost",
@@ -85,7 +85,7 @@ loki.process "apache_vhost_access" {
   }
 
   stage.match {
-    selector = "{path=~\"/wp-admin/.*|/wp-login\\\\.php.*|/wp-content/.*\"}"
+    selector = "{path=~\"/wp-admin\"}"
     stage.labels {
       values = {
         application = "wordpress",
@@ -94,7 +94,7 @@ loki.process "apache_vhost_access" {
   }
 
   stage.match {
-    selector = "{path=~\"/bookstack/.*\"}"
+    selector = "{path=~\"/bookstack\"}"
     stage.labels {
       values = {
         application = "bookstack",
@@ -156,12 +156,7 @@ loki.process "apache_access" {
 
   // Drop monitoring requests
   stage.match {
-    selector = "{ip=\"::1\", action=\"GET\", useragent=\"Go-http-client/1.1\"}"
-    action   = "drop"
-  }
-
-  stage.match {
-    selector = "{ip=\"::1\", action=\"GET\", useragent=\"Mozilla/5.0 (ISPConfig monitor)\"}"
+    selector = "{ip=\"::1\", action=\"GET\"}"
     action   = "drop"
   }
 
@@ -210,7 +205,7 @@ loki.process "apache_error" {
 
   // Enhanced error categorization from the shared rules
   stage.match {
-    selector = "{message=~\".*Cannot serve directory.*\"}"
+    selector = "{message=~\"Cannot serve directory\"}"
     stage.labels {
       values = {
         error_type = "directory_listing_forbidden",
@@ -220,7 +215,7 @@ loki.process "apache_error" {
 
   // PHP Framework-Specific Errors
   stage.match {
-    selector = "{message=~\".*Illuminate.*Exception|Laravel.*Exception.*\"}"
+    selector = "{message=~\"Laravel\"}"
     stage.labels {
       values = {
         framework = "laravel",
@@ -230,7 +225,7 @@ loki.process "apache_error" {
   }
 
   stage.match {
-    selector = "{message=~\".*Symfony.*Exception|Symfony.*Error.*\"}"
+    selector = "{message=~\"Symfony\"}"
     stage.labels {
       values = {
         framework = "symfony",
@@ -240,7 +235,7 @@ loki.process "apache_error" {
   }
 
   stage.match {
-    selector = "{message=~\".*WP_Error|WordPress Database error|wp-content|wp-includes.*\"}"
+    selector = "{message=~\"WordPress\"}"
     stage.labels {
       values = {
         framework = "wordpress",
@@ -251,7 +246,7 @@ loki.process "apache_error" {
 
   // Ghost-specific error patterns
   stage.match {
-    selector = "{message=~\".*ghost.*Error|Ghost.*Exception.*\"}"
+    selector = "{message=~\"ghost\"}"
     stage.labels {
       values = {
         framework = "ghost",
@@ -262,7 +257,7 @@ loki.process "apache_error" {
 
   // BookStack-specific error patterns
   stage.match {
-    selector = "{message=~\".*bookstack.*|Laravel.*bookstack.*\"}"
+    selector = "{message=~\"bookstack\"}"
     stage.labels {
       values = {
         framework = "bookstack",
@@ -273,7 +268,7 @@ loki.process "apache_error" {
 
   // For the PHP error type extraction
   stage.match {
-    selector = "{message=~\".*Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError.*\"}"
+    selector = "{message=~\"Parse error|Fatal error|Warning|Notice\"}"
     stage.regex {
       expression = ".*((?P<php_error_type>Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError)).*"
     }
@@ -281,7 +276,7 @@ loki.process "apache_error" {
 
   // Group by error severity
   stage.match {
-    selector = "{php_error_type=~\"Fatal error|Catchable fatal error|Parse error|Uncaught Error\"}"
+    selector = "{php_error_type=~\"Fatal error\"}"
     stage.labels {
       values = {
         php_error_severity = "critical",
@@ -290,7 +285,7 @@ loki.process "apache_error" {
   }
 
   stage.match {
-    selector = "{php_error_type=~\"Warning|Strict Standards\"}"
+    selector = "{php_error_type=~\"Warning\"}"
     stage.labels {
       values = {
         php_error_severity = "warning",
@@ -299,7 +294,7 @@ loki.process "apache_error" {
   }
 
   stage.match {
-    selector = "{php_error_type=~\"Notice|Deprecated\"}"
+    selector = "{php_error_type=~\"Notice\"}"
     stage.labels {
       values = {
         php_error_severity = "notice",
@@ -309,7 +304,7 @@ loki.process "apache_error" {
 
   // Database error grouping
   stage.match {
-    selector = "{message=~\".*PDOException|mysqli_|MySQL server|OCI-.*\"}"
+    selector = "{message=~\"PDOException|MySQL\"}"
     stage.labels {
       values = {
         php_error_database = "true",
@@ -319,7 +314,7 @@ loki.process "apache_error" {
 
   // Session errors
   stage.match {
-    selector = "{message=~\".*session_start|session_regenerate_id|session has been started.*\"}"
+    selector = "{message=~\"session_start\"}"
     stage.labels {
       values = {
         php_error_session = "true",
@@ -327,45 +322,9 @@ loki.process "apache_error" {
     }
   }
 
-  // ModSecurity Enhanced Parsing - for security monitoring
-  stage.match {
-    selector = "{message=~\".*\\[id \\\"\\d+\\\"\\].*\"}"
-    stage.regex {
-      expression = ".*\\[id \"(?P<modsec_rule_id>\\d+)\"\\].*"
-    }
-  }
-
-  // OWASP CRS Category mapping
-  stage.match {
-    selector = "{modsec_rule_id=~\"9[45]\\d{2}\"}"
-    stage.labels {
-      values = {
-        modsec_attack_category = "xss",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{modsec_rule_id=~\"9[23]\\d{2}\"}"
-    stage.labels {
-      values = {
-        modsec_attack_category = "sql_injection",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{modsec_rule_id=~\"91\\d{2}\"}"
-    stage.labels {
-      values = {
-        modsec_attack_category = "protocol_violation",
-      }
-    }
-  }
-
   // Attack Correlation for PHP injection
   stage.match {
-    selector = "{message=~\".*eval|base64_decode|assert|passthru|exec|system.*\"}"
+    selector = "{message=~\"eval|base64_decode\"}"
     stage.labels {
       values = {
         potential_php_injection = "true",
@@ -375,7 +334,7 @@ loki.process "apache_error" {
 
   // Extract error location for PHP errors
   stage.match {
-    selector = "{message=~\".* in .*? on line \\d+.*\"}"
+    selector = "{message=~\"on line\"}"
     stage.regex {
       expression = ".* in (?P<error_location>.*?) on line (?P<line_number>\\d+)"
     }
@@ -383,7 +342,7 @@ loki.process "apache_error" {
 
   // Extract referer if present
   stage.match {
-    selector = "{message=~\".*referer: .*\"}"
+    selector = "{message=~\"referer\"}"
     stage.regex {
       expression = ".*referer: (?P<referer>.*?)$"
     }
