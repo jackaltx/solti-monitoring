@@ -11,3 +11,7 @@ alloy_delete_data: false
 alloy_loki_endpoints:
   - label: localhost
     endpoint: "127.0.0.1"
+
+# what to monitor?  by default just the basics
+
+alloy_monitor_apache: false
