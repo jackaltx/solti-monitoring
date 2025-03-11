@@ -1,5 +1,6 @@
 ---
 # Verify core functionality of log collection system
+#
 # Facts set by this task:
 # - logs_verify_failed: boolean indicating if any verification check failed
 # - logs_test_results: formatted string containing full test results and system status
@@ -127,8 +128,7 @@
     #   - log fact to ES, if verify_es_log: true
     #   - Add notice to mattermost, if verify_mm_log: true
     # ......................................................................
-
-    # ......................................................................
+    #
     - name: Set metrics test results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
@@ -154,15 +154,32 @@
               Retention: {{ bucket_info_parsed[0].retentionPeriod | default('infinite') }}
               Organization ID: {{ bucket_info_parsed[0].orgID }}
 
-          Recent Service Logs:
-            {{ influxdb_logs.stdout_lines | to_nice_yaml | indent(8) }}
-
-          Log Error Check:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
+          Recent Log Activity:
+          {% set real_errors = [] %}
+          {% for result in error_logs.results %}
+            {% if result.stdout != "-- No entries --" %}
+              {% set _ = real_errors.append(result) %}
+            {% endif %}
+          {% endfor %}
+          {% if real_errors %}
           !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {% for error in real_errors %}
+          Service: {{ error.item }}
+          {{ error.stdout_lines | to_nice_yaml | indent(8) }}
+          {% endfor %}
+          {% else %}
+          ✓ No errors found in logs for services:
+          {% for result in error_logs.results %}
+            - {{ result.item }}
+          {% endfor %}
           {% endif %}
-          Last error entries:
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
+
+    # .........................................................................................................
+    # Add to all_verify_results using task name as key
+    - name: Add metrics results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_results | combine({'influxdb-verfiy-level0': metrics_test_results}) }}"
 
     # .......................................................................
     - name: Set verify result fact
@@ -174,10 +191,15 @@
             (telegraf_service_check.failed | default(false))
           }}
 
+    # Add to all_verify_results using task name as key
+    - name: Add metrics failed results to dictionary
+      set_fact:
+        all_verify_failed: "{{ all_verify_failed | combine({'metrics': metrics_verify_failed}) }}"
+
     # .......................................................................
     # .......................................................................
     - name: Save Local block
-      when: "{{ verify_test_print | default(true) }}"
+      when: verify_test_print | default(true)
       ansible.builtin.set_fact:
       block:
         #

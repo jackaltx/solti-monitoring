@@ -4,7 +4,7 @@
 # - logs_verify_failed: boolean indicating if any verification check failed
 # - logs_test_results: formatted string containing full test results and system status
 #
-- name: Verify logging system components
+- name: Verify metrics system components
   block:
     #
     # ..........................................................................
@@ -12,66 +12,48 @@
     - name: Check service statuses
       ansible.builtin.service_facts:
 
-    - name: Verify Loki service status
+    - name: Verify Alloy service status
       ansible.builtin.assert:
         that:
-          - "'loki.service' in ansible_facts.services"
-          - "ansible_facts.services['loki.service'].state == 'running'"
-          - "ansible_facts.services['loki.service'].status == 'enabled'"
-        fail_msg: "Loki service is not running properly"
-      register: loki_service_check
+          - "'alloy.service' in ansible_facts.services"
+          - "ansible_facts.services['alloy.service'].state == 'running'"
+          - "ansible_facts.services['alloy.service'].status == 'enabled'"
+        fail_msg: "Alloy service is not running properly"
+      register: alloy_service_check
       ignore_errors: true
 
     # ..........................................................................
     # Network connectivity checks
-    - name: Verify Loki port is listening
-      ansible.builtin.wait_for:
-        port: 3100
-        timeout: 30
-        state: started
-      register: port_check
-      ignore_errors: true
+    #
+    - name: Verify Alloy connection to Loki
+      ansible.builtin.shell: "ss -tunp | grep ':3100.*alloy'"
+      register: connection_check
+      changed_when: false
+      failed_when: false
 
     # ..........................................................................
     # Configuration checks
-    - name: Verify critical files exist
-      ansible.builtin.stat:
-        path: "{{ item }}"
-      register: file_checks
-      loop:
-        - /etc/loki/config.yml
-        - /var/lib/loki/chunks
-        - /var/lib/loki/rules
-      failed_when: not file_checks.stat.exists
-
+    #
+    # - TBD
+    #
     # ..........................................................................
     # Basic API health check
-    - name: Check Loki API health
-      ansible.builtin.uri:
-        url: "http://localhost:3100/metrics"
-        method: GET
-        status_code: 200
-      register: api_check
-      ignore_errors: true
+    #
+    # - TBD
+    #
 
-    # ..........................................................................
-    # Log level verification
-    - name: Check recent logs for errors
-      ansible.builtin.shell: |
-        journalctl -u {{ item }} --since "5 minutes ago" -p err
-      register: error_logs
-      changed_when: false
-      failed_when: false
-      loop:
-        - loki
-
-    # ..........................................................................
+    # .....................................................................
     # Get service versions for reporting
     - name: Get service versions
       block:
         - name: Get Loki version
           command: loki --version
           register: loki_version
+          changed_when: false
+
+        - name: Get Alloy version
+          command: alloy --version
+          register: alloy_version
           changed_when: false
 
     # ######################################################################
@@ -92,29 +74,18 @@
           Timestamp: {{ verify_timestamp }}
 
           Service Versions:
-          - Loki: {{ loki_version.stdout }}
+          - Alloy: {{ alloy_version.stdout }}
 
-          Service Status:
-          - Loki: {{ ansible_facts.services['loki.service'].state }}
-
-          Service Health:
-          - Metrics Available: {{ (api_check.status | default(0)) == 200 }}
-
-          Recent Service Logs:
-          {{ error_logs.results[0].stdout_lines | default([]) | to_nice_yaml | indent(8) }}
-
-          Log Error Check:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
-          !!! ERRORS DETECTED IN LOGS !!!
-          {% endif %}
-          Last error entries:
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
+          Alloy Integration:
+          - Connection Status: {{ 'Established' if not connection_check.failed else 'Not Connected' }}
+          - Network Connections:
+          {{ connection_check.stdout_lines | default([]) | to_nice_yaml | indent(8) }}
 
     # .............................................................................................
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': logs_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'alloy-verify-level0': logs_test_results}) }}"
 
     # ..........................................................................
     # Set verification status

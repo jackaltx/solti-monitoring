@@ -4,8 +4,8 @@ A comprehensive monitoring solution that integrates metrics and log collection u
 
 ## What is solti ?
 
-Systems Oriented Laboratory Testing & Integration (solti) is a suite 
-of ansible collections that can be used to define and test a networked 
+Systems Oriented Laboratory Testing & Integration (solti) is a suite
+of ansible collections that can be used to define and test a networked
 laboratory you would find in most small labs. Entropy is real. The project emphasizes methodical testing, system behavior analysis, and component integration.  
 
 ```
@@ -13,7 +13,8 @@ solti/
 ├── solti-monitor/      # System monitoring and metrics collection
 ├── solti-conductor/    # Proxmox management and orchestration
 ├── solti-ensemble/     # Support tools and shared utilities
-└── solti-score/       # Documentation and playbooks
+├── solti-containers/   # Support containers for testing
+└── solti-score/        # Documentation and playbooks
 ```
 
 ## Architecture Overview
@@ -21,11 +22,13 @@ solti/
 The collection is built around two main monitoring pipelines:
 
 ### Metrics Pipeline
+
 - **Telegraf** (Client): Collects system and application metrics
 - **InfluxDB** (Server): Stores time-series metrics data
 - Supports multiple Telegraf clients sending to a central InfluxDB server
 
 ### Logging Pipeline
+
 - **Alloy** (Client): Collects and forwards system and application logs
 - **Loki** (Server): Stores and indexes log data
 - Supports multiple Alloy clients sending to a central Loki server
@@ -43,12 +46,14 @@ The collection is built around two main monitoring pipelines:
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/your-org/monitoring-collection.git
 cd monitoring-collection
 ```
 
 2. Install collection dependencies:
+
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
@@ -56,6 +61,7 @@ ansible-galaxy collection install -r requirements.yml
 ### Local Testing with Proxmox
 
 1. Set up Proxmox environment variables:
+
 ```bash
 export PROXMOX_URL="https://proxmox.example.com:8006"
 export PROXMOX_USER="root@pam"
@@ -65,6 +71,7 @@ export PROXMOX_NODE="your-node-name"
 ```
 
 2. Run tests:
+
 ```bash
 # Test individual roles
 cd roles/influxdb
@@ -183,6 +190,7 @@ molecule test -s proxmox-logs
 ## Development Status
 
 Current focus areas:
+
 - Rocky Linux 9 support
 - Enhanced test coverage
 - GitHub Actions integration
@@ -199,4 +207,3 @@ Current focus areas:
 ## License
 
 MIT License - see the [LICENSE](LICENSE) file for details
-

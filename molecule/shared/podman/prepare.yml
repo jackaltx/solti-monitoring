@@ -67,6 +67,7 @@
       ansible.builtin.debug:
         msg: |
           Debug: {{ item }} = {{ lookup('env', item) }}
+        verbosity: 1
       loop:
         - MOLECULE_DEBUG
         - MOLECULE_INSTANCE_NAME
@@ -93,10 +94,13 @@
           - "Distribution: {{ ansible_distribution }}"
           - "Testing capability: {{ testing_capabilities }}"
 
+    # ..................................................................................
+    # note this has to be loaded in each phase playbook!
     - name: Load capability role definitions
       include_vars:
-        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
+    # ..................................................................................
     - name: Debug monitoring_capabilities
       debug:
         var: monitoring_capabilities
@@ -115,6 +119,7 @@
             | unique
             | list
           }}
+
     # ..................................................................................
     - name: Debug package selection
       debug:

@@ -2,7 +2,7 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: ../shared/requirements.yml
+    requirements-file: ${MOLECULE_EPHEMERAL_DIRECTORY}/requirements.yml
     ignore-errors: true
 
 driver:
@@ -19,7 +19,7 @@ driver:
 #
 platforms:
   - name: "uut-ct0"
-    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/debian12-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/debian12-ssh:latest"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -32,7 +32,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/rocky93-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky93-ssh:latest"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -45,7 +45,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct2"
-    image: "gitea.a0a0.org:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -62,27 +62,24 @@ provisioner:
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-  playbooks:
-    prepare: "../shared/podman/prepare.yml"
-    converge: "../shared/podman/converge.yml"
-    verify: "../shared/verify/main.yml"
   config_options:
     defaults:
       roles_path: roles
       interpreter_python: auto_silent
       host_key_checking: false
+  playbooks:
+    create: "../shared/podman/create.yml"
+    prepare: "../shared/podman/prepare.yml"
+    converge: "../shared/podman/converge.yml"
+    verify: "../shared/verify/main.yml"
+    destory: "../shared/podman/destroy.yml"
   inventory:
     group_vars:
       all:
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
         ansible_connection: ssh
-        ansible_user: "jackaltx" # "${USER}"
-        # DEBUG: Add explicit SSH settings
-        # ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        # ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        # ansible_ssh_common_args: "-o IdentityFile=~/.ssh/id_ed25519"
-        # ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+        ansible_user: "jackaltx"
 
         # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"

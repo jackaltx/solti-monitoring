@@ -2,9 +2,6 @@
 - name: Verify
   hosts: all
   become: true
-  vars:
-    # Only check container and network health
-    check_services: false
 
   tasks:
     #
