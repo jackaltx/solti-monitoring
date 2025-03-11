@@ -16,7 +16,7 @@ influxdb_backup_retention: 30          # Keep 30 days of backups
 influxdb_backup_path: "/var/backups/influxdb"
 influxdb_backup_s3_enabled: false
 influxdb_backup_s3_bucket: "influx11"
-influxdb_backup_s3_endpoint: "jacknas2.a0a0.org:8010"
+influxdb_backup_s3_endpoint: "jacknas2.{{ domain }}:8010"
 influxdb_backup_s3_access_key: ""      # Will use environment variables
 influxdb_backup_s3_secret_key: ""      # Will use environment variables
 ```
@@ -204,7 +204,7 @@ signature_v2 = True
     influxdb_backup_enabled: true
     influxdb_backup_s3_enabled: true
     influxdb_backup_s3_bucket: "influx11"
-    influxdb_backup_s3_endpoint: "jacknas2.a0a0.org:8010"
+    influxdb_backup_s3_endpoint: "jacknas2.{{ domain }}:8010"
     # Credentials from environment variables or vault
     
     # Schedule (daily at 3 AM)

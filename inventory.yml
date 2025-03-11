@@ -16,13 +16,13 @@ all:
       # mylab hosts
       hosts:
         monitor1:
-          ansible_host: "monitor1.a0a0.org"
+          ansible_host: "monitor1.{{ domain }}"
         monitor2:
-          ansible_host: "monitor2.a0a0.org"
+          ansible_host: "monitor2.{{ domain }}"
         monitor3:
-          ansible_host: "monitor3.a0a0.org"
+          ansible_host: "monitor3.{{ domain }}"
         monitor4:
-          ansible_host: "monitor4.a0a0.org"
+          ansible_host: "monitor4.{{ domain }}"
         monitor11:
           ansible_host: "192.168.55.11"
 
@@ -46,7 +46,7 @@ all:
 
               influxdb_s3: true
               influxdb_s3_bucket: "influx11"
-              influxdb_s3_endpoint: "jacknas2.a0a0.org:8010"
+              influxdb_s3_endpoint: "jacknas2.{{ domain }}:8010"
               influxdb_s3_access_key: "MonitorStor:AMu1elAHnqNiaNwdXP0L"
               influxdb_s3_secret_key: "JbmPLwloA0OZvT3N3od2gFdp34r7DHe9"
               influxdb_s3_path_style: true
@@ -66,7 +66,7 @@ all:
                 - label: localhost
                   endpoint: "127.0.0.1"
                 - label: monitor2
-                  endpoint: "monitor2.a0a0.org"
+                  endpoint: "monitor2.{{ domain }}"
             monitor4:
               alloy_loki_endpoints:
                 - label: localhost
