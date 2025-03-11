@@ -6,7 +6,6 @@
 - name: Include service diagnostics
   ansible.builtin.include_tasks:
     file: service-health.yml
-  when: check_services | default(true)
 
 - name: Include network diagnostics
   ansible.builtin.include_tasks:

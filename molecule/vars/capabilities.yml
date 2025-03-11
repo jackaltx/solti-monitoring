@@ -1,8 +1,6 @@
 ---
-# used by the container diagnostics
-# TODO  build this up from
-container_service_ports: ["8086", "3100", "12345"]
-
+# Used by the container diagnostics
+# I envision this data being assembles from the parts.
 # ..............................................................
 # Version 2
 monitoring_capabilities:
@@ -22,11 +20,20 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_logs_deps # Reuse RedHat dependencies
+    verify_role_tasks:
+      loki:
+        - verify.yml
+        - verify1.yml
+      alloy:
+        - verify.yml
     verify_tasks:
       - verify-logs1.yml
     service_names:
       - loki
       - alloy
+    service_ports:
+      - 3100
+      - 12345
 
   metrics:
     roles:
@@ -44,46 +51,13 @@ monitoring_capabilities:
         - lsof
         - procps-ng
       Rocky: *redhat_metrics_deps
+    verify_role_tasks:
+      inflxudb:
+        - verify.yml
     verify_tasks:
       - verify-metrics1.yml
     service_names:
       - influxdb
       - telegraf
-#
-# .............................................................
-# Version 1
-# monitoring_capabilities:
-#   logs:
-#     roles:
-#       - loki
-#       - alloy
-#     required_packages:
-#       Debian: &debian_logs_deps
-#         - gpg
-#         - ca-certificates
-#         - lsof
-#       Ubuntu: *debian_logs_deps # Reuse Debian dependencies
-#       RedHat: &redhat_logs_deps
-#         - gpg
-#         - ca-certificates
-#         - lsof
-#         - procps-ng
-#       Rocky: *redhat_logs_deps # Reuse RedHat dependencies
-
-#   metrics:
-#     roles:
-#       - influxdb
-#       - telegraf
-#     required_packages:
-#       Debian: &debian_metrics_deps
-#         - gpg
-#         - ca-certificates
-#         - lsof
-#       Ubuntu: *debian_metrics_deps
-#       RedHat: &redhat_metrics_deps
-#         - gpg
-#         - ca-certificates
-#         - lsof
-#         - procps-ng
-#       Rocky: *redhat_metrics_deps
-
+    service_ports:
+      - 8086

@@ -22,17 +22,20 @@ influxdb_key: ""
 influxdb_delete_config: false
 influxdb_delete_data: false
 
-# SMELL this is used to comminicate with telegraf
+# SMELL this is used to communicate with telegraf
 influxdb_operators_token: ""
 
 influxdb_force_reload: false
 influxdb_force_configure: false
 
 # Set of buckets to create
-influxdb_buckets: [telegraf, oss_metrics, metrics]
+influxdb_buckets: [telegraf, metrics]
 
 # You can override this path here.
+# SMELL: I have been redirecting to a NFS mount.
+#        now moving to S3 for long term storage
 influxdb_data_path: /var/lib/influxdb
 
 # nfs mounts have to happen before package install
+# SMELL: do I continue this??
 influxdb_nfs: false

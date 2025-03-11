@@ -22,7 +22,7 @@
     # note this has to be loaded in each phase playbook!
     - name: Load capability role definitions
       include_vars:
-        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
     # ................................................................
     - name: Validate testing capabilities

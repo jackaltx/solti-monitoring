@@ -1,9 +1,13 @@
 ---
 # Verify core functionality of metrics collection system
+#
 # Facts set by this task:
 # - metrics_verify_failed: boolean indicating if any verification check failed
 # - metrics_test_results: formatted string containing full test results and system status
-
+#
+# Required vars:
+# - verify_test_print
+#
 - name: Verify metrics system components
   block:
     # ...............................................................................
@@ -119,18 +123,27 @@
 
         - name: Get Telegraf version
           command: telegraf --version
-          register: influx_version
+          register: telegraf_version
           changed_when: false
 
-    # ...............................................................................
-    # ...............................................................................
-    # Create test results output
+    # ######################################################################
+    # Reporting section
+    #   - set facts
+    #   - print log, if  verify_test_print: true
+    #   - log fact to ES, if verify_es_log: true
+    #   - Add notice to mattermost, if verify_mm_log: true
+    # ......................................................................
+    #
     - name: Set metrics test results fact
       no_log: "{{ molecule_nolog | default(true) }}"
       ansible.builtin.set_fact:
         metrics_test_results: |
           === Monitor Stack Integration Test Results ===
           Timestamp: {{ verify_timestamp }}
+
+          Service Versions:
+          - InfluxDB: {{ influx_version.stdout }}
+          - Telegraf: {{ telegraf_version.stdout }}
 
           Service Status:
           - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
@@ -180,7 +193,7 @@
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'metrics': metrics_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'metrics-shared': metrics_test_results}) }}"
 
     # Create output directory
     - name: Create local data directory for test results

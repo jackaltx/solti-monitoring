@@ -60,104 +60,47 @@
       debug:
         msg:
           - "Distribution: {{ ansible_distribution }}"
-          - "Package Manager: {{ ansible_pkg_mgr }}"
-#
-#
-#  Claude read:  rest of this file may not be needed
-#  the geerlingguy images have ansbile installed and
-#  On issue may be systemd.
 
-# # ..................................................................................
-# - name: Debug Molecule environment vars
-#   ansible.builtin.debug:
-#     msg: |
-#       Debug: {{ item }} = {{ lookup('env', item) }}
-#   loop:
-#     - MOLECULE_DEBUG
-#     - MOLECULE_INSTANCE_NAME
-#     - MOLECULE_SCENARIO_NAME
-#     - MOLECULE_FILE
-#     - MOLECULE_INVENTORY_FILE
-#     - MOLECULE_DEPENDENCY_NAME
-#     - MOLECULE_DRIVER_NAME
-#     - MOLECULE_VERIFIER_NAME
-#     - MOLECULE_PROVISIONER_NAME
-#     - MOLECULE_STATE_FILE
-#     - MOLECULE_EPHEMERAL_DIRECTORY
-#     - MOLECULE_DIRECTORY
-#     - MOLECULE_PROJECT_DIRECTORY
+# ..................................................................................
+# ..................................................................................
+# ..................................................................................
+# ..................................................................................
+- name: Debug package selection
+  debug:
+    msg:
+      - "Testing Capabilities: {{ testing_capabilities }}"
+      - "Required Packages: {{ combined_required_packages }}"
+    verbosity: 0
 
-# # ..................................................................................
-# - name: Prepare debug information
-#   debug:
-#     msg:
-#       - "GithubCi: {{ on_github }}"
-#       - "Playbook dir: {{ playbook_dir }}"
-#       - "Roles path: {{ playbook_dir }}/../../roles"
-#       - "Project_root: {{ project_root }}"
-#       - "Distribution: {{ ansible_distribution }}"
-#       - "Testing capability: {{ testing_capabilities }}"
+# ..................................................................................
+- name: Handle Debian/Ubuntu systems
+  when: ansible_os_family == "Debian"
+  block:
+    - name: Install required Debian packages
+      apt:
+        name: "{{ combined_required_packages }}"
+        state: present
+        update_cache: yes
+      register: pkg_install
+      retries: 3
+      delay: 10
+      until: pkg_install is success
+      become: true
 
-# - name: Load capability role definitions
-#   include_vars:
-#     file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
-
-# - name: Debug monitoring_capabilities
-#   debug:
-#     var: monitoring_capabilities
-#     verbosity: 1
-
-# # ..................................................................................
-# - name: Get required packages for each tested capability
-#   set_fact:
-#     combined_required_packages: >-
-#       {{
-#         testing_capabilities
-#         | map('extract', monitoring_capabilities)
-#         | map(attribute='required_packages')
-#         | map(attribute=ansible_os_family)
-#         | flatten
-#         | unique
-#         | list
-#       }}
-# # ..................................................................................
-# - name: Debug package selection
-#   debug:
-#     msg:
-#       - "Testing Capabilities: {{ testing_capabilities }}"
-#       - "Required Packages: {{ combined_required_packages }}"
-#     verbosity: 0
-
-# # ..................................................................................
-# - name: Handle Debian/Ubuntu systems
-#   when: ansible_os_family == "Debian"
-#   block:
-#     - name: Install required Debian packages
-#       apt:
-#         name: "{{ combined_required_packages }}"
-#         state: present
-#         update_cache: yes
-#       register: pkg_install
-#       retries: 3
-#       delay: 10
-#       until: pkg_install is success
-#       become: true
-
-# # ..................................................................................
-# - name: Handle RedHat systems
-#   when: ansible_os_family == "RedHat"
-#   block:
-#     - name: Install required RedHat packages
-#       dnf:
-#         name: "{{ combined_required_packages }}"
-#         state: present
-#         update_cache: yes
-#       register: pkg_install
-#       retries: 3
-#       delay: 10
-#       until: pkg_install is success
-#       become: true
-
+# ..................................................................................
+- name: Handle RedHat systems
+  when: ansible_os_family == "RedHat"
+  block:
+    - name: Install required RedHat packages
+      dnf:
+        name: "{{ combined_required_packages }}"
+        state: present
+        update_cache: yes
+      register: pkg_install
+      retries: 3
+      delay: 10
+      until: pkg_install is success
+      become: true
 # # ..................................................................
 # # TODO:  evaluate this as it seems overkill.
 # #

@@ -5,8 +5,6 @@
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   vars:
-    # Only check container and network health
-    check_services: false
     molecule_nolog: true
     verify_timestamp: "{{ ansible_date_time.iso8601 }}"
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
@@ -39,20 +37,52 @@
     # This sets monitoring_capabilities variable. This is a hard-coded for now
     - name: Load capability role definitions
       include_vars:
-        file: "{{ project_root }}/molecule/shared/vars/capabilities.yml"
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
-    # .......................................................................
-    - name: Run container diagnostics
-      ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
-      vars:
-        report_suffix: "preverify"
+    # ................................................................
+    - name: Get listening ports for selected capabilities
+      set_fact:
+        container_service_ports: >-
+          {{
+            testing_capabilities |
+            map('extract', monitoring_capabilities) |
+            map(attribute='service_ports') |
+            flatten |
+            list
+          }}
+
+    # ................................................................
+    - name: Get service names for selected capabilities
+      set_fact:
+        monitored_services: >-
+          {{
+            testing_capabilities |
+            map('extract', monitoring_capabilities) |
+            map(attribute='service_names') |
+            flatten |
+            list
+          }}
+
+    # ................................................................
+    - name: Debug service ports
+      debug:
+        msg:
+          - "Testing Capabilities: {{ testing_capabilities }}"
+          - "Roles to Include: {{ container_service_ports }}"
+        verbosity: 0
 
     # ................................................................
     - name: Initialize result for capability
       set_fact:
         all_verify_results: {}
         all_verify_failed: {}
+
+    # .......................................................................
+    - name: Run pre-verify container diagnostics
+      ansible.builtin.include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+      vars:
+        report_suffix: "preverify"
 
     # .......................................................................
     # Version 2
@@ -68,16 +98,19 @@
         label: "Verifying {{ capability }} capability"
 
     # .......................................................................
-    - name: Display all results
-      debug:
-        msg: "{{ all_verify_results }}"
-
-    - name: Display all faile results
-      debug:
-        msg: "{{ all_verify_failed }}"
+    - name: Run post-verify container diagnostics
+      ansible.builtin.include_tasks:
+        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+      vars:
+        report_suffix: "postverify"
 
     # .......................................................................
-    # this need to change. we want to loop over all the capabilites and tests for errors.
+    - name: Report Results
+      ansible.builtin.include_tasks:
+        file: report.yml
+
+    # .......................................................................
+    # TODO: review this.
     - name: Create verification status map
       set_fact:
         verification_status: >-

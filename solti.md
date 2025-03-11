@@ -9,7 +9,7 @@ SOLTI provides a comprehensive framework for testing and integrating system comp
 This is the goal.
 I want to start on solti-enemble
 I need a recipe that I can repeat in script to build the ansible collection similar to monitoring collection.  (note: this now solti-monitoring in future.)
-Create the  solte-ensemble/verify_output with a .gitignore everything.
+Create the  solti-ensemble/verify_output with a .gitignore everything.
 
 The long term goal is the pattern of what makes a solti 'collection' and how far we can go with molecule testing will work. (first we test, then we consolidate)
 

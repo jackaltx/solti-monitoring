@@ -4,4 +4,4 @@
 mkdir -p ~/.ansible/collections/ansible_collections/jackaltx
 
 # Create the symlink
-ln -s $(pwd) ~/.ansible/collections/ansible_collections/jackaltx/monitoring
+ln -s $(pwd) ~/.ansible/collections/ansible_collections/jackaltx/solti_monitoring

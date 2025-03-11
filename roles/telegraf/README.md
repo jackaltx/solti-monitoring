@@ -8,7 +8,7 @@ This Ansible role installs and configures Telegraf on Debian 12 systems. Telegra
 - Configures basic system metrics collection (CPU, memory, disk, network, etc.)
 - Supports outputting metrics to InfluxDB v2
 - Optional metric collection for:
-  - Apache 
+  - Apache
   - MariaDB
   - Memcache
   - Redis
@@ -35,7 +35,6 @@ Telegraf operates in two distinct TLS roles:
    - Each input plugin can have its own TLS client configuration
    - Plugin-specific TLS settings needed per input
 
-
 ## Role Variables
 
 ### Main Configuration
@@ -54,7 +53,6 @@ influxdb_apache: false
 influxdb_mariadb: false
 influxdb_memcache: false  
 influxdb_redis: false
-influxdb_oss_metrics: false
 ```
 
 ### InfluxDB Output Configuration
@@ -143,11 +141,11 @@ telgraf2influxdb_configs:
 To extend this role to Rocky 9, the following changes would be needed:
 
 1. **Package Management**:
-   - Add RPM repository configuration 
+   - Add RPM repository configuration
    - Update package installation tasks for dnf
    - Handle SELinux contexts
 
-2. **File Paths**: 
+2. **File Paths**:
    - Account for different default paths in Rocky
    - Update templates for Rocky-specific configurations
 
@@ -159,7 +157,7 @@ To extend this role to Rocky 9, the following changes would be needed:
    - Update prerequisites for Rocky
    - Handle EPEL repository requirements
 
-5. **Variables**: 
+5. **Variables**:
    - Add Rocky-specific variables file
    - Update defaults for Rocky environment
 

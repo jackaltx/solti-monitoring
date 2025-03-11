@@ -1,42 +1,22 @@
+# InfluxDB 2.x configuration
 
-http-bind-address = "0.0.0.0:8086"
-reporting-disabled = true
+# Primary settings
+[general]
+  # Bind address for the main HTTP service
+  http-bind-address = "0.0.0.0:8086"
+  # Disable reporting usage data to InfluxData
+  reporting-disabled = true
+  log-level = "{{ influxdb_level }}"
 
-# turn on the certificates by uncommenting...sux  SMELL 
-#tls-cert = "{{ influxdb_cert }}"
-#tls-key = "{{ influxdb_key }}"
+{% if influxdb_cert != "" and influxdb_key != "" %}
+[tls]
+  cert = "{{ influxdb_cert }}"
+  key = "{{ influxdb_key }}"
+{% endif %}
 
 [storage]
-  bolt-path = "{{ influxdb_data_path }}/influxd.bolt"
+  # Path to the boltdb database
+  boltdb-path = "{{ influxdb_data_path }}/influxd.bolt"
+  # Path where TSM engine stores TSM files
   engine-path = "{{ influxdb_data_path }}/engine"
-  log-level= "{{ influxdb_level }}"
-
-
-#  tiered-storage-enabled = true
-#  cold-storage = "s3"
-#  cold-storage-threshold = "30d"  # Move data older than 30 days to S3
-
-#[s3]
-#  bucket = "INFLUXDB_S3_BUCKET"
-#  endpoint = "https://your-s3-endpoint"
-#  access-key-id = "${INFLUXDB_S3_ACCESS_KEY}"
-#  secret-access-key = "${INFLUXDB_S3_SECRET_KEY}"
-#  force-path-style = true
-
-#[retention]
-#  enabled = true
-#  check-interval = "30m"
-#  policies = [
-#    {
-#      name = "hot",
-#      duration = "30d",
-#      replication = 1
-#    },
-#    {
-#      name = "cold",
-#      duration = "infinite",
-#      replication = 1
-#    }
-#  ]
-
-
+  
