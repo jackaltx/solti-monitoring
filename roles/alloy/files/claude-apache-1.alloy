@@ -1,0 +1,213 @@
+// Apache logs collection configuration for Alloy
+
+// Define common local file match patterns first
+local.file_match "apache_vhost_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/other_vhosts_access.log",
+    host        = "angela",
+    job         = "apache",
+    label       = "httpd_access",
+  }]
+}
+
+local.file_match "apache_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/access.log",
+    host        = "angela",
+    job         = "apache",
+    label       = "httpd_access",
+    vhost       = "SystemRoot",
+  }]
+}
+
+local.file_match "apache_error" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/error.log",
+    host        = "angela",
+    job         = "apache",
+    label       = "httpd_error",
+  }, {
+    __address__ = "localhost",
+    __path__    = "/var/log/ispconfig/httpd/*/error.log",
+    host        = "angela",
+    job         = "apache",
+    label       = "httpd_error",
+  }]
+}
+
+// Process pipeline for virtual hosts access logs
+loki.process "apache_vhost_access" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.regex {
+    expression = "^(?P<vhost>\\S+):(?P<vport>\\d+) (?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+  }
+
+  stage.labels {
+    values = {
+      action      = null,
+      status_code = null,
+      useragent   = null,
+      path        = null,
+      referer     = null,
+      ip          = null,
+      vhost       = null,
+      vport       = null,
+    }
+  }
+
+  // Tag a0a0.org requests for special attention (default vhost fallback)
+  stage.match {
+    selector = "{vhost=\"a0a0.org\"}"
+    stage.labels {
+      values = {
+        default_vhost = "true",
+      }
+    }
+  }
+
+  // Drop noisy monitoring requests
+  stage.match {
+    selector = "{action=\"GET\", path=\"/datalogstatus.php\",referer=\"https://angela.lavnet.net:8080/index.php\"}"
+    action   = "drop"
+  }
+
+  // Categorize status codes
+  stage.match {
+    selector = "{status_code=~\"[45].*\"}"
+    stage.labels {
+      values = {
+        error_request = "true"
+      }
+    }
+  }
+
+  // Clean up excess labels to reduce cardinality
+  stage.label_drop {
+    values = ["ip", "useragent", "path", "referer"]
+  }
+}
+
+// Process pipeline for main access log
+loki.process "apache_access" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.regex {
+    expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+  }
+
+  stage.labels {
+    values = {
+      action      = null,
+      status_code = null,
+      useragent   = null,
+      path        = null,
+      referer     = null,
+      ip          = null,
+    }
+  }
+
+  // Drop monitoring requests
+  stage.match {
+    selector = "{ip=\"::1\", action=\"GET\", useragent=\"Go-http-client/1.1\"}"
+    action   = "drop"
+  }
+
+  stage.match {
+    selector = "{ip=\"::1\", action=\"GET\", useragent=\"Mozilla/5.0 (ISPConfig monitor)\"}"
+    action   = "drop"
+  }
+
+  // Categorize status codes
+  stage.match {
+    selector = "{status_code=~\"[45].*\"}"
+    stage.labels {
+      values = {
+        error_request = "true"
+      }
+    }
+  }
+
+  stage.label_drop {
+    values = ["ip", "useragent", "path", "referer"]
+  }
+}
+
+// Process pipeline for error logs with enhanced parsing
+loki.process "apache_error" {
+  forward_to = [loki.write.default.receiver]
+
+  // Parse Apache error log format
+  stage.regex {
+    expression = "\\[(?P<timestamp>[^\\]]+)\\] \\[(?P<module>[^\\]]+)\\] \\[pid (?P<pid>[^\\]]+)\\] (?:\\[client (?P<client_ip>[^\\]]+)\\] )?(?P<error_code>[A-Z0-9]+: )?(?P<message>.+)"
+  }
+
+  stage.labels {
+    values = {
+      module    = null,
+      pid       = null,
+      client_ip = null,
+      error_code = null,
+    }
+  }
+
+  // Categorize common error types
+  stage.match {
+    selector = "{message=~\".*Cannot serve directory.*\"}"
+    stage.labels {
+      values = {
+        error_type = "directory_listing_forbidden",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{message=~\".*File does not exist:.*\"}"
+    stage.labels {
+      values = {
+        error_type = "file_not_found",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{message=~\".*PHP.*\"}"
+    stage.labels {
+      values = {
+        error_type = "php_error",
+      }
+    }
+  }
+}
+
+// Source definitions to read the log files
+loki.source.file "apache_vhost_access" {
+  targets               = local.file_match.apache_vhost_access.targets
+  forward_to            = [loki.process.apache_vhost_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "apache_access" {
+  targets               = local.file_match.apache_access.targets
+  forward_to            = [loki.process.apache_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "apache_error" {
+  targets               = local.file_match.apache_error.targets
+  forward_to            = [loki.process.apache_error.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+// Write to Loki endpoint
+loki.write "default" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    host = "angela",
+  }
+}
