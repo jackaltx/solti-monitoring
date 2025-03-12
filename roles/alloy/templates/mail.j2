@@ -1,0 +1,283 @@
+// =======================================================================================
+// =======================================================================================
+// Postfix and Dovecot logs collection configuration for Alloy
+
+// =======================================================================================
+// Define file match patterns for mail logs
+local.file_match "mail_logs" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/mail.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "mail",
+    label       = "mail_combined",
+  }, {
+    __address__ = "localhost",
+    __path__    = "/var/log/mail.info",
+    host        = "{{ ansible_hostname }}",
+    job         = "mail",
+    label       = "mail_info",
+  }, {
+    __address__ = "localhost",
+    __path__    = "/var/log/mail.warn",
+    host        = "{{ ansible_hostname }}",
+    job         = "mail",
+    label       = "mail_warn",
+  }, {
+    __address__ = "localhost",
+    __path__    = "/var/log/mail.err",
+    host        = "{{ ansible_hostname }}",
+    job         = "mail",
+    label       = "mail_error",
+  }]
+}
+
+// =======================================================================================
+// Process pipeline for mail logs
+loki.process "mail_logs" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Standard mail log format parsing
+  stage.regex {
+    expression = "^(?P<timestamp>\\w+ +\\d+ \\d+:\\d+:\\d+) (?P<hostname>\\S+) (?P<service>[^\\[]+)\\[(?P<pid>\\d+)\\](?:\\: (?P<queue_id>[A-F0-9]+)\\:)? (?P<message>.*)$"
+  }
+  
+  stage.timestamp {
+    source = "timestamp"
+    format = "Jan _2 15:04:05"
+  }
+  
+  stage.labels {
+    values = {
+      service = null,
+      pid     = null,
+      queue_id = null,
+    }
+  }
+  
+  // Identify mail service type
+  stage.match {
+    selector = "{service=~\"postfix.*\"}"
+    stage.labels {
+      values = {
+        mail_service = "postfix",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{service=~\"dovecot.*\"}"
+    stage.labels {
+      values = {
+        mail_service = "dovecot",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Postfix-specific log parsing
+  
+  // Extract SMTP transaction details
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\".*status=.*\"}"
+    stage.regex {
+      expression = "(?P<client_name>[^,]*),.* status=(?P<status>\\S+)(?: \\((?P<status_detail>[^)]*)\\))?"
+    }
+  }
+  
+  // Track delivery statuses
+  stage.match {
+    selector = "{status=\"sent\"}"
+    stage.labels {
+      values = {
+        delivery_result = "success",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{status=\"bounced\"}"
+    stage.labels {
+      values = {
+        delivery_result = "bounce",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{status=\"deferred\"}"
+    stage.labels {
+      values = {
+        delivery_result = "deferred",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{status=\"rejected\"}"
+    stage.labels {
+      values = {
+        delivery_result = "rejected",
+      }
+    }
+  }
+  
+  // SMTP authentication events
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\".*sasl_method=.*\"}"
+    stage.regex {
+      expression = "sasl_method=(?P<auth_method>\\S+), sasl_username=(?P<auth_user>\\S+)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "smtp_auth",
+      }
+    }
+  }
+  
+  // Extract email sender/recipient for tracking
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\"from=<.*>, to=<.*>\"}"
+    stage.regex {
+      expression = "from=<(?P<sender>[^>]*)>, to=<(?P<recipient>[^>]*)>"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "mail_delivery",
+      }
+    }
+  }
+  
+  // Identify message size
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\".*size=\\d+.*\"}"
+    stage.regex {
+      expression = "size=(?P<message_size>\\d+)"
+    }
+  }
+  
+  // SPAM/virus filter results
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\".*Blocked SPAM.*|.*amavis.*SPAM.*\"}"
+    stage.labels {
+      values = {
+        spam_detected = "true",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{mail_service=\"postfix\", message=~\".*Blocked VIRUS.*|.*amavis.*INFECTED.*\"}"
+    stage.labels {
+      values = {
+        virus_detected = "true",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Dovecot-specific log parsing
+  
+  // IMAP/POP3 logins
+  stage.match {
+    selector = "{mail_service=\"dovecot\", message=~\"Login: .*\"}"
+    stage.regex {
+      expression = "Login: user=<(?P<login_user>[^>]*)>, method=(?P<login_method>\\S+), rip=(?P<remote_ip>[^,]*)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "mail_login",
+      }
+    }
+  }
+  
+  // Failed logins
+  stage.match {
+    selector = "{mail_service=\"dovecot\", message=~\"auth failed\"}"
+    stage.regex {
+      expression = "auth failed.*user=<(?P<login_user>[^>]*)>"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "mail_auth_failure",
+      }
+    }
+  }
+  
+  // Mailbox operations
+  stage.match {
+    selector = "{mail_service=\"dovecot\", message=~\".*(Mailbox|mailbox).*\"}"
+    stage.labels {
+      values = {
+        event_type = "mailbox_operation",
+      }
+    }
+  }
+  
+  // Disconnections
+  stage.match {
+    selector = "{mail_service=\"dovecot\", message=~\"Disconnected.*\"}"
+    stage.regex {
+      expression = "Disconnected: (?P<disconnect_reason>[^,]*), bytes=(?P<bytes_in>\\d+)/(?P<bytes_out>\\d+)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "mail_disconnect",
+      }
+    }
+  }
+  
+  // Security events
+  stage.match {
+    selector = "{message=~\".*rbl.*|.*blacklist.*|.*greylist.*|.*banned.*|.*blocked.*\", mail_service=\"postfix\"}"
+    stage.labels {
+      values = {
+        security_event = "blocked_sender",
+      }
+    }
+  }
+  
+  // Track TLS connections
+  stage.match {
+    selector = "{message=~\".*TLS connection.*\"}"
+    stage.labels {
+      values = {
+        tls_connection = "true",
+      }
+    }
+  }
+  
+  // Track mail forwarding
+  stage.match {
+    selector = "{message=~\".*forwarded as.*\"}"
+    stage.labels {
+      values = {
+        forwarded = "true",
+      }
+    }
+  }
+  
+  // Drop common routine logs
+  stage.match {
+    selector = "{message=~\".*removed.*\"}"
+    action = "drop"
+  }
+  
+  // Clean up labels to reduce cardinality
+  stage.label_drop {
+    values = ["pid", "hostname"]
+  }
+}
+
+// =======================================================================================
+// Source definitions to read the mail log files
+loki.source.file "mail_logs" {
+  targets               = local.file_match.mail_logs.targets
+  forward_to            = [loki.process.mail_logs.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}

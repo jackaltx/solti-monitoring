@@ -40,6 +40,19 @@ loki.relabel "journal" {
 {% include 'apache_logs.j2' %}
 {% endif %}
 
+{% if alloy_monitor_fail2ban | default(false) %}
+{% include 'fail2ban.j2' %}
+{% endif %}
+
+{% if alloy_monitor_mail | default(false) %}
+{% include 'mail.j2' %}
+{% endif %}
+
+{% if alloy_monitor_bind9 | default(false) %}
+{% include 'bind9.j2' %}
+{% endif %}
+
+
 
 // =======================================================================================
 loki.source.journal "read"  {

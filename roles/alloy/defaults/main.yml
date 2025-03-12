@@ -15,3 +15,6 @@ alloy_loki_endpoints:
 # what to monitor?  by default just the basics
 
 alloy_monitor_apache: false
+alloy_monitor_fail2ban: false
+alloy_monitor_mail: false
+alloy_monitor_bind9: false
