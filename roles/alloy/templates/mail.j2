@@ -11,24 +11,6 @@ local.file_match "mail_logs" {
     host        = "{{ ansible_hostname }}",
     job         = "mail",
     label       = "mail_combined",
-  }, {
-    __address__ = "localhost",
-    __path__    = "/var/log/mail.info",
-    host        = "{{ ansible_hostname }}",
-    job         = "mail",
-    label       = "mail_info",
-  }, {
-    __address__ = "localhost",
-    __path__    = "/var/log/mail.warn",
-    host        = "{{ ansible_hostname }}",
-    job         = "mail",
-    label       = "mail_warn",
-  }, {
-    __address__ = "localhost",
-    __path__    = "/var/log/mail.err",
-    host        = "{{ ansible_hostname }}",
-    job         = "mail",
-    label       = "mail_error",
   }]
 }
 
