@@ -26,9 +26,9 @@ loki.process "fail2ban" {
     max_wait_time = "1s"
   }
 
-  // Basic fail2ban log parsing
+  // Basic fail2ban log parsing - updated to capture jail directly from log format
   stage.regex {
-    expression = "^(?P<timestamp>\\S+? \\S+?) (fail2ban\\.)(?P<component>\\S+)\\s* \\[(?P<pid>\\S+)\\]: (?P<priority>\\S+)\\s* (?P<message>.*?)$"
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>\\S+)\\s+\\[(?P<pid>\\d+)\\]: (?P<priority>\\S+)\\s+\\[(?P<jail>\\S+)\\] (?P<message>.*)$"
   }
   
   stage.timestamp {
@@ -40,36 +40,60 @@ loki.process "fail2ban" {
     values = {
       component = null,
       priority  = null,
+      jail      = null,
     }
   }
   
-  // Extract the jail name if present
+  // Extract IP addresses from messages
   stage.match {
-    selector = "{message=~\"\\\\[\\\\S+\\\\]\"}"
+    selector = "{message=~\"Found|Ban|Unban\"}"
     stage.regex {
-      expression = "\\[(?P<jail>\\S+)\\] (?P<jail_message>.*)"
+      expression = "(?:Found|Ban|Unban) (?P<source_ip>[\\da-fA-F.:]+)( - \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})?"
     }
   }
   
-  // Categorize by action type
+  // Ignore patterns
   stage.match {
-    selector = "{message=~\"Ban|Unban\"}"
-    stage.regex {
-      expression = "(?P<action>Ban|Unban).*?(?P<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"
-    }
-    
+    selector = "{message=~\"Ignore\"}"
     stage.labels {
       values = {
+        action = "ignore",
+      }
+    }
+    
+    stage.regex {
+      expression = "Ignore (?P<ignored_ip>[\\da-fA-F.:]+)"
+    }
+  }
+  
+  // Categorize Ban events
+  stage.match {
+    selector = "{message=~\"^Ban \"}"
+    stage.labels {
+      values = {
+        action = "ban",
         action_type = "ip_action",
       }
     }
   }
   
-  // Found matching patterns
+  // Categorize Unban events
   stage.match {
-    selector = "{message=~\"Found\"}"
+    selector = "{message=~\"^Unban \"}"
     stage.labels {
       values = {
+        action = "unban",
+        action_type = "ip_action",
+      }
+    }
+  }
+  
+  // Found/detection events
+  stage.match {
+    selector = "{message=~\"^Found \"}"
+    stage.labels {
+      values = {
+        action = "detect",
         action_type = "detection",
       }
     }
@@ -77,25 +101,16 @@ loki.process "fail2ban" {
   
   // Starting/stopping jails
   stage.match {
-    selector = "{message=~\"(Starting|Stopping|Started|Stopped)\"}"
+    selector = "{message=~\"^(Starting|Stopping|Started|Stopped)\"}"
     stage.labels {
       values = {
+        action = "lifecycle",
         action_type = "jail_lifecycle",
       }
     }
   }
   
-  // Failed authentication attempts
-  stage.match {
-    selector = "{message=~\"authentication failure|Invalid user|Failed password\"}"
-    stage.labels {
-      values = {
-        action_type = "auth_failure",
-      }
-    }
-  }
-  
-  // Basic prioritization
+  // Priority-based severity mapping
   stage.match {
     selector = "{priority=\"CRITICAL\"}"
     stage.labels {
@@ -141,6 +156,16 @@ loki.process "fail2ban" {
     }
   }
   
+  // Special handling for recidive jail (repeat offenders)
+  stage.match {
+    selector = "{jail=\"recidive\"}"
+    stage.labels {
+      values = {
+        repeat_offender = "true",
+      }
+    }
+  }
+  
   // Drop some noisy info-level messages
   stage.match {
     selector = "{severity=\"info\", message=~\"Roll over\"}"
@@ -155,4 +180,3 @@ loki.source.file "fail2ban" {
   forward_to            = [loki.process.fail2ban.receiver]
   legacy_positions_file = "/tmp/positions.yaml"
 }
-
