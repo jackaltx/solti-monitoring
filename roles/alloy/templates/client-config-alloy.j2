@@ -52,6 +52,10 @@ loki.relabel "journal" {
 {% include 'bind9.j2' %}
 {% endif %}
 
+{% if alloy_monitor_wg | default(false) %}
+{% include 'wireguard.j2' %}
+{% endif %}
+
 
 
 // =======================================================================================

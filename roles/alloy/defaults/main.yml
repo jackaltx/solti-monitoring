@@ -18,3 +18,4 @@ alloy_monitor_apache: false
 alloy_monitor_fail2ban: false
 alloy_monitor_mail: false
 alloy_monitor_bind9: false
+alloy_monitor_wg: false

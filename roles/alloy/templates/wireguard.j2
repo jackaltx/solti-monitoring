@@ -1,0 +1,136 @@
+// =======================================================================================
+// =======================================================================================
+// WireGuard VPN monitoring configuration for Alloy
+
+// =======================================================================================
+// Define file match pattern for WireGuard logs (via journal)
+local.file_match "wireguard_syslog" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/kern.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "wireguard",
+    label       = "vpn",
+  }]
+}
+
+// =======================================================================================
+// Process pipeline for WireGuard logs
+loki.process "wireguard_logs" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Basic syslog format parsing
+  stage.regex {
+    expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+) (?P<hostname>\\S+) (?P<program>[^\\[]+)(?:\\[(?P<pid>\\d+)\\])?: (?P<message>.*)$"
+  }
+  
+  stage.timestamp {
+    source = "timestamp"
+    format = "Jan _2 15:04:05"
+  }
+  
+  stage.labels {
+    values = {
+      program = null,
+      pid = null,
+    }
+  }
+  
+  // Filter WireGuard-related logs
+  stage.match {
+    selector = "{program=\"kernel\", message=~\"WireGuard\"}"
+    stage.labels {
+      values = {
+        component = "wireguard",
+      }
+    }
+  }
+  
+  // Connection establishment
+  stage.match {
+    selector = "{component=\"wireguard\", message=~\"peer.*established\"}"
+    stage.regex {
+      expression = "peer(.*)established"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "connection_established",
+      }
+    }
+  }
+  
+  // Peer handshake
+  stage.match {
+    selector = "{component=\"wireguard\", message=~\"handshake\"}"
+    stage.labels {
+      values = {
+        event_type = "handshake",
+      }
+    }
+  }
+  
+  // Interface creation
+  stage.match {
+    selector = "{component=\"wireguard\", message=~\"initialized\"}"
+    stage.labels {
+      values = {
+        event_type = "interface_up",
+      }
+    }
+  }
+  
+  // Peer IP address tracking
+  stage.match {
+    selector = "{component=\"wireguard\", message=~\"\\d+\\.\\d+\\.\\d+\\.\\d+\"}"
+    stage.regex {
+      expression = "(\\d+\\.\\d+\\.\\d+\\.\\d+)"
+    }
+  }
+
+  // Look for systemd-related WireGuard entries
+  stage.match {
+    selector = "{program=\"systemd\", message=~\"wg-quick|wireguard\"}"
+    stage.labels {
+      values = {
+        component = "wireguard_systemd",
+      }
+    }
+  }
+  
+  // Track WireGuard service status
+  stage.match {
+    selector = "{component=\"wireguard_systemd\", message=~\"started\"}"
+    stage.labels {
+      values = {
+        event_type = "service_start",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{component=\"wireguard_systemd\", message=~\"stopped\"}"
+    stage.labels {
+      values = {
+        event_type = "service_stop",
+      }
+    }
+  }
+}
+
+// Alternative monitoring via wg command output
+loki.source.journal "systemd" {
+  forward_to    =  [loki.process.wireguard_logs.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  labels        = {component = "systemd_journal"}
+}
+
+// =======================================================================================
+// Source definition for WireGuard logs
+loki.source.file "wireguard_source" {
+  targets               = local.file_match.wireguard_syslog.targets
+  forward_to            = [loki.process.wireguard_logs.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
