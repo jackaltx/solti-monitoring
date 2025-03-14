@@ -9,7 +9,7 @@ loki.relabel "bind9_journal" {
   
   rule {
     source_labels = ["__journal__systemd_unit"]
-    regex = "bind9\\.service"
+    regex = "named\\.service"
     action = "keep"
   }
   
