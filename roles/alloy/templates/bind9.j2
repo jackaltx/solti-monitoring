@@ -1,6 +1,123 @@
-
 // =======================================================================================
 // Bind9 DNS server logs collection configuration for Alloy
+// Updated to also collect from systemd journal in addition to log files
+
+// =======================================================================================
+// Journal source for Bind9 logs (ISPConfig compatibility)
+loki.relabel "bind9_journal" {
+  forward_to = []
+  
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    regex = "bind9\\.service"
+    action = "keep"
+  }
+  
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label = "identifier"
+  }
+  
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label = "severity"
+  }
+  
+  rule {
+    target_label = "job"
+    replacement = "bind9"
+  }
+  
+  rule {
+    target_label = "label"
+    replacement = "dns_journal"
+  }
+}
+
+// Journal processing pipeline for Bind9
+loki.process "bind9_journal_logs" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+  
+  // Extract log message patterns
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"zone\""
+    stage.regex {
+      expression = "zone (?P<zone>[^ :]+)"
+    }
+    stage.labels {
+      values = {
+        event_type = "zone_operation",
+        zone = null,
+      }
+    }
+  }
+  
+  // Detect query patterns
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"query\""
+    stage.regex {
+      expression = "query:.*(?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?P<query_flags>.*)"
+    }
+    stage.labels {
+      values = {
+        event_type = "query",
+        query_domain = null,
+        query_type = null,
+      }
+    }
+  }
+  
+  // Detect client information when present
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"client\""
+    stage.regex {
+      expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)"
+    }
+    stage.labels {
+      values = {
+        client_ip = null,
+      }
+    }
+  }
+  
+  // Detect DNSSEC operations
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"DNSSEC|key|signing|verify\""
+    stage.labels {
+      values = {
+        event_type = "dnssec",
+      }
+    }
+  }
+  
+  // Detect transfers
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"transfer|AXFR|IXFR\""
+    stage.labels {
+      values = {
+        event_type = "transfer",
+      }
+    }
+  }
+  
+  // Detect security events
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"denied|refused|TSIG|security\""
+    stage.labels {
+      values = {
+        event_type = "security",
+      }
+    }
+  }
+}
+
+// Add journal source to collect Bind9 logs from systemd
+loki.source.journal "bind9_journal_source" {
+  relabel_rules = loki.relabel.bind9_journal.rules
+  forward_to = [loki.process.bind9_journal_logs.receiver]
+  max_age = "12h"
+  labels = {component = "loki.source.journal.bind9"}
+}
 
 // =======================================================================================
 // Define file match pattern for Bind9 log files - updated with correct paths
@@ -536,6 +653,4 @@ loki.source.file "bind9_notify_source" {
   forward_to            = [loki.process.bind9_notify_logs.receiver]
   legacy_positions_file = "/tmp/positions.yaml"
 }
-
-
 
