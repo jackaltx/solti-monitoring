@@ -1,45 +1,72 @@
 // =======================================================================================
-// =======================================================================================
 // Postfix and Dovecot logs collection configuration for Alloy
+// Updated to use journald with priority filtering and authentication event capture
 
 // =======================================================================================
-// Define file match patterns for mail logs
-local.file_match "mail_logs" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/mail.log",
-    host        = "{{ ansible_hostname }}",
-    job         = "mail",
-    label       = "mail_combined",
-  }]
+// Journal relabeling rules for mail services
+loki.relabel "mail_journal" {
+  forward_to = []
+  
+  // Keep only logs from mail-related services
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    regex = "(postfix(@-)?|dovecot|mail)\\.service"
+    action = "keep"
+  }
+
+  // Add source debugging information
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label = "unit"
+  }  
+
+  // Alternative: keep mail-related logs by identifier
+  // Per Claude: The rule is complementary to the unit-based rule. 
+  //  Together, they form a more robust filtering approach that can 
+  //  handle different mail service configurations.
+  //
+  //rule {
+  //  source_labels = ["__journal_syslog_identifier"]
+  //  regex = "(postfix(@-)?|dovecot|master|smtp|submission|smtpd|cleanup|qmgr|bounce|lmtp|imap|pop3)"
+  //  action = "keep"
+  //}
+  
+  // Filter by priority - keep warning and above
+  rule {
+    source_labels = ["__journal_priority"]
+    regex = "[0-4]"  // 0-4 are emergency(0), alert(1), critical(2), error(3), warning(4)
+    action = "keep"
+  }
+  
+  // Add basic labels
+  rule {
+    target_label = "job"
+    replacement = "mail"
+  }
+  
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label = "service"
+  }
+  
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "host"
+  }
+  
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label = "priority"
+  }
 }
 
-// =======================================================================================
-// Process pipeline for mail logs
-loki.process "mail_logs" {
-  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
-
-  // Simplified mail log format parsing - reduced escaping
-  stage.regex {
-    expression = "^(?P<timestamp>\\w+ +\\d+ \\d+:\\d+:\\d+) (?P<hostname>\\S+) (?P<service>[^\\[]+)\\[(?P<pid>\\d+)\\](?::? (?P<queue_id>[A-F0-9]+):?)? (?P<message>.*)"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "Jan _2 15:04:05"
-  }
-  
-  stage.labels {
-    values = {
-      service = null,
-      pid     = null,
-      queue_id = null,
-    }
-  }
+// Process mail journal logs
+loki.process "mail_journal_logs" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
   
   // Identify mail service type
   stage.match {
-    selector = "{service=~\"postfix\"}"
+    selector = "{service=~\"postfix.*\"}"
     stage.labels {
       values = {
         mail_service = "postfix",
@@ -48,7 +75,7 @@ loki.process "mail_logs" {
   }
   
   stage.match {
-    selector = "{service=~\"dovecot\"}"
+    selector = "{service=~\"dovecot.*\"}"
     stage.labels {
       values = {
         mail_service = "dovecot",
@@ -57,9 +84,27 @@ loki.process "mail_logs" {
   }
   
   // =======================================================================================
+  // Special case to keep authentication events, even if info priority
+  stage.match {
+    selector = "{priority=\"info\", message=~\"[Aa]uth|[Ll]ogin|[Aa]uthentication|session\"}"
+    stage.labels {
+      values = {
+        event_type = "authentication",
+        keep = "true",
+      }
+    }
+  }
+  
+  // Drop regular info messages
+  stage.match {
+    selector = "{priority=\"info\", keep!=\"true\"}"
+    action = "drop"
+  }
+  
+  // =======================================================================================
   // Postfix-specific log parsing
   
-  // Extract SMTP transaction details - simplified pattern
+  // Extract SMTP transaction details
   stage.match {
     selector = "{mail_service=\"postfix\", message=~\"status=\"}"
     stage.regex {
@@ -104,7 +149,7 @@ loki.process "mail_logs" {
     }
   }
   
-  // SMTP authentication events - simplified
+  // SMTP authentication events
   stage.match {
     selector = "{mail_service=\"postfix\", message=~\"sasl_method\"}"
     stage.regex {
@@ -118,7 +163,7 @@ loki.process "mail_logs" {
     }
   }
   
-  // Extract email sender/recipient - simplified
+  // Extract email sender/recipient
   stage.match {
     selector = "{mail_service=\"postfix\", message=~\"from=<\"}"
     stage.regex {
@@ -147,7 +192,7 @@ loki.process "mail_logs" {
     }
   }
   
-  // SPAM/virus filter results - simplified
+  // SPAM/virus filter results
   stage.match {
     selector = "{mail_service=\"postfix\", message=~\"SPAM\"}"
     stage.labels {
@@ -169,7 +214,7 @@ loki.process "mail_logs" {
   // =======================================================================================
   // Dovecot-specific log parsing
   
-  // IMAP/POP3 logins - simplified
+  // IMAP/POP3 logins
   stage.match {
     selector = "{mail_service=\"dovecot\", message=~\"Login:\"}"
     stage.regex {
@@ -203,7 +248,7 @@ loki.process "mail_logs" {
     }
   }
   
-  // Disconnections - simplified
+  // Disconnections
   stage.match {
     selector = "{mail_service=\"dovecot\", message=~\"Disconnected\"}"
     stage.labels {
@@ -213,7 +258,7 @@ loki.process "mail_logs" {
     }
   }
   
-  // Security events - simplified
+  // Security events
   stage.match {
     selector = "{message=~\"blacklist|blocked\", mail_service=\"postfix\"}"
     stage.labels {
@@ -235,14 +280,16 @@ loki.process "mail_logs" {
   
   // Clean up labels to reduce cardinality
   stage.label_drop {
-    values = ["pid", "hostname"]
+    values = ["pid", "keep"]
   }
 }
 
 // =======================================================================================
-// Source definitions to read the mail log files
-loki.source.file "mail_logs" {
-  targets               = local.file_match.mail_logs.targets
-  forward_to            = [loki.process.mail_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
+// Source mail logs from journal
+loki.source.journal "mail_journal" {
+  relabel_rules = loki.relabel.mail_journal.rules
+  forward_to = [loki.process.mail_journal_logs.receiver]
+  max_age = "12h"
+  labels = {component = "loki.source.journal.mail"}
 }
+

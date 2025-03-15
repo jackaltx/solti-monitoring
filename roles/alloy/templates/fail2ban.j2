@@ -26,11 +26,11 @@ loki.process "fail2ban" {
     max_wait_time = "1s"
   }
 
-  // Basic fail2ban log parsing - updated to capture jail directly from log format
+  // Basic fail2ban log parsing - simplified to ensure matching
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>\\S+)\\s+\\[(?P<pid>\\d+)\\]: (?P<priority>\\S+)\\s+\\[(?P<jail>\\S+)\\] (?P<message>.*)$"
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<message>.*)$"
   }
-  
+
   stage.timestamp {
     source = "timestamp"
     format = "2006-01-02 15:04:05.000"
@@ -43,62 +43,55 @@ loki.process "fail2ban" {
       jail      = null,
     }
   }
-  
-  // Extract IP addresses from messages
-  stage.match {
-    selector = "{message=~\"Found|Ban|Unban\"}"
-    stage.regex {
-      expression = "(?:Found|Ban|Unban) (?P<source_ip>[\\da-fA-F.:]+)( - \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})?"
-    }
-  }
-  
-  // Ignore patterns
-  stage.match {
-    selector = "{message=~\"Ignore\"}"
-    stage.labels {
-      values = {
-        action = "ignore",
-      }
-    }
-    
-    stage.regex {
-      expression = "Ignore (?P<ignored_ip>[\\da-fA-F.:]+)"
-    }
-  }
-  
-  // Categorize Ban events
+
+  // ===================================================================
+  // Extract action and IP address for Ban/Unban events
+
+  // Handle Ban events
   stage.match {
     selector = "{message=~\"^Ban \"}"
+    stage.regex {
+      expression = "^Ban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+    }
     stage.labels {
       values = {
         action = "ban",
-        action_type = "ip_action",
+        event_type = "ip_action",
+        source_ip = null,
       }
     }
   }
-  
-  // Categorize Unban events
+
+  // Handle Unban events
   stage.match {
     selector = "{message=~\"^Unban \"}"
+    stage.regex {
+      expression = "^Unban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+    }
     stage.labels {
       values = {
         action = "unban",
-        action_type = "ip_action",
+        event_type = "ip_action",
+        source_ip = null,
       }
     }
   }
-  
-  // Found/detection events
+
+  // Handle Found events
   stage.match {
     selector = "{message=~\"^Found \"}"
+    stage.regex {
+      expression = "^Found\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+    }
     stage.labels {
       values = {
         action = "detect",
-        action_type = "detection",
+        event_type = "detection",
+        source_ip = null,
       }
     }
   }
-  
+    
   // Starting/stopping jails
   stage.match {
     selector = "{message=~\"^(Starting|Stopping|Started|Stopped)\"}"
@@ -119,7 +112,7 @@ loki.process "fail2ban" {
       }
     }
   }
-  
+    
   stage.match {
     selector = "{priority=\"ERROR\"}"
     stage.labels {
