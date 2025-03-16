@@ -34,9 +34,9 @@ loki.process "fail2ban" {
     max_wait_time = "1s"
   }
 
-  // Basic fail2ban log parsing - simplified to ensure matching
+  // Basic fail2ban log parsing
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<message>.*)$"
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<full_message>.*)$"
   }
 
   stage.timestamp {
@@ -44,27 +44,6 @@ loki.process "fail2ban" {
     format = "2006-01-02 15:04:05.000"
   }
   
-  stage.labels {
-    values = {
-      component = null,
-      priority  = null,
-      jail      = null,
-      message   = null,
-      extracted_message = "yes",  // Add this debug label
-    }
-  }
-
-  // ===================================================================
-  // Extract action and IP address for Ban/Unban events
-  //
-  // TODO: Document this that selector.match will not do RE2
-  //  In this area it was the a roller coaster of hours.
-
-  // Basic fail2ban log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<full_message>.*)$"
-  }
-
   // Extract action type and IP in one go
   stage.regex {
     source = "full_message"
@@ -78,17 +57,27 @@ loki.process "fail2ban" {
       jail = null,
       action_type = null,
       source_ip = null,
-
-      // Derive additional labels based on action_type
-      // NOTE: This is Go template code for inside of alloy, so you have to escape it!!
-
-      {% raw %}
-      test_template = "{{ .action_type }}"
-      f2b_action = "{{ if eq .action_type \"Ban\" }}ban{{ else if eq .action_type \"Unban\" }}unban{{ else if eq .action_type \"Found\" }}detect{{ else }}ignore{{ end }}",
-      event_type = "{{ if or (eq .action_type \"Ban\") (eq .action_type \"Unban\") }}ip_action{{ else if eq .action_type \"Found\" }}detection{{ else }}ignore{{ end }}",
-       {% endraw %}
+      new_key = null,
     }
   }
+
+  stage.template {
+    source   = "new_key"
+    template = "hello_world"
+  }
+
+  {% raw %}
+  // Use dedicated template stage
+  stage.template {
+    source = "action_type"
+    template = "{{ if eq . \"Ban\" }}ban{{ else if eq . \"Unban\" }}unban{{ else if eq . \"Found\" }}detect{{ else }}ignore{{ end }}"
+  }
+
+  stage.template {
+    source = "action_type"
+    template = "{{ if or (eq . \"Ban\") (eq . \"Unban\") }}ip_action{{ else if eq . \"Found\" }}detection{{ else }}ignore{{ end }}"
+  }
+  {% endraw %}
 
   // Now match on the extracted action_type label
   stage.match {
@@ -118,7 +107,7 @@ loki.process "fail2ban" {
   // ===================================================================    
   // Starting/stopping jails
   stage.match {
-    selector = "{message=~\"^(Starting|Stopping|Started|Stopped)\"}"
+    selector = "{full_message=~\"^(Starting|Stopping|Started|Stopped)\"}"
     stage.labels {
       values = {
         f2b_action = "lifecycle",
@@ -185,7 +174,7 @@ loki.process "fail2ban" {
   
   // Drop some noisy info-level messages
   stage.match {
-    selector = "{severity=\"info\", message=~\"Roll over\"}"
+    selector = "{severity=\"info\", full_message=~\"Roll over\"}"
     action   = "drop"
   }
 }
