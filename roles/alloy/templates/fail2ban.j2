@@ -19,6 +19,14 @@ local.file_match "fail2ban" {
 loki.process "fail2ban" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
+
+  // Add debug marker
+  stage.labels {
+    values = {
+      debug_enabled = "true",
+    }
+  }
+
   // Handle multi-line log entries
   stage.multiline {
     firstline     = "\\d{4}-\\d{2}-\\d{2}"
@@ -41,63 +49,64 @@ loki.process "fail2ban" {
       component = null,
       priority  = null,
       jail      = null,
+      message   = null,
+      extracted_message = "yes",  // Add this debug label
     }
   }
 
   // ===================================================================
   // Extract action and IP address for Ban/Unban events
 
+
   // Handle Ban events
   stage.match {
     selector = "{message=~\"^Ban \"}"
+
+    stage.labels {
+      values = {
+        debug_stage = "ban_selector_matched",
+      }
+    }
+
     stage.regex {
       expression = "^Ban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
     }
     stage.labels {
       values = {
-        action = "ban",
-        event_type = "ip_action",
+        f2b_notice = "ban",
         source_ip = null,
       }
     }
   }
 
+
+  // ......................................... <<<<
   // Handle Unban events
   stage.match {
     selector = "{message=~\"^Unban \"}"
+    stage.labels {
+      values = {
+        debug_stage = "unban_selector_matched",
+      }
+    }
     stage.regex {
       expression = "^Unban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
     }
     stage.labels {
       values = {
-        action = "unban",
-        event_type = "ip_action",
-        source_ip = null,
-      }
+        f2b_notice = "unban",
+        source_ip=null,
+        }
     }
   }
 
-  // Handle Found events
-  stage.match {
-    selector = "{message=~\"^Found \"}"
-    stage.regex {
-      expression = "^Found\\s+(?P<source_ip>[\\da-fA-F.:]+)"
-    }
-    stage.labels {
-      values = {
-        action = "detect",
-        event_type = "detection",
-        source_ip = null,
-      }
-    }
-  }
-    
+  // ===================================================================    
   // Starting/stopping jails
   stage.match {
     selector = "{message=~\"^(Starting|Stopping|Started|Stopped)\"}"
     stage.labels {
       values = {
-        action = "lifecycle",
+        f2b_action = "lifecycle",
         action_type = "jail_lifecycle",
       }
     }
@@ -173,3 +182,4 @@ loki.source.file "fail2ban" {
   forward_to            = [loki.process.fail2ban.receiver]
   legacy_positions_file = "/tmp/positions.yaml"
 }
+
