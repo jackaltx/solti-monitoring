@@ -78,6 +78,15 @@ loki.process "fail2ban" {
       jail = null,
       action_type = null,
       source_ip = null,
+
+      // Derive additional labels based on action_type
+      // NOTE: This is Go template code for inside of alloy, so you have to escape it!!
+
+      {% raw %}
+      test_template = "{{ .action_type }}"
+      f2b_action = "{{ if eq .action_type \"Ban\" }}ban{{ else if eq .action_type \"Unban\" }}unban{{ else if eq .action_type \"Found\" }}detect{{ else }}ignore{{ end }}",
+      event_type = "{{ if or (eq .action_type \"Ban\") (eq .action_type \"Unban\") }}ip_action{{ else if eq .action_type \"Found\" }}detection{{ else }}ignore{{ end }}",
+       {% endraw %}
     }
   }
 
@@ -86,8 +95,8 @@ loki.process "fail2ban" {
     selector = "{action_type=\"Unban\"}"
     stage.labels {
       values = {
-        f2b_action = "unban",
-        event_type = "ip_action",
+        f2b_action = "unban0",
+        event_typo = "ip_action",
       }
     }
   }
@@ -96,8 +105,8 @@ loki.process "fail2ban" {
     selector = "{action_type=\"Ban\"}"
     stage.labels {
       values = {
-        f2b_action = "ban",
-        event_type = "ip_action",
+        f2b_action = "ban0",
+        event_typ0 = "ip_action",
       }
     }
   }
