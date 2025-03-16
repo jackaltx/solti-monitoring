@@ -56,49 +56,55 @@ loki.process "fail2ban" {
 
   // ===================================================================
   // Extract action and IP address for Ban/Unban events
+  //
+  // TODO: Document this that selector.match will not do RE2
+  //  In this area it was the a roller coaster of hours.
 
+  // Basic fail2ban log parsing
+  stage.regex {
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<full_message>.*)$"
+  }
 
-  // Handle Ban events
+  // Extract action type and IP in one go
+  stage.regex {
+    source = "full_message"
+    expression = "(?P<action_type>Ban|Unban|Found|Ignore)\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+  }
+
+  stage.labels {
+    values = {
+      component = null,
+      priority = null,
+      jail = null,
+      action_type = null,
+      source_ip = null,
+    }
+  }
+
+  // Now match on the extracted action_type label
   stage.match {
-    selector = "{message=~\"^Ban \"}"
-
+    selector = "{action_type=\"Unban\"}"
     stage.labels {
       values = {
-        debug_stage = "ban_selector_matched",
+        f2b_action = "unban",
+        event_type = "ip_action",
       }
     }
+  }
 
-    stage.regex {
-      expression = "^Ban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
-    }
+  stage.match {
+    selector = "{action_type=\"Ban\"}"
     stage.labels {
       values = {
-        f2b_notice = "ban",
-        source_ip = null,
+        f2b_action = "ban",
+        event_type = "ip_action",
       }
     }
   }
 
 
-  // ......................................... <<<<
-  // Handle Unban events
-  stage.match {
-    selector = "{message=~\"^Unban \"}"
-    stage.labels {
-      values = {
-        debug_stage = "unban_selector_matched",
-      }
-    }
-    stage.regex {
-      expression = "^Unban\\s+(?P<source_ip>[\\da-fA-F.:]+)"
-    }
-    stage.labels {
-      values = {
-        f2b_notice = "unban",
-        source_ip=null,
-        }
-    }
-  }
+
+
 
   // ===================================================================    
   // Starting/stopping jails
