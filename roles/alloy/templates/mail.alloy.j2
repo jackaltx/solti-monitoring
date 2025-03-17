@@ -143,7 +143,6 @@ loki.process "mail_logs" {
     selector = "{remote_ip=\"::1\", local_ip=\"::1\", message=~\".*no auth attempts.*\"}"
     stage.static_labels {
       values = {
-        event_type = "local_test",
         drop_candidate = "true",
       }
     }
@@ -154,7 +153,16 @@ loki.process "mail_logs" {
     selector = "{mail_service=\"dovecot\", remote_ip=\"::1\", local_ip=\"::1\"}"
     stage.static_labels {
       values = {
-        event_type = "automated_test",
+        drop_candidate = "true",
+      }
+    }
+  }
+
+  // Filter out local testing connections from dovecot - improved pattern for pop3/imap-login
+  stage.match {
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected.*no auth attempts\", message=~\".*rip=::1, lip=::1.*\"}"
+    stage.static_labels {
+      values = {
         drop_candidate = "true",
       }
     }
@@ -450,6 +458,34 @@ loki.process "mail_logs" {
     }
   }
 
+
+  // =======================================================================================
+  // Extract only the most critical fields for mail flow tracking
+  stage.match {
+    selector = "{service=\"postfix/qmgr\", message=~\".*: from=<.*>, size=.*\"}"
+    stage.regex {
+      expression = "(?P<queue_id>[A-F0-9]+): from=<(?P<sender>[^>]*)>, size=(?P<message_size>\\d+)"
+    }
+    
+    stage.static_labels {
+      values = {
+        event_type = "mail_queued",
+      }
+    }
+    
+    stage.labels {
+      values = {
+        queue_id = null,
+        sender = null,
+      }
+    }
+  }
+
+
+
+
+
+
   // Clean up labels to reduce cardinality
   stage.label_drop {
     values = ["pid", "drop_candidate"]
@@ -472,6 +508,7 @@ loki.process "mail_logs" {
     }
   }
 }
+
 
 // =======================================================================================
 // Source definition to read the mail log file
