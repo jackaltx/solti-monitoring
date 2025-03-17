@@ -116,7 +116,7 @@ loki.process "mail_logs" {
   // ...............................................................
   // Handle dovecot user session logs with embedded user data
   stage.match {
-    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: imap\\(.*\\)\"}"
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: imap.*\"}"
     
     // Extract user info from service name
     stage.regex {
@@ -132,9 +132,6 @@ loki.process "mail_logs" {
       }
     }
     
-    // Instead of trying to create a composite email field with static_labels,
-    // just store the components as separate labels and combine them in queries
-    
     // Just tag the event type for logout events
     stage.match {
       selector = "{message=~\"Logged out.*\"}"
@@ -145,6 +142,7 @@ loki.process "mail_logs" {
       }
     }
   }
+
 
   // ...............................................................
   // Login events - adjusted to match the actual message format
@@ -160,8 +158,8 @@ loki.process "mail_logs" {
         event_subtype = "success",
         login_user = null,
         auth_method = null,
-        remote_ip = null,
-        local_ip = null,
+        remote_ip = "",
+        local_ip = "",
         security_info = null,
         session_id = null,
       }
@@ -175,51 +173,34 @@ loki.process "mail_logs" {
   // Filter out local testing connections
   stage.match {
     selector = "{remote_ip=\"::1\", local_ip=\"::1\", message=~\".*no auth attempts.*\"}"
-    stage.static_labels {
-      values = {
-        drop_candidate = "true",
-      }
-    }
+    action   = "drop"
   }
 
   // Filter out local testing connections from dovecot
   stage.match {
     selector = "{mail_service=\"dovecot\", remote_ip=\"::1\", local_ip=\"::1\"}"
-    stage.static_labels {
-      values = {
-        drop_candidate = "true",
-      }
-    }
+    action   = "drop"
   }
 
   // Filter out local testing connections from dovecot - improved pattern for pop3/imap-login
   stage.match {
-    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected.*no auth attempts\", message=~\".*rip=::1, lip=::1.*\"}"
-    stage.static_labels {
-      values = {
-        drop_candidate = "true",
-      }
-    }
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected\", message=~\".*rip=::1, lip=::1.*\"}"
+    action   = "drop"
   }
-
 
   // Filter out local connections from postfix smtpd
   stage.match {
-    selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\".*localhost.*\"}"
-    stage.static_labels {
-      values = {
-        event_type = "automated_test",
-        drop_candidate = "true",
-      }
-    }
-  }
-
-  // Drop local test connections to reduce noise
-  stage.match {
-    selector = "{drop_candidate=\"true\"}"
+    selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\"lost connection after CONNECT from localhost\"}"
     action   = "drop"
   }
-  
+
+  // Filter out local connections from postfix smtpd
+  stage.match {
+    selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\"(disconnect/connect) from localhost\"}"
+    action   = "drop"
+  }
+
+
   // ========================================================================================================
   // failure classification section
   
