@@ -37,23 +37,23 @@ loki.relabel "journal" {
 // =======================================================================================
 // Include optional monitoring components based on configuration
 {% if alloy_monitor_apache | default(false) %}
-{% include 'apache_logs.j2' %}
+{% include 'apache_logs.alloy.j2' %}
 {% endif %}
 
 {% if alloy_monitor_fail2ban | default(false) %}
-{% include 'fail2ban.j2' %}
+{% include 'fail2ban.alloy.j2' %}
 {% endif %}
 
 {% if alloy_monitor_mail | default(false) %}
-{% include 'mail.j2' %}
+{% include 'mail.alloy.j2' %}
 {% endif %}
 
 {% if alloy_monitor_bind9 | default(false) %}
-{% include 'bind9.j2' %}
+{% include 'bind9.alloy.j2' %}
 {% endif %}
 
 {% if alloy_monitor_wg | default(false) %}
-{% include 'wireguard.j2' %}
+{% include 'wireguard.alloy.j2' %}
 {% endif %}
 
 
