@@ -98,7 +98,7 @@ loki.process "mail_logs" {
     }
   }
 
-  // Extract Dovecot service component
+  // Extract Dovecot service component properly
   stage.match {
     selector = "{mail_service=\"dovecot\"}"
     stage.regex {
@@ -112,12 +112,12 @@ loki.process "mail_logs" {
       }
     }
   }
-  
-  // Login events
+
+  // Login events - adjusted to match the actual message format
   stage.match {
-    selector = "{mail_service=\"dovecot\", message=~\"Login:.*\"}"
+    selector = "{dovecot_service=~\"imap-login|pop3-login\", service_name=~\".*Login\", message=~\"user=<.*\"}"
     stage.regex {
-      expression = "Login: user=<(?P<login_user>[^>]*)>, method=(?P<auth_method>\\w+), rip=(?P<remote_ip>[^,]+), lip=(?P<local_ip>[^,]+)(?:, mpid=(?P<master_pid>\\d+))(?:, (?P<security_info>.*))?, session=<(?P<session_id>[^>]+)>"
+      expression = "user=<(?P<login_user>[^>]*)>, method=(?P<auth_method>\\w+), rip=(?P<remote_ip>[^,]+), lip=(?P<local_ip>[^,]+)(?:, mpid=(?P<master_pid>\\d+))(?:, (?P<security_info>[^,]+))?, session=<(?P<session_id>[^>]+)>"
     }
     
     stage.labels {
@@ -128,10 +128,11 @@ loki.process "mail_logs" {
         auth_method = null,
         remote_ip = null,
         local_ip = null,
+        security_info = null,
         session_id = null,
       }
     }
-  }
+  } 
   
 
   // ====================================================================================================================
