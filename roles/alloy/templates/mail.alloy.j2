@@ -115,6 +115,36 @@ loki.process "mail_logs" {
 
   // ...............................................................
   // Handle dovecot user session logs with embedded user data
+  stage.match {
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: imap\\(.*\\)\"}"
+    
+    // Extract user info from service name
+    stage.regex {
+      source = "service_name"
+      expression = "dovecot: imap\\((?P<login_user>[^@]+)@(?P<domain>[^\\)]+)\\)"
+    }
+    
+    stage.labels {
+      values = {
+        dovecot_service = "imap",
+        login_user = null,
+        domain = null,
+      }
+    }
+    
+    // Instead of trying to create a composite email field with static_labels,
+    // just store the components as separate labels and combine them in queries
+    
+    // Just tag the event type for logout events
+    stage.match {
+      selector = "{message=~\"Logged out.*\"}"
+      stage.static_labels {
+        values = {
+          event_type = "mail_logout",
+        }
+      }
+    }
+  }
 
   // ...............................................................
   // Login events - adjusted to match the actual message format
@@ -162,16 +192,16 @@ loki.process "mail_logs" {
     }
   }
 
-  // Filter out local testing connections from dovecot login services
+  // Filter out local testing connections from dovecot - improved pattern for pop3/imap-login
   stage.match {
-    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected.*\", message=~\".*rip=::1, lip=::1.*\"}"
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected.*no auth attempts\", message=~\".*rip=::1, lip=::1.*\"}"
     stage.static_labels {
       values = {
-        event_type = "automated_test",
         drop_candidate = "true",
       }
     }
   }
+
 
   // Filter out local connections from postfix smtpd
   stage.match {
