@@ -20,13 +20,6 @@ loki.process "fail2ban" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
 
-  // Add debug marker
-  stage.labels {
-    values = {
-      debug_enabled = "true",
-    }
-  }
-
   // Handle multi-line log entries
   stage.multiline {
     firstline     = "\\d{4}-\\d{2}-\\d{2}"
@@ -36,7 +29,7 @@ loki.process "fail2ban" {
 
   // Basic fail2ban log parsing
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<priority>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<full_message>.*)$"
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+\\[(?P<jail>[^\\]]+)\\]\\s+(?P<full_message>.*)$"
   }
 
   stage.timestamp {
@@ -44,139 +37,51 @@ loki.process "fail2ban" {
     format = "2006-01-02 15:04:05.000"
   }
   
-  // Extract action type and IP in one go
+  // Extract action_type and IP in one go
   stage.regex {
     source = "full_message"
     expression = "(?P<action_type>Ban|Unban|Found|Ignore)\\s+(?P<source_ip>[\\da-fA-F.:]+)"
   }
 
+  // Pulls labels from the RE2 queries
   stage.labels {
     values = {
-      component = null,
-      priority = null,
-      jail = null,
-      action_type = null,
-      source_ip = null,
-      new_key = null,
-    }
+      component = "",
+      jail = "",
+      action_type = "",
+      source_ip = "",
+      severity = "",
+   }
   }
 
-  stage.template {
-    source   = "new_key"
-    template = "hello_world"
-  }
-
-  {% raw %}
-  // Use dedicated template stage
-  stage.template {
-    source = "action_type"
-    template = "{{ if eq . \"Ban\" }}ban{{ else if eq . \"Unban\" }}unban{{ else if eq . \"Found\" }}detect{{ else }}ignore{{ end }}"
-  }
-
-  stage.template {
-    source = "action_type"
-    template = "{{ if or (eq . \"Ban\") (eq . \"Unban\") }}ip_action{{ else if eq . \"Found\" }}detection{{ else }}ignore{{ end }}"
-  }
-  {% endraw %}
-
-  // Now match on the extracted action_type label
+  // Match on Found actions (Working... needs spaces)
   stage.match {
-    selector = "{action_type=\"Unban\"}"
-    stage.labels {
-      values = {
-        f2b_action = "unban0",
-        event_typo = "ip_action",
+    selector = "{ action_type = \"Found\" }"
+    action = "drop"
+  }
+
+  // ....................................................
+  // Testing label introduction
+
+
+  stage.match {
+    selector = "{ action_type = \"Ban\" }"
+    stage.static_labels {
+      values = { 
+        retain_ip = "true",
       }
     }
   }
 
+  // .........................................................
+  // Then later drop it conditionally  , jail = \"recidive\"
   stage.match {
-    selector = "{action_type=\"Ban\"}"
-    stage.labels {
-      values = {
-        f2b_action = "ban0",
-        event_typ0 = "ip_action",
-      }
+    selector = "{ retain_ip != \"true\" }"
+    stage.label_drop {
+      values = ["source_ip"]
     }
   }
 
-
-
-
-
-  // ===================================================================    
-  // Starting/stopping jails
-  stage.match {
-    selector = "{full_message=~\"^(Starting|Stopping|Started|Stopped)\"}"
-    stage.labels {
-      values = {
-        f2b_action = "lifecycle",
-        action_type = "jail_lifecycle",
-      }
-    }
-  }
-  
-  // Priority-based severity mapping
-  stage.match {
-    selector = "{priority=\"CRITICAL\"}"
-    stage.labels {
-      values = {
-        severity = "critical",
-      }
-    }
-  }
-    
-  stage.match {
-    selector = "{priority=\"ERROR\"}"
-    stage.labels {
-      values = {
-        severity = "error",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{priority=\"WARNING\"}"
-    stage.labels {
-      values = {
-        severity = "warning",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{priority=\"NOTICE\"}"
-    stage.labels {
-      values = {
-        severity = "notice",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{priority=\"INFO\"}"
-    stage.labels {
-      values = {
-        severity = "info",
-      }
-    }
-  }
-  
-  // Special handling for recidive jail (repeat offenders)
-  stage.match {
-    selector = "{jail=\"recidive\"}"
-    stage.labels {
-      values = {
-        repeat_offender = "true",
-      }
-    }
-  }
-  
-  // Drop some noisy info-level messages
-  stage.match {
-    selector = "{severity=\"info\", full_message=~\"Roll over\"}"
-    action   = "drop"
-  }
 }
 
 // =======================================================================================
