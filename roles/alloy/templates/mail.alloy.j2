@@ -113,6 +113,44 @@ loki.process "mail_logs" {
     }
   }
 
+  // ...............................................................
+  // Handle dovecot user session logs with embedded user data
+  stage.match {
+    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: imap\\(.*\\)\"}"
+    
+    // Extract user info from service name
+    stage.regex {
+      source = "service_name"
+      expression = "dovecot: imap\\((?P<login_user>[^@]+)@(?P<domain>[^\\)]+)\\)"
+    }
+    
+    stage.labels {
+      values = {
+        dovecot_service = "imap",
+        login_user = null,
+        domain = null,
+      }
+    }
+    
+    // Create email address as a label
+    stage.static_labels {
+      values = {
+        email = "$login_user@$domain"
+      }
+    }
+    
+    // Just tag the event type for logout events
+    stage.match {
+      selector = "{message=~\"Logged out.*\"}"
+      stage.static_labels {
+        values = {
+          event_type = "mail_logout"
+        }
+      }
+    }
+  }
+
+  // ...............................................................
   // Login events - adjusted to match the actual message format
   stage.match {
     selector = "{dovecot_service=~\"imap-login|pop3-login\", service_name=~\".*Login\", message=~\"user=<.*\"}"
