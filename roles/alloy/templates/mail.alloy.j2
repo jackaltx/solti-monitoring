@@ -140,7 +140,7 @@ loki.process "mail_logs" {
   // Filter out local testing connections
   stage.match {
     selector = "{remote_ip=\"::1\", local_ip=\"::1\", message=~\".*no auth attempts.*\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         event_type = "local_test",
         drop_candidate = "true",
@@ -151,7 +151,7 @@ loki.process "mail_logs" {
   // Filter out local testing connections from dovecot
   stage.match {
     selector = "{mail_service=\"dovecot\", remote_ip=\"::1\", local_ip=\"::1\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         event_type = "automated_test",
         drop_candidate = "true",
@@ -162,7 +162,7 @@ loki.process "mail_logs" {
   // Filter out local connections from postfix smtpd
   stage.match {
     selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\".*localhost.*\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         event_type = "automated_test",
         drop_candidate = "true",
@@ -215,7 +215,7 @@ loki.process "mail_logs" {
     // LMTP connections
     stage.match {
       selector = "{message=~\"Connect from.*\"}"
-      stage.labels {
+      stage.static_labels {
         values = {
           event_type = "lmtp_connect",
         }
@@ -224,7 +224,7 @@ loki.process "mail_logs" {
     
     stage.match {
       selector = "{message=~\"Disconnect from.*\"}"
-      stage.labels {
+      stage.static_labels {
         values = {
           event_type = "lmtp_disconnect",
         }
@@ -274,7 +274,7 @@ loki.process "mail_logs" {
   // Extract specific service components for postfix
   stage.match {
     selector = "{service=~\"postfix/smtpd.*\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         service_component = "smtpd",
         protocol = "smtp",
@@ -284,7 +284,7 @@ loki.process "mail_logs" {
   
   stage.match {
     selector = "{service=~\"postfix/smtps/smtpd.*\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         service_component = "smtpd",
         protocol = "smtps",
@@ -351,7 +351,7 @@ loki.process "mail_logs" {
   // Identify specific block reasons
   stage.match {
     selector = "{event_type=\"mail_rejected\", reject_message=~\".*blocked using.*spamhaus.*\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         block_reason = "spamhaus",
         block_category = "rbl",
@@ -371,9 +371,9 @@ loki.process "mail_logs" {
     stage.static_labels {
       values = {
         log_level = "warning",
-        warning_source = null,
-        source_ip = null,
-        warning_message = null,
+        //warning_source = null,
+        //source_ip = null,
+        //warning_message = null,
       }
     }
   }
@@ -386,12 +386,12 @@ loki.process "mail_logs" {
       expression = "SASL (?P<auth_method>\\w+) authentication failed:.*sasl_username=(?P<attempted_user>[^\\s,]*)"
     }
     
-    stage.labels {
+    stage.static_labels {
       values = {
         warning_type = "auth_failure",
         alert_level = "medium",
-        auth_method = null,
-        attempted_user = null,
+        //auth_method = null,
+        //attempted_user = null,
       }
     }
   }
@@ -403,12 +403,12 @@ loki.process "mail_logs" {
       expression = "hostname (?P<hostname>[^\\s]+) does not resolve to address (?P<ip_address>[^\\s:]+)"
     }
     
-    stage.labels {
+    stage.static_labels {
       values = {
         warning_type = "dns_failure",
         alert_level = "low",
-        hostname = null,
-        ip_address = null,
+        //hostname = null,
+        //ip_address = null,
       }
     }
   }
@@ -420,11 +420,11 @@ loki.process "mail_logs" {
       expression = "TLS library problem: (?P<ssl_error>.*)"
     }
     
-    stage.labels {
+    stage.static_labels {
       values = {
         warning_type = "tls_failure",
-        alert_level = "medium",
-        ssl_error = null,
+        //alert_level = "medium",
+        //ssl_error = null,
       }
     }
   }
@@ -433,7 +433,7 @@ loki.process "mail_logs" {
   // Postfix-specific Attack Patterns
   stage.match {
     selector = "{warning_type=\"auth_failure\", attempted_user=~\"(sales|admin|info|support)(@.*)?\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         attack_pattern = "common_accounts",
       }
@@ -442,7 +442,7 @@ loki.process "mail_logs" {
 
   stage.match {
     selector = "{warning_type=\"auth_failure\", attempted_user=~\"[0-9]+(@.*)?\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         attack_pattern = "numeric_accounts",
       }
@@ -457,7 +457,7 @@ loki.process "mail_logs" {
   // Optional: Keep track of source IP for security events but drop for others
   stage.match {
     selector = "{event_type=~\"mail_rejected|mail_auth_failure\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         track_source = "true",
       }
