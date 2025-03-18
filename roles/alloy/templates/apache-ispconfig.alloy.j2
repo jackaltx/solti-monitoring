@@ -1,0 +1,214 @@
+// =======================================================================================
+// =======================================================================================
+// ISPConfig site-specific logs configuration
+local.file_match "ispconfig_site_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/ispconfig/httpd/*/access.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "ispconfig_access",
+  }]
+}
+
+local.file_match "ispconfig_site_error" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/ispconfig/httpd/*/error.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "ispconfig_error",
+  }]
+}
+
+// =======================================================================================
+// Process pipeline for ISPConfig site access logs
+loki.process "ispconfig_site_access" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Extract site name from path
+  stage.regex {
+    expression = "/var/log/ispconfig/httpd/(?P<site>[^/]+)/access\\.log"
+    source = "__path__"
+  }
+
+  // Skip the 127.0.1.1 site
+  stage.match {
+    selector = "{site=\"127.0.1.1\"}"
+    action   = "drop"
+  }
+
+  // ISPConfig site access log format (adjust regex as needed for your specific format)
+  stage.regex {
+    expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+  }
+
+  stage.labels {
+    values = {
+      action      = null,
+      status_code = null,
+      path        = null,
+      site        = null,
+    }
+  }
+
+
+  // =====================================================================================
+  // Categorization
+
+  // Categorize status codes
+  stage.match {
+    selector = "{status_code=~\"4.*\"}"
+    stage.labels {
+      values = {
+        error_request = "client_error",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status_code=~\"5.*\"}"
+    stage.labels {
+      values = {
+        error_request = "server_error",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Categorization
+  // Clean up excess labels to reduce cardinality
+  stage.label_drop {
+    values = ["ip", "useragent", "referer"]
+  }
+}
+
+// =======================================================================================
+// =======================================================================================
+// Process pipeline for ISPConfig site error logs
+
+loki.process "ispconfig_site_error" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Extract site name from path
+  stage.regex {
+    expression = "/var/log/ispconfig/httpd/(?P<site>[^/]+)/error\\.log"
+    source = "__path__"
+  }
+
+  // Skip the 127.0.1.1 site
+  stage.match {
+    selector = "{site=\"127.0.1.1\"}"
+    action   = "drop"
+  }
+
+  // Basic Apache error log parsing
+  stage.regex {
+    expression = "\\[(?P<timestamp>[^\\]]+)\\] \\[(?P<module>[^\\]]+)\\] \\[pid (?P<pid>[^:]*)(?::[^\\]]*)?\\]( \\[client (?P<client_ip>[^\\]]+)\\])? (?P<message>.*)"
+  }
+
+  stage.labels {
+    values = {
+      module    = null,
+      site      = null,
+    }
+  }
+
+  // =====================================================================================
+  // Categorization
+
+  // Enhanced error categorization from the shared rules
+  stage.match {
+    selector = "{message=~\"Cannot serve directory\"}"
+    stage.static_labels {
+      values = {
+        error_type = "directory_listing_forbidden",
+      }
+    }
+  }
+
+  // For the PHP error type extraction
+  stage.match {
+    selector = "{message=~\"Parse error|Fatal error|Warning|Notice\"}"
+    stage.regex {
+      expression = ".*((?P<php_error_type>Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError)).*"
+    }
+  }
+
+  // Group by error severity
+  stage.match {
+    selector = "{php_error_type=~\"Fatal error\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "critical",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{php_error_type=~\"Warning\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "warning",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{php_error_type=~\"Notice\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "notice",
+      }
+    }
+  }
+
+  // Database error grouping
+  stage.match {
+    selector = "{message=~\"PDOException|MySQL\"}"
+    stage.static_labels {
+      values = {
+        php_error_database = "true",
+      }
+    }
+  }
+
+  // Session errors
+  stage.match {
+    selector = "{message=~\"session_start\"}"
+    stage.static_labels {
+      values = {
+        php_error_session = "true",
+      }
+    }
+  }
+
+  // Attack Correlation for PHP injection
+  stage.match {
+    selector = "{message=~\"eval|base64_decode\"}"
+    stage.static_labels {
+      values = {
+        potential_php_injection = "true",
+      }
+    }
+  }
+
+}
+
+// =======================================================================================
+// =======================================================================================
+// Source definitions to read the ISPConfig site log files
+
+loki.source.file "ispconfig_site_access" {
+  targets               = local.file_match.ispconfig_site_access.targets
+  forward_to            = [loki.process.ispconfig_site_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "ispconfig_site_error" {
+  targets               = local.file_match.ispconfig_site_error.targets
+  forward_to            = [loki.process.ispconfig_site_error.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+
