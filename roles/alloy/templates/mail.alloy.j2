@@ -525,14 +525,6 @@ loki.process "mail_logs" {
 
 
 
-
-
-
-  // Clean up labels to reduce cardinality
-  stage.label_drop {
-    values = ["pid", "drop_candidate","raw_service","service_name"]
-  }
-
   // Optional: Keep track of source IP for security events but drop for others
   stage.match {
     selector = "{event_type=~\"mail_rejected|mail_auth_failure\"}"
@@ -549,6 +541,13 @@ loki.process "mail_logs" {
       values = ["source_ip", "remote_ip", "reject_ip"]
     }
   }
+
+
+  // Clean up labels to reduce cardinality
+  stage.label_drop {
+    values = ["pid", "drop_candidate","raw_service","service_name","host","track_source"]
+  }
+
 }
 
 
