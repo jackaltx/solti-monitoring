@@ -4,6 +4,7 @@
 
 // =======================================================================================
 // Define common local file match patterns first
+
 local.file_match "apache_vhost_access" {
   path_targets = [{
     __address__ = "localhost",
@@ -64,45 +65,6 @@ loki.process "apache_vhost_access" {
     }
   }
 
-  // =====================================================================================
-  // Tag a0a0.org requests for special attention (default vhost fallback)
-  stage.match {
-    selector = "{vhost=\"a0a0.org\"}"
-    stage.labels {
-      values = {
-        default_vhost = "true",
-      }
-    }
-  }
-
-  // =====================================================================================
-  // Application identification - useful for Ghost, WordPress, Bookstack
-  stage.match {
-    selector = "{path=~\"/ghost\"}"
-    stage.labels {
-      values = {
-        application = "ghost",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{path=~\"/wp-admin\"}"
-    stage.labels {
-      values = {
-        application = "wordpress",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{path=~\"/bookstack\"}"
-    stage.labels {
-      values = {
-        application = "bookstack",
-      }
-    }
-  }
 
   // =====================================================================================
   // Drop noisy monitoring requests
@@ -111,8 +73,21 @@ loki.process "apache_vhost_access" {
     action   = "drop"
   }
 
+
+  // =====================================================================================
+  // Tag a0a0.org requests for special attention (default vhost fallback)
+  stage.match {
+    selector = "{vhost=\"a0a0.org\"}"
+    stage.static_labels {
+      values = {
+        default_vhost = "true",
+      }
+    }
+  }
+
   // =====================================================================================
   // Categorize status codes
+ 
   stage.match {
     selector = "{status_code=~\"4.*\"}"
     stage.labels {
@@ -141,6 +116,7 @@ loki.process "apache_vhost_access" {
 // =======================================================================================
 // =======================================================================================
 // Process pipeline for main access log
+// TODO: SMELL:   this is a compbined log...there are other "website" spefic logs ????
 
 loki.process "apache_access" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
@@ -158,6 +134,13 @@ loki.process "apache_access" {
       referer     = null,
       ip          = null,
     }
+  }
+
+  // =====================================================================================
+  // Drop noisy monitoring requests
+  stage.match {
+    selector = "{action=\"GET\", path=\"/server-status?auto\"}"
+    action   = "drop"
   }
 
   // =====================================================================================
@@ -183,14 +166,8 @@ loki.process "apache_access" {
   }
 
   // =====================================================================================
-  // Drop Processing
-
-  // Drop monitoring requests
-  stage.match {
-    selector = "{ip=\"::1\", action=\"GET\"}"
-    action   = "drop"
-  }
-
+  // Clean up excess labels to reduce cardinality
+  
   stage.label_drop {
     values = ["ip", "useragent", "referer"]
   }

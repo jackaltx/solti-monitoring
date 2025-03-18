@@ -1,6 +1,10 @@
 // =======================================================================================
 // =======================================================================================
 // ISPConfig site-specific logs configuration
+
+// =======================================================================================
+// Define common local file match patterns first
+
 local.file_match "ispconfig_site_access" {
   path_targets = [{
     __address__ = "localhost",
@@ -38,6 +42,12 @@ loki.process "ispconfig_site_access" {
     action   = "drop"
   }
 
+  stage.labels {
+    values = {
+       vhost = "site",
+    }
+  }
+
   // ISPConfig site access log format (adjust regex as needed for your specific format)
   stage.regex {
     expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
@@ -52,11 +62,16 @@ loki.process "ispconfig_site_access" {
     }
   }
 
+  // =====================================================================================
+  // Drop noisy monitoring requests
+  stage.match {
+    selector = "{action=\"GET\", path=\"/datalogstatus.php\"}"
+    action   = "drop"
+  }
 
   // =====================================================================================
-  // Categorization
-
   // Categorize status codes
+
   stage.match {
     selector = "{status_code=~\"4.*\"}"
     stage.labels {
@@ -76,8 +91,8 @@ loki.process "ispconfig_site_access" {
   }
 
   // =====================================================================================
-  // Categorization
   // Clean up excess labels to reduce cardinality
+
   stage.label_drop {
     values = ["ip", "useragent", "referer"]
   }
