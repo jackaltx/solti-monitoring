@@ -25,9 +25,20 @@ loki.process "mail_logs" {
   //}
 
   // Improved initial regex pattern to extract PID separately
+  //stage.regex {
+  //  expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<service_name>[^\\[]+)(\\[(?P<pid>\\d+)\\])?:\\s+(?P<message>.*)$"
+  //}
+
+  // Improved initial regex pattern to correctly extract service without trailing colon
+  // stage.regex {
+  //   expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<service_name>[^:]+):(?P<message>.*)$"
+  // }
+
+  // First, fix the initial regex pattern to properly separate PID
   stage.regex {
-    expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<service_name>[^\\[]+)(\\[(?P<pid>\\d+)\\])?:\\s+(?P<message>.*)$"
+    expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<raw_service>[^:]+):\\s+(?P<message>.*)$"
   }
+
 
   stage.timestamp {
     source = "timestamp"
@@ -39,15 +50,29 @@ loki.process "mail_logs" {
   stage.labels {
     values = {
       hostname = null,
-      service_name = null,
+      raw_service = null,
       message = null,
     }
   }
 
-  // Then separately extract the pure service name without PID
+  // Then extract service name and PID separately
+  stage.regex {
+    source = "raw_service"
+    expression = "^(?P<service_name>[^\\[]+)(?:\\[(?P<pid>\\d+)\\])?"
+  }
+
+  // Set the extracted service name and pid as labels
+  stage.labels {
+    values = {
+      service_name = null,
+      pid = null,
+    }
+  }
+
+  // Extract clean service name without trailing spaces
   stage.regex {
     source = "service_name"
-    expression = "^(?P<service>[^\\[\\s]+)"
+    expression = "^\\s*(?P<service>[^\\s]+)"
   }
 
   stage.labels {
@@ -182,25 +207,26 @@ loki.process "mail_logs" {
     action   = "drop"
   }
 
-  // Filter out local testing connections from dovecot - improved pattern for pop3/imap-login
+
+  // ....
+  // Drop dovecot imap login local connections
   stage.match {
-    selector = "{mail_service=\"dovecot\", service_name=~\"dovecot: (pop3|imap)-login: Disconnected\", message=~\".*rip=::1, lip=::1.*\"}"
-    action   = "drop"
+    selector = "{service=\"dovecot\", service_name=~\".*imap-login: Disconnected.*\", message=~\".*rip=::1, lip=::1.*\"}"
+    action = "drop"
   }
 
-  // Filter out local connections from postfix smtpd
+  // Drop dovecot pop3 login local connections
   stage.match {
-    selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\"lost connection after CONNECT from localhost\"}"
-    action   = "drop"
+    selector = "{service=\"dovecot\", service_name=~\".*pop3-login: Disconnected.*\", message=~\".*rip=::1, lip=::1.*\"}"
+    action = "drop"
   }
 
-  // Filter out local connections from postfix smtpd
+  // Drop postfix smtpd localhost connections - use simpler pattern
   stage.match {
-    selector = "{mail_service=\"postfix\", service=~\"postfix/smtpd.*\", message=~\"(disconnect/connect) from localhost\"}"
-    action   = "drop"
+    selector = "{service=\"postfix/smtpd\", message=~\".*localhost.*::1.*\"}"
+    action = "drop"
   }
-
-
+ 
   // ========================================================================================================
   // failure classification section
   
@@ -504,7 +530,7 @@ loki.process "mail_logs" {
 
   // Clean up labels to reduce cardinality
   stage.label_drop {
-    values = ["pid", "drop_candidate"]
+    values = ["pid", "drop_candidate","raw_service","service_name"]
   }
 
   // Optional: Keep track of source IP for security events but drop for others
