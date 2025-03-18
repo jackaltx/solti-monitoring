@@ -64,6 +64,7 @@ loki.process "apache_vhost_access" {
     }
   }
 
+  // =====================================================================================
   // Tag a0a0.org requests for special attention (default vhost fallback)
   stage.match {
     selector = "{vhost=\"a0a0.org\"}"
@@ -74,6 +75,7 @@ loki.process "apache_vhost_access" {
     }
   }
 
+  // =====================================================================================
   // Application identification - useful for Ghost, WordPress, Bookstack
   stage.match {
     selector = "{path=~\"/ghost\"}"
@@ -102,12 +104,14 @@ loki.process "apache_vhost_access" {
     }
   }
 
+  // =====================================================================================
   // Drop noisy monitoring requests
   stage.match {
     selector = "{action=\"GET\", path=\"/datalogstatus.php\"}"
     action   = "drop"
   }
 
+  // =====================================================================================
   // Categorize status codes
   stage.match {
     selector = "{status_code=~\"4.*\"}"
@@ -135,7 +139,9 @@ loki.process "apache_vhost_access" {
 
 
 // =======================================================================================
+// =======================================================================================
 // Process pipeline for main access log
+
 loki.process "apache_access" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
@@ -154,11 +160,8 @@ loki.process "apache_access" {
     }
   }
 
-  // Drop monitoring requests
-  stage.match {
-    selector = "{ip=\"::1\", action=\"GET\"}"
-    action   = "drop"
-  }
+  // =====================================================================================
+  // Categorization
 
   // Categorize status codes
   stage.match {
@@ -179,14 +182,24 @@ loki.process "apache_access" {
     }
   }
 
+  // =====================================================================================
+  // Drop Processing
+
+  // Drop monitoring requests
+  stage.match {
+    selector = "{ip=\"::1\", action=\"GET\"}"
+    action   = "drop"
+  }
+
   stage.label_drop {
     values = ["ip", "useragent", "referer"]
   }
 }
 
-
+// =======================================================================================
 // =======================================================================================
 // Enhanced process pipeline for error logs with framework-specific parsing
+
 loki.process "apache_error" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
@@ -203,65 +216,16 @@ loki.process "apache_error" {
     }
   }
 
+
+  // =====================================================================================
+  // Categorization
+
   // Enhanced error categorization from the shared rules
   stage.match {
     selector = "{message=~\"Cannot serve directory\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         error_type = "directory_listing_forbidden",
-      }
-    }
-  }
-
-  // PHP Framework-Specific Errors
-  stage.match {
-    selector = "{message=~\"Laravel\"}"
-    stage.labels {
-      values = {
-        framework = "laravel",
-        error_type = "framework_exception",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{message=~\"Symfony\"}"
-    stage.labels {
-      values = {
-        framework = "symfony",
-        error_type = "framework_exception",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{message=~\"WordPress\"}"
-    stage.labels {
-      values = {
-        framework = "wordpress",
-        error_type = "framework_error",
-      }
-    }
-  }
-
-  // Ghost-specific error patterns
-  stage.match {
-    selector = "{message=~\"ghost\"}"
-    stage.labels {
-      values = {
-        framework = "ghost",
-        error_type = "ghost_error",
-      }
-    }
-  }
-
-  // BookStack-specific error patterns
-  stage.match {
-    selector = "{message=~\"bookstack\"}"
-    stage.labels {
-      values = {
-        framework = "bookstack",
-        error_type = "bookstack_error",
       }
     }
   }
@@ -277,7 +241,7 @@ loki.process "apache_error" {
   // Group by error severity
   stage.match {
     selector = "{php_error_type=~\"Fatal error\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         php_error_severity = "critical",
       }
@@ -286,7 +250,7 @@ loki.process "apache_error" {
 
   stage.match {
     selector = "{php_error_type=~\"Warning\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         php_error_severity = "warning",
       }
@@ -295,7 +259,7 @@ loki.process "apache_error" {
 
   stage.match {
     selector = "{php_error_type=~\"Notice\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         php_error_severity = "notice",
       }
@@ -305,7 +269,7 @@ loki.process "apache_error" {
   // Database error grouping
   stage.match {
     selector = "{message=~\"PDOException|MySQL\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         php_error_database = "true",
       }
@@ -315,7 +279,7 @@ loki.process "apache_error" {
   // Session errors
   stage.match {
     selector = "{message=~\"session_start\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         php_error_session = "true",
       }
@@ -325,7 +289,7 @@ loki.process "apache_error" {
   // Attack Correlation for PHP injection
   stage.match {
     selector = "{message=~\"eval|base64_decode\"}"
-    stage.labels {
+    stage.static_labels {
       values = {
         potential_php_injection = "true",
       }
@@ -349,9 +313,10 @@ loki.process "apache_error" {
   }
 }
 
-
+// =======================================================================================
 // =======================================================================================
 // Source definitions to read the log files
+
 loki.source.file "apache_vhost_access" {
   targets               = local.file_match.apache_vhost_access.targets
   forward_to            = [loki.process.apache_vhost_access.receiver]

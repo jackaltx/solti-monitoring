@@ -37,7 +37,11 @@ loki.relabel "journal" {
 // =======================================================================================
 // Include optional monitoring components based on configuration
 {% if alloy_monitor_apache | default(false) %}
-{% include 'apache_logs.alloy.j2' %}
+{% include 'apache-logs.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_ispconfig | default(false) %}
+{% include 'apache-ispconfig.alloy.j2' %}
 {% endif %}
 
 {% if alloy_monitor_fail2ban | default(false) %}
