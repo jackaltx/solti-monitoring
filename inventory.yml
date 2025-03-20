@@ -15,16 +15,10 @@ all:
       # .........................................
       # mylab hosts
       hosts:
-        monitor1:
-          ansible_host: "monitor1.{{ domain }}"
-        monitor2:
-          ansible_host: "monitor2.{{ domain }}"
         monitor3:
           ansible_host: "monitor3.{{ domain }}"
         monitor4:
           ansible_host: "monitor4.{{ domain }}"
-        monitor11:
-          ansible_host: "192.168.55.11"
 
       # .........................................
       # mylab vars
@@ -40,17 +34,6 @@ all:
 
             monitor4:
               telegraf_outputs: [localhost]
-
-            monitor11:
-              telegraf_outputs: [localhost]
-
-              influxdb_s3: true
-              influxdb_s3_bucket: "influx11"
-              influxdb_s3_endpoint: "jacknas2.{{ domain }}:8010"
-              influxdb_s3_access_key: "MonitorStor:AMu1elAHnqNiaNwdXP0L"
-              influxdb_s3_secret_key: "JbmPLwloA0OZvT3N3od2gFdp34r7DHe9"
-              influxdb_s3_path_style: true
-              influxdb_s3_retention_threshold: "30d"
 
           # ........................................
           # metric_collectors only vars

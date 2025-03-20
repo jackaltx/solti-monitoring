@@ -6,3 +6,8 @@
 {% for server_name, config in telgraf2influxdb_configs.items() %}{% if server_name in telegraf_outputs %}
 {{ server_name|upper }}="{{ config.token }}"
 {% endif %}{% endfor %}
+
+{% if influxdb_mariadb == true %}
+# Credentials for MySQL monitoring
+MYSQL_ACCESS="telegraf-client:{{ telegraf_mysql_auth }}@tcp"
+{% endif %}

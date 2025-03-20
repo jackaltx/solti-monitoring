@@ -19,6 +19,7 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Inventory dir: {{ inventory_dir }}"
 
+    # TODO: remove lsof requirement in verify.
     - name: Install required packages
       become: true
       apt:
@@ -30,6 +31,7 @@
         update_cache: yes
         state: present
 
+    # a quirk of debian...makes shutown slowwwwww
     - name: Ensure qemu-guest-agent is running
       become: true
       systemd:
