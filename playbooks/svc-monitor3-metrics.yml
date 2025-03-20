@@ -18,6 +18,8 @@
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Inventory dir: {{ inventory_dir }}"
+          - "project_root: {{ inventory_dir }}"
+          - "ansible_config_file: {{ ansible_config_file }}"
 
     - name: Install required packages
       become: true
