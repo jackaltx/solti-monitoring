@@ -1,8 +1,5 @@
 ---
-#  This is a pure testing system.  No DNS, no external connections
-#  Tried LXC...access issues.
-#  Come back to this...fix the ip address and start hardening.
-
+#  Thisis a RHEL VM
 - name: "Configure Monitor4"
   hosts: monitor4
 

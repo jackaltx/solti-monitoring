@@ -1,0 +1,313 @@
+// =======================================================================================
+// =======================================================================================
+// Apache logs collection configuration for Alloy
+
+// =======================================================================================
+// Define common local file match patterns first
+
+local.file_match "apache_vhost_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/other_vhosts_access.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "httpd_access",
+  }]
+}
+
+local.file_match "apache_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/access.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "httpd_access",
+    vhost       = "SystemRoot",
+  }]
+}
+
+local.file_match "apache_error" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/apache2/error.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "httpd_error",
+  }, {
+    __address__ = "localhost",
+    __path__    = "/var/log/ispconfig/httpd/*/error.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "apache",
+    label       = "httpd_error",
+  }]
+}
+
+
+// =======================================================================================
+// Process pipeline for virtual hosts access logs
+loki.process "apache_vhost_access" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  stage.regex {
+    expression = "^(?P<vhost>\\S+):(?P<vport>\\d+) (?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+  }
+
+  stage.labels {
+    values = {
+      action      = null,
+      status_code = null,
+      useragent   = null,
+      path        = null,
+      referer     = null,
+      ip          = null,
+      vhost       = null,
+      vport       = null,
+    }
+  }
+
+
+  // =====================================================================================
+  // Drop noisy monitoring requests
+  stage.match {
+    selector = "{action=\"GET\", path=\"/datalogstatus.php\"}"
+    action   = "drop"
+  }
+
+
+  // =====================================================================================
+  // Tag a0a0.org requests for special attention (default vhost fallback)
+  stage.match {
+    selector = "{vhost=\"a0a0.org\"}"
+    stage.static_labels {
+      values = {
+        default_vhost = "true",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Categorize status codes
+ 
+  stage.match {
+    selector = "{status_code=~\"4.*\"}"
+    stage.labels {
+      values = {
+        error_request = "client_error",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status_code=~\"5.*\"}"
+    stage.labels {
+      values = {
+        error_request = "server_error",
+      }
+    }
+  }
+
+  // Clean up excess labels to reduce cardinality
+  stage.label_drop {
+    values = ["ip", "useragent", "referer"]
+  }
+}
+
+
+// =======================================================================================
+// =======================================================================================
+// Process pipeline for main access log
+// TODO: SMELL:   this is a compbined log...there are other "website" spefic logs ????
+
+loki.process "apache_access" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  stage.regex {
+    expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
+  }
+
+  stage.labels {
+    values = {
+      action      = null,
+      status_code = null,
+      useragent   = null,
+      path        = null,
+      referer     = null,
+      ip          = null,
+    }
+  }
+
+  // =====================================================================================
+  // Drop noisy monitoring requests
+  stage.match {
+    selector = "{action=\"GET\", path=\"/server-status?auto\"}"
+    action   = "drop"
+  }
+
+  // =====================================================================================
+  // Categorization
+
+  // Categorize status codes
+  stage.match {
+    selector = "{status_code=~\"4.*\"}"
+    stage.labels {
+      values = {
+        error_request = "client_error",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status_code=~\"5.*\"}"
+    stage.labels {
+      values = {
+        error_request = "server_error",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Clean up excess labels to reduce cardinality
+  
+  stage.label_drop {
+    values = ["ip", "useragent", "referer"]
+  }
+}
+
+// =======================================================================================
+// =======================================================================================
+// Enhanced process pipeline for error logs with framework-specific parsing
+
+loki.process "apache_error" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Basic Apache info parsing
+  stage.regex {
+    expression = "\\[(?P<timestamp>[^\\]]+)\\] \\[(?P<module>[^\\]]+)\\] \\[pid (?P<pid>[^:]*)(?::[^\\]]*)?\\]( \\[client (?P<client_ip>[^\\]]+)\\])? (?P<message>.*)"
+  }
+
+  stage.labels {
+    values = {
+      module    = null,
+      pid       = null,
+      client_ip = null,
+    }
+  }
+
+
+  // =====================================================================================
+  // Categorization
+
+  // Enhanced error categorization from the shared rules
+  stage.match {
+    selector = "{message=~\"Cannot serve directory\"}"
+    stage.static_labels {
+      values = {
+        error_type = "directory_listing_forbidden",
+      }
+    }
+  }
+
+  // For the PHP error type extraction
+  stage.match {
+    selector = "{message=~\"Parse error|Fatal error|Warning|Notice\"}"
+    stage.regex {
+      expression = ".*((?P<php_error_type>Parse error|Fatal error|Warning|Notice|Deprecated|Strict Standards|Catchable fatal error|Uncaught Error|TypeError|ArgumentCountError)).*"
+    }
+  }
+
+  // Group by error severity
+  stage.match {
+    selector = "{php_error_type=~\"Fatal error\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "critical",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{php_error_type=~\"Warning\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "warning",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{php_error_type=~\"Notice\"}"
+    stage.static_labels {
+      values = {
+        php_error_severity = "notice",
+      }
+    }
+  }
+
+  // Database error grouping
+  stage.match {
+    selector = "{message=~\"PDOException|MySQL\"}"
+    stage.static_labels {
+      values = {
+        php_error_database = "true",
+      }
+    }
+  }
+
+  // Session errors
+  stage.match {
+    selector = "{message=~\"session_start\"}"
+    stage.static_labels {
+      values = {
+        php_error_session = "true",
+      }
+    }
+  }
+
+  // Attack Correlation for PHP injection
+  stage.match {
+    selector = "{message=~\"eval|base64_decode\"}"
+    stage.static_labels {
+      values = {
+        potential_php_injection = "true",
+      }
+    }
+  }
+
+  // Extract error location for PHP errors
+  stage.match {
+    selector = "{message=~\"on line\"}"
+    stage.regex {
+      expression = ".* in (?P<error_location>.*?) on line (?P<line_number>\\d+)"
+    }
+  }
+
+  // Extract referer if present
+  stage.match {
+    selector = "{message=~\"referer\"}"
+    stage.regex {
+      expression = ".*referer: (?P<referer>.*?)$"
+    }
+  }
+}
+
+// =======================================================================================
+// =======================================================================================
+// Source definitions to read the log files
+
+loki.source.file "apache_vhost_access" {
+  targets               = local.file_match.apache_vhost_access.targets
+  forward_to            = [loki.process.apache_vhost_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "apache_access" {
+  targets               = local.file_match.apache_access.targets
+  forward_to            = [loki.process.apache_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "apache_error" {
+  targets               = local.file_match.apache_error.targets
+  forward_to            = [loki.process.apache_error.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}

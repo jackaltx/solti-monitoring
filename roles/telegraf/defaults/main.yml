@@ -37,3 +37,6 @@ telgraf2influxdb_configs: {}
 
 # used for static testing.  TODO go better idea!
 telegraf_localhost_token: "ChangeThisToYourInfluxbdToken"
+
+# mariadb/mysql monitoring capability
+telegraf_mysql_auth: "{{ lookup('env', 'MYSQL_AUTH') }}"

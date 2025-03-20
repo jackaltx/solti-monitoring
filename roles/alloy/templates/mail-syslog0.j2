@@ -1,0 +1,101 @@
+// =======================================================================================
+// Postfix and Dovecot logs collection configuration for Alloy
+// Updated to use journald with priority filtering and authentication event capture
+
+// =======================================================================================
+// Journal relabeling rules for mail services
+loki.relabel "mail_journal" {
+  forward_to = []
+  
+  // Keep only logs from mail-related services
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    regex = "(postfix(@-)?|dovecot|mail)\\.service"
+    action = "keep"
+  }
+
+  // Add source debugging information
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label = "unit"
+  }  
+
+  // Keep mail-related logs by identifier - uncommented to actually use it
+  //rule {
+  //  source_labels = ["__journal_syslog_identifier"]
+  //  regex = "(postfix(@-)?|dovecot|master|smtp|submission|smtpd|cleanup|qmgr|bounce|lmtp|imap|pop3)"
+  //  action = "keep"
+  //}
+  
+  // Add basic labels
+  rule {
+    target_label = "job"
+    replacement = "mail"
+  }
+  
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label = "service"
+  }
+  
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "host"
+  }
+  
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label = "priority"
+  }
+}
+
+// Process mail journal logs
+loki.process "mail_journal_logs" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+  
+  // Identify mail service type
+  stage.match {
+    selector = "{service=~\"postfix.*\"}"
+    stage.static_labels {
+      values = {
+        mail_service = "postfix",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{service=~\"dovecot.*\"}"
+    stage.static_labels {
+      values = {
+        mail_service = "dovecot",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Special case to keep authentication events, even if info priority
+  stage.match {
+    selector = "{priority=\"info\", message=~\"[Aa]uth|[Ll]ogin|[Aa]uthentication|session\"}"
+    stage.static_labels {
+      values = {
+        event_type = "authentication",
+        keep = "true",
+      }
+    }
+  }
+  
+  // ============================================================================
+  // Clean up labels to reduce cardinality
+  stage.label_drop {
+    values = ["pid", "keep"]
+  }
+}
+
+// =======================================================================================
+// Source mail logs from journal
+loki.source.journal "mail_journal" {
+  relabel_rules = loki.relabel.mail_journal.rules
+  forward_to = [loki.process.mail_journal_logs.receiver]
+  max_age = "12h"
+  labels = {component = "loki.source.journal.mail"}
+}
