@@ -1,6 +1,7 @@
 ---
+# monitor 3 is debian12
 - name: Total Removal
-  hosts: monitor2
+  hosts: monitor3
 
   vars:
     influxdb_state: absent
