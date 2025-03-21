@@ -60,6 +60,10 @@ loki.relabel "journal" {
 {% include 'wireguard.alloy.j2' %}
 {% endif %}
 
+{% if alloy_monitor_gitea | default(false) %}
+{% include 'gitea.alloy.j2' %}
+{% endif %}
+
 
 
 // =======================================================================================
