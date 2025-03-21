@@ -1,0 +1,62 @@
+// Gitea log collection configuration
+local.file_match "gitea" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/gitea/gitea.log",
+    host        = "${HOSTNAME}",
+    job         = "gitea",
+    component   = "gitea_server"
+  }]
+}
+
+// Process Gitea logs to extract meaningful information
+loki.process "gitea" {
+  forward_to = [loki.write.default.receiver]
+
+  // Handle multiline log entries
+  stage.multiline {
+    firstline     = "\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}"
+    max_lines     = 0
+    max_wait_time = "3s"
+  }
+
+  // Extract timestamp and log level information
+  stage.regex {
+    expression = "^(?P<time>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<level>\\[[^\\]]+\\]) "
+  }
+
+  // Convert timestamp to standard format
+  stage.timestamp {
+    source = "time"
+    format = "2006/01/02 15:04:05"
+  }
+
+  // Add log level as a label
+  stage.labels {
+    values = {
+      level = null,
+    }
+  }
+
+  // Process specific error types
+  stage.match {
+    selector = "{level=~\"\\[ERROR\\].*\"}"
+    
+    stage.regex {
+      expression = "ERROR.+?(?:(?P<error_type>failed to|unable to|cannot|error in|connection|timeout|exception|crash|fault))"
+    }
+    
+    stage.labels {
+      values = {
+        error_type = null
+      }
+    }
+  }
+}
+
+// Source definition for Gitea logs
+loki.source.file "gitea" {
+  targets               = local.file_match.gitea.targets
+  forward_to            = [loki.process.gitea.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
