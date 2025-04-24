@@ -1,114 +1,146 @@
 # Alloy Ansible Role
 
-This role installs and configures Grafana Alloy, a vendor-neutral distribution of the OpenTelemetry (OTel) Collector that combines leading open source observability signals.
-
 ## Overview
 
-The role manages:
-- Installation of Grafana Alloy package
-- Configuration of Alloy service
-- Management of log collection and forwarding
-- Integration with Loki endpoints
-- Systemd service configuration
+This Ansible role installs and configures [Grafana Alloy](https://grafana.com/docs/alloy/latest/), a vendor-neutral distribution of the OpenTelemetry (OTel) Collector that provides a unified way to collect and process observability data from various sources and forward it to different backends.
+
+Alloy streamlines the collection of logs, metrics, and traces with consistent configuration across multiple observability signals. This role primarily focuses on log collection and forwarding to Loki, but is extensible for other use cases.
+
+## Features
+
+- Installs and configures Alloy from official Grafana repositories
+- Manages Alloy service lifecycle (start/stop/restart)
+- Configures log sources including systemd journal, files, and application logs
+- Configures multiple pipelines for custom log processing
+- Supports sending data to multiple Loki endpoints
+- Includes utility scripts for easy deployment and verification
+- Includes pre-configured templates for common applications:
+  - Apache web server
+  - Fail2ban
+  - Bind9 DNS server
+  - Mail services (Postfix/Dovecot)
+  - WireGuard VPN
+  - Gitea
+  - ISPConfig
 
 ## Requirements
 
 ### Platform Support
-- Debian/Ubuntu systems (uses apt for package management)
+
+- Debian/Ubuntu systems (using `apt` package manager)
+- RedHat-based systems (Rocky Linux, RHEL) via shared configuration
 - Systemd-based systems
 
 ### Prerequisites
-- Systemd
-- A running Loki instance to receive logs
-- Proper network connectivity to Loki endpoint
+
+- Systemd-based operating system
+- Network connectivity to Loki endpoint(s)
+- Grafana package repository access
 
 ## Role Variables
 
-### Required Variables
+### Main Control Variables
 
 ```yaml
-alloy_loki_endpoint: "127.0.0.1"    # Loki server endpoint
+# Installation state
+alloy_state: "present"                # Use 'absent' to remove Alloy
+
+# Service configuration
+alloy_custom_args: "--disable-reporting --server.http.listen-addr=0.0.0.0:12345"
+
+# Configuration path
+alloy_config: "/etc/alloy/config.alloy"
+
+# Uninstallation options
+alloy_delete_config: false            # Remove config files on uninstall
+alloy_delete_data: false              # Remove data files on uninstall
 ```
 
-### Optional Variables
+### Endpoint Configuration
 
 ```yaml
-# Installation control
-alloy_state: 'present'              # Use 'absent' to remove Alloy
-
-# Configuration
-alloy_config: "/etc/alloy/config.alloy"  # Path to main config file
-alloy_custom_args: "--disable-reporting --server.http.listen-addr=0.0.0.0:12345"  # Custom CLI arguments
-
-# Cleanup options
-alloy_delete_config: false          # Whether to remove config files on uninstall
-alloy_delete_data: false           # Whether to remove data directory on uninstall
+# Loki endpoints - REQUIRED
+alloy_loki_endpoints:
+  - label: localhost                  # Label for the endpoint (used in configuration)
+    endpoint: "127.0.0.1"            # Loki server IP/hostname
 ```
 
-## Configuration Features
+### Log Source Configuration
 
-### Log Sources
-The role supports collecting logs from multiple sources:
+```yaml
+# Enable specific log collection modules
+alloy_monitor_apache: false           # Apache logs
+alloy_monitor_ispconfig: false        # ISPConfig logs
+alloy_monitor_fail2ban: false         # Fail2ban logs
+alloy_monitor_mail: false             # Mail server logs
+alloy_monitor_bind9: false            # Bind9 logs
+alloy_monitor_wg: false               # WireGuard logs
+alloy_monitor_gitea: false            # Gitea logs
+```
 
-1. Systemd Journal
-   - Priority levels
-   - Unit information
-   - Transport metadata
-   - Hostname labels
+## Installation
 
-2. Apache Logs
-   - Access logs with detailed request information
-   - Error logs with extensive error categorization
-   - ModSecurity integration
-   - PHP error parsing
+The role uses the official Grafana package repositories to install Alloy. It also configures the systemd service and manages necessary directories with appropriate permissions.
 
-3. Fail2ban Logs
-   - Jail information
-   - Action categorization
-   - Ban/Unban events
+## Configuration
 
-4. System Logs
-   - Standard system logs
-   - Application logs
-   - Security events
+The role takes a template-based approach to configuration, allowing you to easily enable or disable specific log collection modules based on your needs. The main configuration file is generated from templates that include:
 
-### Metrics Collection
+1. Core configuration for log processing
+2. Specific log sources based on enabled modules
+3. Output configuration for Loki endpoints
 
-Additionally supports SNMP metrics collection from:
-- QNAP NAS systems
-- Ubiquiti Dream Machine
-- Network interfaces
-- System metrics
+## Usage Examples
 
-## Dependencies
-
-This role has no direct dependencies on other Ansible roles.
-
-## Example Playbook
-
-Basic usage:
+### Basic Installation
 
 ```yaml
 - hosts: servers
   roles:
     - role: alloy
       vars:
-        alloy_loki_endpoint: "loki.example.com"
+        alloy_loki_endpoints:
+          - label: local_loki
+            endpoint: "127.0.0.1"
 ```
 
-Advanced configuration:
+### Using the Utility Scripts
+
+The included utility scripts make deploying and managing Alloy simpler:
+
+```bash
+# Deploy Alloy using the management script
+./manage-svc alloy deploy
+
+# Verify Alloy is working correctly
+./svc-exec alloy verify
+
+# Deploy to a specific host
+./manage-svc -h monitoring01 alloy deploy
+```
+
+### Comprehensive Configuration
 
 ```yaml
-- hosts: servers
+- hosts: web_servers
   roles:
     - role: alloy
       vars:
-        alloy_loki_endpoint: "loki.example.com"
+        alloy_loki_endpoints:
+          - label: main_loki
+            endpoint: "loki.example.com"
+          - label: backup_loki
+            endpoint: "backup-loki.example.com"
+        
+        # Enable specific log collection
+        alloy_monitor_apache: true
+        alloy_monitor_fail2ban: true
+        
+        # Custom listening address
         alloy_custom_args: "--disable-reporting --server.http.listen-addr=0.0.0.0:3100"
-        alloy_config: "/etc/alloy/custom-config.alloy"
 ```
 
-Removal configuration:
+### Removal Configuration
 
 ```yaml
 - hosts: servers
@@ -120,132 +152,229 @@ Removal configuration:
         alloy_delete_data: true
 ```
 
-## Handlers
+## Log Processing Capabilities
 
-The role includes the following handlers:
+### Journal Processing
 
-- `restart alloy`: Restarts the Alloy service and reloads systemd daemon
+Alloy is configured to collect logs from the systemd journal with enriched metadata:
 
-## File Structure
+- Priority levels
+- Unit information
+- Transport metadata
+- Hostname labels
+
+### File-Based Log Processing
+
+The role can process various log files with specialized parsing:
+
+**Apache Logs:**
+
+- Access logs with detailed request information
+- Error logs with enhanced error categorization
+- ModSecurity integration
+- PHP error parsing
+
+**Bind9 DNS Logs:**
+
+- Zone operations
+- Query information
+- DNSSEC operations
+- Transfer logs
+- Security events
+
+**Fail2ban Logs:**
+
+- Jail information
+- Action categorization
+- Ban/Unban events
+
+**Mail Server Logs:**
+
+- Authentication events
+- Connection information
+- Delivery status
+- Error tracking
+
+**WireGuard Logs:**
+
+- Connection establishment
+- Peer activity
+- Handshake information
+- Error tracking
+
+### Advanced Parsing Features
+
+- Multi-line log support
+- Regular expression-based field extraction
+- Label enrichment
+- Filtering and dropping of noisy events
+- Error categorization
+- Security incident tracking
+
+## Directory Structure
 
 ```
 alloy/
 ├── defaults/
-│   └── main.yml           # Default variables
+│   └── main.yml                 # Default variables
 ├── files/
-│   ├── amber-config.alloy # Example configurations
-│   ├── apache-error.alloy
-│   ├── qnap.alloy
-│   └── udm.alloy
+│   ├── apache-error.alloy       # Example configurations
+│   ├── claude-two-outputs.alloy
+│   └── grafana.list
 ├── handlers/
-│   └── main.yml          # Service handlers
+│   └── main.yml                # Service handlers
+├── meta/
+│   └── main.yml               # Role metadata
+├── molecule/                  # Testing configuration
 ├── tasks/
-│   └── main.yml          # Main tasks
-└── templates/
-    ├── client-config-alloy.j2   # Main config template
-    └── etc-default-alloy.j2     # Environment config
+│   ├── main.yml              # Main tasks
+│   └── verify.yml            # Verification tasks
+├── templates/
+│   ├── client-config-alloy.j2  # Main template
+│   ├── etc-default-alloy.j2    # Environment configuration
+│   ├── apache-logs.alloy.j2    # Module templates
+│   ├── fail2ban.alloy.j2
+│   └── ...                     # Other module templates
+└── README.md                   # This file
 ```
+
+## Handlers
+
+The role includes the following handlers:
+
+- `Restart alloy`: Restarts the Alloy service when configuration changes
+
+## Testing
+
+The role includes Molecule tests for:
+
+- Basic installation
+- Configuration verification
+- Service status checks
+- Log collection functionality
+
+## Security Considerations
+
+- The role configures Alloy with appropriate file permissions
+- Service runs as its own user
+- Configuration is validated before restarting the service
+- Label filtering to remove sensitive information
+- Optional dropping of connection data for privacy
+
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Service fails to start**
+   - Check logs with `journalctl -u alloy`
+   - Verify configuration with `alloy --config.file /etc/alloy/config.alloy --config.expand-env --config.check`
+   - Use the verification script: `./svc-exec alloy verify`
+
+2. **No logs being collected**
+   - Verify Loki endpoint is correct and accessible
+   - Check network connectivity to Loki endpoint
+   - Verify file paths and permissions
+   - Use `./svc-exec alloy verify1` for deeper connection checks
+
+3. **High CPU/memory usage**
+   - Check for excessive log volume
+   - Verify filtering is properly configured
+   - Consider increasing system resources
+
+4. **Need to quickly reinstall the service**
+   - Use the management script: `./manage-svc alloy remove && ./manage-svc alloy deploy`
+
+5. **Connection to Loki failing**
+   - Verify network connectivity: `ss -ntp '( dst = :3100 )'`
+   - Check Loki service is running properly
+   - Use `./svc-exec -K alloy verify` to run comprehensive checks
 
 ## License
 
-BSD
+MIT
+
+## Utility Scripts
+
+This role can be easily managed using the following utility scripts included in the project:
+
+### manage-svc.sh
+
+This script helps manage service deployment states using dynamically generated Ansible playbooks.
+
+```bash
+Usage: manage-svc [-h HOST] <service> <action>
+
+Options:
+  -h HOST    Target host from inventory (default: uses hosts defined in role)
+
+Services:
+  - loki
+  - alloy
+  - influxdb
+  - telegraf
+
+Actions:
+  - prepare
+  - deploy
+  - install  # Alias for deploy
+  - remove
+```
+
+**Examples:**
+
+```bash
+# Deploy Alloy to default hosts
+./manage-svc alloy deploy
+
+# Remove Alloy from a specific host
+./manage-svc -h monitoring01 alloy remove
+
+# Install Influxdb on a specific host
+./manage-svc -h dbserver01 influxdb install
+```
+
+### svc-exec.sh
+
+This script executes specific tasks within a role for targeted operations like verification, configuration, or testing.
+
+```bash
+Usage: svc-exec [-K] [-h HOST] <service> [entry]
+
+Options:
+  -K        - Prompt for sudo password (needed for some operations)
+  -h HOST   - Target specific host from inventory
+
+Parameters:
+  service   - The service to manage
+  entry     - The entry point task (default: verify)
+
+Services:
+  - loki
+  - alloy
+  - influxdb
+  - telegraf
+  
+Common Entry Points:
+  - verify     - Basic service verification
+  - configure  - Configure service
+  - verify1    - Additional verification tasks
+```
+
+**Examples:**
+
+```bash
+# Run verification tasks for Alloy on default hosts
+./svc-exec alloy verify
+
+# Run specific verification task on a particular host
+./svc-exec -h monitoring01 alloy verify1
+
+# Configure Alloy with sudo privileges
+./svc-exec -K alloy configure
+```
+
+These scripts provide a convenient way to manage the lifecycle and perform specific operations on the Alloy role and other related services without having to manually create playbooks.
 
 ## Author Information
 
-Originally created by Anthropic and Jack. Extended by the community.
-
-## Proposed Development Directions
-
-### 1. Enhanced Log Processing
-- Implement advanced parsing for additional log formats:
-  - Mail server logs (Postfix, Dovecot)
-  - Database logs (MySQL, PostgreSQL)
-  - Container logs (Docker, Kubernetes)
-- Add support for custom log parsing templates
-- Develop pre-built parsing configurations for common applications
-
-### 2. Metrics Collection Enhancement
-- Expand SNMP collection capabilities:
-  - Additional network device support
-  - Extended metrics for existing devices
-  - Custom MIB support
-- Add native support for:
-  - Prometheus metrics scraping
-  - StatsD protocol
-  - JMX metrics collection
-
-### 3. Security Improvements
-- Add support for TLS encryption for Loki connections
-- Implement log signing and verification
-- Add role-based access control for metrics collection
-- Enhance sensitive data masking capabilities
-- Add audit logging for configuration changes
-
-### 4. Scaling and Performance
-- Implement log buffering and batching
-- Add support for multiple Loki endpoints with load balancing
-- Implement metric aggregation and pre-processing
-- Add support for high-availability configurations
-- Optimize resource usage for high-volume environments
-
-### 5. Configuration Management
-- Add validation for configuration files
-- Implement configuration version control
-- Add support for dynamic configuration reloading
-- Develop configuration templates for common use cases
-- Add configuration migration tools
-
-### 6. Monitoring and Self-Observability
-- Add health check endpoints
-- Implement performance metrics collection
-- Add self-monitoring capabilities
-- Develop alerting integration
-- Add diagnostic tools for troubleshooting
-
-### 7. Integration Capabilities
-- Add support for cloud provider integrations:
-  - AWS CloudWatch
-  - Azure Monitor
-  - Google Cloud Monitoring
-- Implement webhook support for external notifications
-- Add support for external authentication systems
-- Develop API integration capabilities
-
-### 8. Testing and Quality Assurance
-- Expand test coverage:
-  - Unit tests for configuration generation
-  - Integration tests for log collection
-  - Performance benchmarking tests
-- Add automated configuration validation
-- Implement continuous integration pipelines
-- Add load testing capabilities
-
-### 9. Documentation and Usability
-- Create interactive configuration guides
-- Develop troubleshooting documentation
-- Add more example configurations
-- Create deployment best practices guide
-- Improve variable documentation
-
-### 10. Platform Support
-- Add support for additional Linux distributions
-- Implement Windows log collection
-- Add MacOS support
-- Develop container-native deployment options
-- Add support for ARM architectures
-
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Notes
-
-- The role automatically handles service restarts when configuration changes
-- Supports graceful uninstallation with configurable cleanup options
-- Includes extensive log parsing and labeling capabilities
-- Provides flexible SNMP metric collection options
+Created by Jack Lavender with assistance from Anthropic's Claude. Extended by the community.
