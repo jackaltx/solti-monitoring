@@ -6,14 +6,11 @@ all:
     ansible_user: lavender
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
 
-    # basically non-ssh stuff, like LXC containers
-    mylab_non_ssh: false
-
   children:
     # ................................................
     mylab:
       # .........................................
-      # mylab hosts
+      # mylab hosts on local proxmox server
       hosts:
         monitor3:
           ansible_host: "monitor3.{{ domain }}"
@@ -30,7 +27,7 @@ all:
         metric_collectors:
           hosts:
             monitor3:
-              telegraf_outputs: [localhost, monitor2]
+              telegraf_outputs: [localhost, monitor11]
 
             monitor4:
               telegraf_outputs: [localhost]
@@ -48,14 +45,7 @@ all:
               alloy_loki_endpoints:
                 - label: localhost
                   endpoint: "127.0.0.1"
-                - label: monitor2
-                  endpoint: "monitor2.{{ domain }}"
             monitor4:
               alloy_loki_endpoints:
                 - label: localhost
                   endpoint: "127.0.0.1"
-
-          # .........................................
-          # client only vars ( alloy and telegraf)
-          vars:
-            telegraf_outputs: [localhost, monitor2]
