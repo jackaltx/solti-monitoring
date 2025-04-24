@@ -68,8 +68,6 @@ usage() {
     echo "Examples:"
     echo "  $(basename $0) loki verify                # Default verification"
     echo "  $(basename $0) -h monitor01 loki verify1  # Additional verification on specific host"
-    echo "  $(basename $0) -K redis configure         # Configure with sudo"
-    echo "  $(basename $0) -h db01 influxdb backup    # Backup database on db01"
     exit 1
 }
 
