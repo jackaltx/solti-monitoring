@@ -1,16 +1,14 @@
 # SOLTI Monitoring Collection
 
-A comprehensive monitoring solution that integrates metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides roles for deploying both logging and metrics collection infrastructure.
+A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
 
-## What is solti ?
+## What is SOLTI?
 
-Systems Oriented Laboratory Testing & Integration (solti) is a suite
-of ansible collections that can be used to define and test a networked
-laboratory you would find in most small labs. Entropy is real. The project emphasizes methodical testing, system behavior analysis, and component integration.  
+**S**ystems **O**riented **L**aboratory **T**esting & **I**ntegration (SOLTI) is a suite of Ansible collections designed for defining and testing networked laboratory environments. The project emphasizes methodical testing, system behavior analysis, and component integration to combat entropy and maintain reliable systems.
 
 ```
 solti/
-├── solti-monitor/      # System monitoring and metrics collection
+├── solti-monitor/      # System monitoring and metrics collection (this project)
 ├── solti-conductor/    # Proxmox management and orchestration
 ├── solti-ensemble/     # Support tools and shared utilities
 ├── solti-containers/   # Support containers for testing
@@ -19,37 +17,59 @@ solti/
 
 ## Architecture Overview
 
-The collection is built around two main monitoring pipelines:
+The collection is built around two parallel monitoring pipelines with comprehensive testing frameworks:
 
-### Metrics Pipeline
+### Monitoring Pipelines
+
+#### Metrics Pipeline
 
 - **Telegraf** (Client): Collects system and application metrics
 - **InfluxDB** (Server): Stores time-series metrics data
-- Supports multiple Telegraf clients sending to a central InfluxDB server
+- Supports customizable input plugins and multiple output configurations
 
-### Logging Pipeline
+#### Logging Pipeline
 
 - **Alloy** (Client): Collects and forwards system and application logs
 - **Loki** (Server): Stores and indexes log data
-- Supports multiple Alloy clients sending to a central Loki server
+- Flexible configuration for various log sources and filtering
 
-## Prerequisites
+### Testing Framework
+
+- **Molecule Testing**: Multiple test scenarios for different environments
+  - GitHub CI integration with Podman containers
+  - Proxmox VM testing for full-stack verification
+  - Local development testing with quick feedback loops
+
+- **Verification System**: Multi-level verification tasks for deep testing
+  - Component-level verification
+  - Integration verification across components
+  - System-level verification of the entire stack
+
+- **Utility Scripts**: Purpose-built scripts for efficient operations
+  - `manage-svc.sh`: Service lifecycle management
+  - `svc-exec.sh`: Task-oriented service operations
+  - Integration test runners and reporting tools
+
+## Getting Started
+
+### Prerequisites
 
 - Ansible 2.9 or higher
 - Python 3.6 or higher
-- Debian 11/12 (primary support)
-- Proxmox environment for testing (optional)
-- Rocky Linux 9 (future support planned)
-
-## Quick Start
+- For local testing:
+  - Podman or Docker (for container-based testing)
+  - Proxmox environment (for VM-based testing)
+- Supported platforms:
+  - Debian 11/12 (primary support)
+  - Rocky Linux 9 (experimental support)
 
 ### Installation
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-org/monitoring-collection.git
-cd monitoring-collection
+git clone https://github.com/your-org/solti-monitoring.git
+cd solti-monitoring
 ```
 
 2. Install collection dependencies:
@@ -58,152 +78,303 @@ cd monitoring-collection
 ansible-galaxy collection install -r requirements.yml
 ```
 
-### Local Testing with Proxmox
-
-1. Set up Proxmox environment variables:
+3. Set up testing environment (optional):
 
 ```bash
-export PROXMOX_URL="https://proxmox.example.com:8006"
-export PROXMOX_USER="root@pam"
-export PROXMOX_TOKEN_ID="your-token-id"
-export PROXMOX_TOKEN_SECRET="your-token-secret"
-export PROXMOX_NODE="your-node-name"
+# For Proxmox testing
+source ./solti-init.sh
 ```
 
-2. Run tests:
+## Deployment Patterns
+
+### Quick Deploy with Utility Scripts
 
 ```bash
-# Test individual roles
-cd roles/influxdb
-molecule test -s proxmox
+# Deploy a metrics server
+./manage-svc.sh influxdb deploy
 
-# Test complete monitoring stack
-molecule test -s integration
+# Deploy a log server
+./manage-svc.sh loki deploy
+
+# Deploy clients to specific hosts
+./manage-svc.sh -h client01 telegraf deploy
+./manage-svc.sh -h client01 alloy deploy
 ```
 
-## Server Setup
-
-### Metrics Server (InfluxDB)
+### Complete Stack Deployment
 
 ```yaml
-- hosts: monitoring_servers
+- name: Deploy Monitoring Server
+  hosts: monitoring_servers
   roles:
     - role: influxdb
       vars:
-        influxdb_http_port: 8086
         influxdb_org: "myorg"
         influxdb_bucket: "metrics"
-```
-
-[InfluxDB Role Documentation](roles/influxdb/README.md)
-
-### Log Server (Loki)
-
-```yaml
-- hosts: monitoring_servers
-  roles:
+        
     - role: loki
       vars:
-        loki_local_storage: true  # For testing
-        # Production S3 configuration
-        # loki_endpoint: "s3.example.com"
-        # loki_s3_bucket: "logs"
-        # loki_key_id: "ACCESS_KEY"
-        # loki_access_key: "SECRET_KEY"
-```
+        loki_local_storage: true  # For testing/development
 
-[Loki Role Documentation](roles/loki/README.md)
-
-## Client Setup
-
-### Metrics Client (Telegraf)
-
-```yaml
-- hosts: client_servers
+- name: Deploy Monitoring Agents
+  hosts: all_servers
   roles:
     - role: telegraf
       vars:
         telgraf2influxdb_configs:
-          localhost:
-            url: "http://influxdb.example.com:8086"
-            token: "your-token"
+          central:
+            url: "http://monitoring.example.com:8086"
+            token: "{{ influxdb_token }}"
             bucket: "telegraf"
             org: "myorg"
-```
-
-[Telegraf Role Documentation](roles/telegraf/README.md)
-
-### Log Client (Alloy)
-
-```yaml
-- hosts: client_servers
-  roles:
+            
     - role: alloy
       vars:
-        alloy_loki_endpoint: "loki.example.com:3100"
+        alloy_loki_endpoint: "monitoring.example.com:3100"
+        alloy_monitor_apache: true  # Enable Apache log collection
 ```
-
-[Alloy Role Documentation](roles/alloy/README.md)
 
 ## Role Documentation
 
-- [InfluxDB](roles/influxdb/README.md) - Time series database for metrics
-- [Loki](roles/loki/README.md) - Log aggregation and storage
-- [Telegraf](roles/telegraf/README.md) - Metrics collection agent
-- [Alloy](roles/alloy/README.md) - Log collection agent
-- [NFS Client](roles/nfs-client/README.md) - NFS storage support
+### Server Components
 
-## Testing
+- [InfluxDB](roles/influxdb/README.md) - Time series database for metrics storage
+  - Local and NFS storage options
+  - Token-based authentication
+  - Bucket management
 
-### Molecule Test Scenarios
+- [Loki](roles/loki/README.md) - Horizontally-scalable log aggregation system
+  - Local filesystem or S3-compatible storage
+  - Label-based indexing
+  - Query optimization
 
-- **github**: Basic functionality tests in Docker containers
-- **integration**: Full stack testing in Proxmox VMs
-- **proxmox-logs**: Log collection testing
-- **proxmox-metrics**: Metrics collection testing
+### Client Components
+
+- [Telegraf](roles/telegraf/README.md) - Agent for collecting, processing, and reporting metrics
+  - Multiple input plugin support
+  - Configurable outputs
+  - Low overhead collection
+
+- [Alloy](roles/alloy/README.md) - Log collection agent based on Grafana Alloy
+  - Journal and file source support
+  - Preprocessing and filtering
+  - Multi-target forwarding
+
+### Support Components
+
+- [NFS Client](roles/nfs-client/README.md) - NFS storage support for monitoring components
+  - Optimized mount configurations
+  - Cross-platform support
+
+### Testing Components
+
+- [log_tests](roles/log_tests/README.md) - Verification for log collection stack
+  - Connection testing
+  - Log ingestion verification
+  - Query validation
+
+- [metrics_tests](roles/metrics_tests/README.md) - Verification for metrics collection stack
+  - Service status verification
+  - Data flow validation
+  - Health checks
+
+## Testing Infrastructure
+
+### Molecule Framework
+
+Multiple test scenarios are available for comprehensive verification:
+
+- **GitHub**: CI-focused testing with Podman containers
+  - Quick validation of core functionality
+  - Parallelized component testing
+  - Artifact generation
+
+- **Podman**: Local container-based testing
+  - Rapid development feedback
+  - Multi-distribution testing
+  - Network isolation testing
+
+- **Proxmox**: Full stack VM-based testing
+  - Real-world deployment simulation
+  - Performance testing
+  - Long-running stability tests
 
 ### Running Tests
 
 ```bash
-# Test metrics pipeline
-molecule test -s proxmox-metrics
+# Quick local tests with Podman
+./run-podman-tests.sh
 
-# Test logging pipeline
-molecule test -s proxmox-logs
+# Complete environment tests with Proxmox
+./run-proxmox-tests.sh
+
+# Integration tests across components
+./run-integration-tests.sh
+
+# Unit tests for individual roles
+./run-unit-tests.sh
+```
+
+### Verification System
+
+The multi-layered verification system provides confidence in the deployment:
+
+1. **Base Level (Level 0)**: Core service functionality
+   - Service running status
+   - Port accessibility
+   - Basic configuration
+
+2. **Integration Level (Level 1)**: Component interaction
+   - Client-server communication
+   - Data flow verification
+   - Authentication validation
+
+3. **Extended Level (Level 2)**: Advanced functionality
+   - Performance metrics
+   - Error handling
+   - Edge case testing
+
+```bash
+# Run verification for Loki
+./svc-exec.sh loki verify
+
+# Run extended verification
+./svc-exec.sh loki verify1
+
+# Run specific tasks
+./svc-exec.sh influxdb backup
+```
+
+## Advanced Configuration
+
+### Storage Configuration
+
+#### InfluxDB Storage Options
+
+```yaml
+# Local storage (default)
+influxdb_data_path: /var/lib/influxdb
+
+# NFS storage
+influxdb_data_path: /mnt/nfs/influxdb
+mount_nfs_share: true
+cluster_nfs_mounts:
+  influxdb:
+    src: "nfs.example.com:/storage/influxdb"
+    path: "/mnt/nfs/influxdb"
+    opts: "rw,noatime,bg"
+    state: "mounted"
+    fstype: "nfs4"
+```
+
+#### Loki Storage Options
+
+```yaml
+# Local storage
+loki_local_storage: true
+
+# S3 storage
+loki_local_storage: false
+loki_endpoint: "s3.example.com"
+loki_s3_bucket: "loki-logs"
+loki_key_id: "ACCESS_KEY_ID"
+loki_access_key: "SECRET_ACCESS_KEY"
+```
+
+### Client Configuration Examples
+
+#### Telegraf with Multiple Outputs
+
+```yaml
+telegraf_outputs: ['central', 'local']
+telgraf2influxdb_configs:
+  central:
+    url: "https://central-monitoring.example.com"
+    token: "{{ central_token }}"
+    bucket: "telegraf"
+    org: "central"
+  local:
+    url: "http://localhost"
+    token: "{{ local_token }}"
+    bucket: "local_metrics"
+    org: "local"
+```
+
+#### Alloy with Advanced Log Collection
+
+```yaml
+alloy_loki_endpoint: "loki.example.com"
+alloy_monitor_apache: true
+alloy_monitor_fail2ban: true
+alloy_monitor_mail: true
+alloy_monitor_bind9: true
+```
+
+## Development and Contributing
+
+### Development Workflow
+
+1. Fork the repository
+2. Set up local testing environment
+3. Make changes and run tests:
+
+   ```bash
+   molecule test -s podman
+   ```
+
+4. Submit a pull request with test results
+
+### Code Organization
+
+```
+solti-monitoring/
+├── roles/                  # Core component roles
+├── molecule/               # Test scenarios
+│   ├── github/             # GitHub CI tests
+│   ├── podman/             # Container tests
+│   ├── proxmox/            # VM tests
+│   └── shared/             # Shared test resources
+├── playbooks/              # Example playbooks
+├── group_vars/             # Variable definitions
+├── *.sh                    # Utility scripts
+└── verify_output/          # Test results
 ```
 
 ## Known Limitations
 
 1. Operating System Support
    - Primary support for Debian 11/12
-   - Rocky Linux 9 support in development
-   - Other distributions not currently tested
+   - Experimental Rocky Linux 9 support
+   - Other distributions may require adaptation
 
 2. Storage Backends
-   - InfluxDB: Local or NFS storage only
-   - Loki: Local or S3 storage only
+   - InfluxDB: Local or NFS storage
+   - Loki: Local or S3-compatible storage
 
 3. Authentication
-   - Basic token authentication only
-   - No LDAP/OAuth support yet
+   - Basic token authentication implemented
+   - External authentication requires manual configuration
 
-## Development Status
+## Troubleshooting
 
-Current focus areas:
+- **Service fails to start**:
+  - Check logs with `journalctl -u <service-name>`
+  - Run verification: `./svc-exec.sh <service-name> verify`
 
-- Rocky Linux 9 support
-- Enhanced test coverage
-- GitHub Actions integration
-- Documentation improvements
+- **Connection issues between components**:
+  - Verify network connectivity
+  - Check port accessibility
+  - Run integration tests: `./run-integration-tests.sh`
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Create a new Pull Request
+- **Data not appearing in queries**:
+  - Verify client configuration
+  - Check authentication tokens
+  - Examine service logs for ingestion errors
 
 ## License
 
 MIT License - see the [LICENSE](LICENSE) file for details
+
+## Author Information
+
+Created and maintained by Jack Lavender with significant contributions from Claude (Anthropic). This project represents a collaborative effort combining practical infrastructure expertise with systematic documentation and architectural design.

@@ -4,10 +4,6 @@
 #
 # Usage: manage-svc [-h HOST] <service> <action>
 #
-# Example:
-#   manage-svc -h dbserver elasticsearch prepare
-#   manage-svc -h monitoring hashivault deploy
-#   manage-svc -h webserver redis remove
 
 # Exit on error
 set -e
@@ -31,16 +27,12 @@ SUPPORTED_SERVICES=(
 
 # Supported actions
 SUPPORTED_ACTIONS=(
-    "prepare"
-    "deploy"
     "remove"
-    "install"  # Alias for deploy
+    "install"
 )
 
 # Map actions to state values
 declare -A STATE_MAP
-STATE_MAP["prepare"]="prepare"
-STATE_MAP["deploy"]="present"
 STATE_MAP["install"]="present"
 STATE_MAP["remove"]="absent"
 
@@ -62,9 +54,9 @@ usage() {
     done
     echo ""
     echo "Examples:"
-    echo "  $(basename $0) -h monitoring loki deploy"
-    echo "  $(basename $0) -h dbserver elasticsearch prepare"
-    echo "  $(basename $0) -h webserver redis remove"
+    echo "  $(basename $0) -h monitor3 loki install"
+    echo "  $(basename $0) -h monitor4 telegraf install"
+    echo "  $(basename $0) -h monitor3 alloy remove"
     exit 1
 }
 
