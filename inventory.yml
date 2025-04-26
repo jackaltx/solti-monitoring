@@ -49,3 +49,15 @@ all:
               alloy_loki_endpoints:
                 - label: localhost
                   endpoint: "127.0.0.1"
+
+        # .....................................
+        # used to install wazuh on test client
+
+        wazuh_agents:
+          hosts:
+            monitor3:
+            monitor4:
+          vars:
+            wazuh_deployment_profile: internal
+            wazuh_agent_state: configure
+            wazuh_server_address: 192.168.55.200

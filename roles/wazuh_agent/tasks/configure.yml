@@ -1,0 +1,160 @@
+---
+# =====================================================================================
+# Save the current ossec.conf file!
+
+# Add to tasks/configure.yml before modifying ossec.conf
+
+- name: Ensure Git is installed
+  package:
+    name: git
+    state: present
+  when: wazuh_git_versioning.enabled | bool
+
+- name: Create Git repository directory
+  file:
+    path: "{{ wazuh_git_versioning.repository_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  when: wazuh_git_versioning.enabled | bool and wazuh_git_versioning.manage_repository | bool
+
+- name: Check if Git repository exists
+  stat:
+    path: "{{ wazuh_git_versioning.repository_path }}/.git"
+  register: git_repo_stat
+  when: wazuh_git_versioning.enabled | bool
+
+- name: Initialize Git repository if needed
+  command:
+    cmd: git init
+    chdir: "{{ wazuh_git_versioning.repository_path }}"
+  when: >
+    wazuh_git_versioning.enabled | bool and
+    wazuh_git_versioning.manage_repository | bool and
+    not git_repo_stat.stat.exists | default(false)
+
+- name: Copy current ossec.conf to Git repository
+  copy:
+    src: "{{ wazuh_config_file }}"
+    dest: "{{ wazuh_git_versioning.repository_path }}/ossec.conf"
+    remote_src: yes
+  when: wazuh_git_versioning.enabled | bool
+
+- name: Configure Git user information
+  command:
+    cmd: "{{ item }}"
+    chdir: "{{ wazuh_git_versioning.repository_path }}"
+  with_items:
+    - git config user.name "Ansible Automation"
+    - git config user.email "ansible@{{ ansible_fqdn }}"
+  when: wazuh_git_versioning.enabled | bool
+  changed_when: false
+
+- name: Commit current configuration (pre-change)
+  shell:
+    cmd: |
+      git add ossec.conf
+      git commit -m "Configuration before Ansible update on {{ ansible_date_time.iso8601 }}" || true
+    chdir: "{{ wazuh_git_versioning.repository_path }}"
+  when: wazuh_git_versioning.enabled | bool
+  changed_when: false
+  ignore_errors: true # In case there are no changes to commit
+
+# ================================================================================================
+# Configure Wazuh agent based on determined settings
+
+# Merge user-specified settings with detected settings
+# SMELL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+- name: Merge log monitoring settings with detected services
+  set_fact:
+    merged_log_monitoring: "{{ wazuh_log_monitoring }}"
+
+- debug:
+    var: merged_log_monitoring
+
+# - name: Merge log monitoring settings with detected services
+#   set_fact:
+#     merged_log_monitoring: >
+#       {{ wazuh_log_monitoring | combine({
+#         'web': {
+#           'apache_access': (wazuh_log_monitoring.web.apache_access | bool) or
+#                            (discovered_services.web.apache and wazuh_deployment_profile == 'internet_facing'),
+#           'apache_error': (wazuh_log_monitoring.web.apache_error | bool) or
+#                            (discovered_services.web.apache and wazuh_deployment_profile in ['internal', 'internet_facing']),
+#           'nginx_access': (wazuh_log_monitoring.web.nginx_access | bool) or
+#                            (discovered_services.web.nginx and wazuh_deployment_profile == 'internet_facing'),
+#           'nginx_error': (wazuh_log_monitoring.web.nginx_error | bool) or
+#                            (discovered_services.web.nginx and wazuh_deployment_profile in ['internal', 'internet_facing'])
+#         },
+#         'database': {
+#           'mysql': (wazuh_log_monitoring.database.mysql | bool) or
+#                    (discovered_services.database.mysql and wazuh_deployment_profile in ['internal', 'internet_facing']),
+#           'postgresql': (wazuh_log_monitoring.database.postgresql | bool) or
+#                          (discovered_services.database.postgresql and wazuh_deployment_profile in ['internal', 'internet_facing'])
+#         }
+#       }, recursive=True) }}
+#   when: discovered_services is defined
+
+# Create main ossec.conf from template
+- name: Configure ossec.conf
+  template:
+    src: ossec.conf.xml.j2
+    dest: "{{ wazuh_config_file }}"
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart wazuh-agent
+
+# Verify configuration
+# This does not exist anymore...there is no configation test
+
+# it is good enough to do a restart  if the conf file changed,
+
+# - name: Verify Wazuh agent configuration
+#   command: /var/ossec/bin/wazut-control status -t
+#   register: verify_result
+#   changed_when: false
+#   failed_when: verify_result.rc != 0
+#   when: not ansible_check_mode
+
+# # Restart if needed
+# - name: Restart Wazuh agent
+#   service:
+#     name: "{{ wazuh_service_name }}"
+#     state: restarted
+#   when: not ansible_check_mode
+
+# ================================================================
+# Backup the new configuration file  (if config good and we get this far)
+
+- name: Copy updated ossec.conf to Git repository
+  copy:
+    src: "{{ wazuh_config_file }}"
+    dest: "{{ wazuh_git_versioning.repository_path }}/ossec.conf"
+    remote_src: yes
+  when: wazuh_git_versioning.enabled | bool
+
+- name: Commit updated configuration
+  shell:
+    cmd: |
+      git add ossec.conf
+      git commit -m "{{ wazuh_git_versioning.commit_msg }}" || true
+    chdir: "{{ wazuh_git_versioning.repository_path }}"
+  when: wazuh_git_versioning.enabled | bool
+  changed_when: false
+  ignore_errors: true # In case there are no changes to commit
+
+- name: Show configuration changes
+  shell:
+    cmd: git diff HEAD~1 HEAD ossec.conf
+    chdir: "{{ wazuh_git_versioning.repository_path }}"
+  register: config_diff
+  when: wazuh_git_versioning.enabled | bool
+  changed_when: false
+
+- name: Display configuration changes
+  debug:
+    msg: "{{ config_diff.stdout_lines }}"
+  when: wazuh_git_versioning.enabled | bool and config_diff.stdout != ""

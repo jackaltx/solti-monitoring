@@ -1,0 +1,148 @@
+##############################
+---
+# Agent state control
+wazuh_agent_state: present # Options: present, configure, absent
+
+# Agent connection settings
+wazuh_server_address: "localhost"
+wazuh_server_port: 1514
+wazuh_server_protocol: "tcp"
+wazuh_agent_group: "default"
+wazuh_registration_password: "" # Left empty for security, should be provided in secure way
+
+# Deployment profile - determines default security and logging settings
+# Options: isolated, internal, internet_facing
+wazuh_deployment_profile: "internal"
+
+# Agent performance settings
+wazuh_agent_buffer_queue_size: 5000
+wazuh_agent_buffer_events_per_second: 500
+
+# Security modules configuration - these are defaults that can be overridden
+# The actual used values may come from the selected deployment profile
+wazuh_security_modules:
+  rootcheck:
+    enabled: yes
+    frequency: 43200 # 12 hours
+  syscheck:
+    enabled: yes
+    frequency: 43200 # 12 hours
+    max_eps: 50 # Default, override in profiles
+    synchronization:
+      enabled: yes
+      interval: "5m" # Default, override in profiles
+      max_eps: 10 # Default, override in profiles
+    skip_settings:
+      nfs: yes
+      dev: yes
+      proc: yes
+      sys: yes
+    directories:
+      - path: /etc
+        check_all: yes
+      - path: /usr/bin
+        check_all: yes
+      - path: /usr/sbin
+        check_all: yes
+      - path: /bin
+        check_all: yes
+      - path: /sbin
+        check_all: yes
+    ignore_paths:
+      - /etc/mtab
+      - /etc/hosts.deny
+      - /etc/mail/statistics
+      - /etc/random-seed
+      - /etc/adjtime
+      - /etc/httpd/logs
+      - /etc/containers
+      - /var/lib/docker
+    process_priority: 10
+    scan_on_start: yes
+    # TODO  add in other ignores
+
+  sca:
+    enabled: yes
+    interval: "12h"
+
+  syscollector:
+    enabled: yes
+    interval: "1h"
+
+  cis_cat:
+    enabled: no
+    interval: "1d"
+    timeout: 1800
+
+  osquery:
+    enabled: no
+
+  active_response:
+    enabled: no
+    block_malicious: no
+
+# ...............................................................................
+# Log Monitoring Configuration - these are defaults that can be overridden
+# The actual used values may come from the selected deployment profile
+wazuh_log_monitoring:
+  #
+  # ......................................................
+
+  system:
+    journald: yes
+    audit: "{{ ansible_os_family == 'RedHat' }}"
+    dpkg: "{{ ansible_os_family == 'Debian' }}"
+    rpm: "{{ ansible_os_family == 'RedHat' }}"
+
+  # ......................................................
+  # TODO  Review auto-detect. These are for <logfile> blocks.
+  # As I am using ISPconfig, my needs will be different
+
+  web:
+    apache_access: no # Will be auto-detected
+    apache_error: no # Will be auto-detected
+    nginx_access: no # Will be auto-detected
+    nginx_error: no # Will be auto-detected
+
+  database:
+    mysql: no # Will be auto-detected
+    postgresql: no # Will be auto-detected
+
+  # !!!!! ISPCONFIG ???
+  mail:
+    enabled: no
+
+  # ......................................................
+  # TODO  I am not going to test these, now
+
+  commands:
+    disk_space: no
+    network_ports: no
+    last_logins: no
+    open_files: no
+    process_list: no
+
+  # ......................................................
+  # Journald filters to limit log collection
+  # TODO These will set by host in the inventory
+
+  journald_filters: []
+
+  # ......................................................
+  # Array for custom log configurations
+  # TODO  These will be set by host in the inventory
+  custom: []
+
+# Container support
+wazuh_container_monitoring:
+  detect_podman: yes
+  detect_docker: yes
+  monitor_containers: yes
+
+# #############################
+# In defaults/main.yml, add:
+wazuh_git_versioning:
+  enabled: yes
+  repository_path: "/var/ossec/git"
+  commit_msg: "Configuration updated by Ansible on {{ ansible_date_time.iso8601 }}"
+  manage_repository: yes # Should the role create/init the git repo if missing?
