@@ -1,0 +1,30 @@
+---
+# Red Hat/CentOS/Fedora specific variables
+wazuh_agent_package: wazuh-agent
+wazuh_repo_key_url: "https://packages.wazuh.com/key/GPG-KEY-WAZUH"
+wazuh_repo_url: "https://packages.wazuh.com/4.x/yum/"
+wazuh_config_dir: /var/ossec/etc
+wazuh_config_file: "{{ wazuh_config_dir }}/ossec.conf"
+wazuh_packages:
+  - wazuh-agent
+
+# Default log locations for RHEL-based systems
+log_locations:
+  rpm: "/var/log/dnf.rpm.log"
+  apache_access: "/var/log/httpd/access_log"
+  apache_error: "/var/log/httpd/error_log"
+  nginx_access: "/var/log/nginx/access.log"
+  nginx_error: "/var/log/nginx/error.log"
+  mysql: "/var/log/mariadb/mariadb.log"
+  postgresql: "/var/log/postgresql/postgresql*.log"
+  auth: "/var/log/secure"
+  syslog: "/var/log/messages"
+
+# Service detection commands
+service_detection:
+  apache: "systemctl list-units --type=service | grep -E 'httpd|apache2'"
+  nginx: "systemctl list-units --type=service | grep nginx"
+  mysql: "systemctl list-units --type=service | grep -E 'mysql|mariadb'"
+  postgresql: "systemctl list-units --type=service | grep postgresql"
+  podman: "which podman"
+  docker: "which docker"
