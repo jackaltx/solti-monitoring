@@ -108,9 +108,11 @@ wazuh_log_monitoring:
     mysql: no # Will be auto-detected
     postgresql: no # Will be auto-detected
 
-  # !!!!! ISPCONFIG ???
-  mail:
-    enabled: no
+  # Allow special local files which may NOT be in journald
+  local_files:
+    mail: no
+    auth: no
+    syslog: no
 
   # ......................................................
   # TODO  I am not going to test these, now

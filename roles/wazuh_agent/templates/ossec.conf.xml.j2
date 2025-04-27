@@ -196,7 +196,7 @@
     {% if filter.enabled -%}
     <filter field='{{ filter.facility }}'>{{ filter.query }}</filter>
     {% endif -%}
-    {% endfor -%}
+    {% endfor %}
   </localfile>
   {% endif %}
 
@@ -323,35 +323,35 @@
   <localfile>
     <log_format>{{ log.format }}</log_format>
     <location>{{ log.path }}</location>
-    {% if log.ignore_type_pcre2 is defined and log.ignore_type_pcre2 -%}
+{% if log.ignore_type_pcre2 is defined and log.ignore_type_pcre2 %}
     <ignore type="PCRE2">{{ log.ignore_type_pcre2 }}</ignore>
-    {% endif %}
+{% endif %}
   </localfile>
-  {% endif %}
+  {% endif -%}
   {% endfor %}
 
+  <!-- system log files that may not be in journald  -->
 
-  <!-- Mail Logs -->
-  {% if merged_log_monitoring.mail -%}
+  {% if merged_log_monitoring.local_files.mail -%}
   <localfile>
     <location>/var/log/maillog</location>
     <log_format>syslog</log_format>
-    <filter type="sregex">warning|error|fatal|panic|crit|alert|emerg</filter>
-    <level>7</level>
-    <description>Mail log warnings and errors</description>
-    <decoder_name>mail</decoder_name>
+    <restrict type="0sregex">warning|error|fatal|panic|crit|alert|emerg</restrict>
   </localfile>
   {% endif %}
 
-  <!-- Basic system logs -->
-
+  {% if merged_log_monitoring.local_files.auth -%}
   <localfile>
     <log_format>syslog</log_format>
     <location>{{ log_locations.auth }}</location>
   </localfile>
+  {% endif %}
 
+  {% if merged_log_monitoring.local_files.syslog -%}
   <localfile>
     <log_format>syslog</log_format>
     <location>{{ log_locations.syslog }}</location>
   </localfile>
+  {% endif %}
+
 </ossec_config>

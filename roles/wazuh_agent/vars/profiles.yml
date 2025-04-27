@@ -241,6 +241,8 @@ ispconfig_profile:
       audit: yes # Complete audit trail
       dpkg: yes # Track all package changes
       rpm: yes # Track all package changes
+
+    local_files:
       mail: yes
 
     commands:
@@ -271,12 +273,7 @@ ispconfig_profile:
       - name: login authentication
         enabled: yes
         facility: "_SYSTEMD_UNIT"
-        query: "^system-logind.service$"
-
-      - name: cluster monitoring
-        enabled: yes
-        facility: "_SYSTEMD_UNIT"
-        query: "^alloy.service$|^telegraf.service$"
+        query: "^system-logind.service$|^alloy.service$|^telegraf.service$|"
 
       - name: sudo authentication
         enabled: yes
