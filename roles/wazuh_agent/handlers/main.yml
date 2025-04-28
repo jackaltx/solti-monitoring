@@ -1,0 +1,12 @@
+##############################
+
+---
+# Handlers for wazuh-agent role
+
+- name: restart wazuh-agent
+  service:
+    name: "{{ wazuh_service_name }}"
+    state: restarted
+  when: not ansible_check_mode
+
+##############################
