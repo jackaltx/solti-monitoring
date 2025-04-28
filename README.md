@@ -89,13 +89,42 @@ source ./solti-init.sh
 
 ### Quick Deploy with Utility Scripts
 
+This pattern is very repetitive, so using a geneator to create and execute a playbook
+is relatively easy.
+
+```bash
+$ ./manage-svc.sh 
+Error: Incorrect number of arguments
+Usage: manage-svc.sh [-h HOST] <service> <action>
+
+Options:
+  -h HOST    Target host from inventory (default: uses hosts defined in role)
+
+Services:
+  - loki
+  - alloy
+  - influxdb
+  - telegraf
+
+Actions:
+  - remove
+  - install
+```
+
+There are two ways to deploy, either use the inventory
+default file groups: "ServiceNmae"_svc.
+
 ```bash
 # Deploy a metrics server
 ./manage-svc.sh influxdb deploy
 
 # Deploy a log server
 ./manage-svc.sh loki deploy
+```
 
+Or designate a host or inventory group using -h option
+
+```bash
 # Deploy clients to specific hosts
 ./manage-svc.sh -h client01 telegraf deploy
 ./manage-svc.sh -h client01 alloy deploy
@@ -244,6 +273,9 @@ The multi-layered verification system provides confidence in the deployment:
 # Run specific tasks
 ./svc-exec.sh influxdb backup
 ```
+
+Note:This patter is very handy for executing any yaml task file in the role's task directory.
+So look inside each role for little handy surprises.
 
 ## Advanced Configuration
 
