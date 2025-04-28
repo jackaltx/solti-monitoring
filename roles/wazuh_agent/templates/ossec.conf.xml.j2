@@ -111,7 +111,8 @@
   </syscheck>{% endif %}
 
 
-  <!-- Security Configuration Assessment -->
+  <!-- Security Configuration Assessment --> 
+  <!-- (TODO: verify this replaces cis-cat)-->
   {% if wazuh_security_modules.sca.enabled -%}
   <sca>
     <enabled>yes</enabled>
@@ -121,9 +122,8 @@
   </sca>
   {% endif %}
 
-  {% if wazuh_security_modules.syscollector.enabled -%}
   <!-- System inventory -->
-
+  {% if wazuh_security_modules.syscollector.enabled -%}
   <wodle name="syscollector">
     <disabled>no</disabled>
     <interval>{{ wazuh_security_modules.syscollector.interval }}</interval>
@@ -136,29 +136,12 @@
     <processes>yes</processes>
   </wodle>{% endif %}
 
-  <!-- cis-cat integration -->
-  {% if wazuh_security_modules.cis_cat.enabled -%}
-  <wodle name="cis-cat">
-    <disabled>no</disabled>
-    <timeout>{{ wazuh_security_modules.cis_cat.timeout }}</timeout>
-    <interval>{{ wazuh_security_modules.cis_cat.interval }}</interval>
-    <scan-on-start>yes</scan-on-start>
-    <java_path>wodles/java</java_path>
-    <ciscat_path>wodles/ciscat</ciscat_path>
-  </wodle>{% endif %}
-
-  <!-- Osquery integration -->
-  {% if wazuh_security_modules.osquery.enabled -%}
-  <wodle name="osquery">
-    <disabled>no</disabled>
-    <run_daemon>yes</run_daemon>
-    <log_path>/var/log/osquery/osqueryd.results.log</log_path>
-    <config_path>/etc/osquery/osquery.conf</config_path>
-    <add_labels>yes</add_labels>
-  </wodle>
-  {% endif %}
-
   <!-- Active response -->
+  <!--
+    NOTE: I am using fail2ban, so I am handing service and network locally
+    This would be appropriate if you had several servers wanted a step up.
+
+  -->
   {% if wazuh_security_modules.active_response.enabled -%}
   <active-response>
     <disabled>no</disabled>
@@ -187,19 +170,28 @@
         Log collection configuration Section 
   -->
 
-  <!-- System logs JKL -->
-  {% if merged_log_monitoring.system.journald -%}
+  <!-- System logs via journald -->
+  <!--
+    I am sending logs to Loki. I am throttling the noise 
+    hoping to focus on the bad things. Hoping it will
+    add value.
+  -->
+
+{% if merged_log_monitoring.system.journald %}
   <localfile>
     <location>journald</location>
     <log_format>journald</log_format>
-    {% for filter in merged_log_monitoring.journald_filters -%}
-    {% if filter.enabled -%}
+{% for filter in merged_log_monitoring.journald_filters %}
+{% if filter.enabled %}
     <filter field='{{ filter.facility }}'>{{ filter.query }}</filter>
-    {% endif -%}
-    {% endfor %}
+{% endif %}
+{% endfor %}
   </localfile>
-  {% endif %}
+{% endif %}
 
+  !-- This is for log files, things outside of journald -->
+
+  <!-- Audit log  -->
   {%+ if merged_log_monitoring.system.audit +%}
   <localfile>
     <log_format>audit</log_format>
@@ -207,6 +199,7 @@
   </localfile>
   {% endif %}
 
+  <!-- Debian packages -->
   {% if merged_log_monitoring.system.dpkg and ansible_os_family == 'Debian' %}
   <localfile>
     <log_format>syslog</log_format>
@@ -214,6 +207,7 @@
   </localfile>
   {% endif %}
 
+  <!-- Redhat packages -->
   {% if merged_log_monitoring.system.rpm and ansible_os_family == 'RedHat' %}
   <localfile>
     <log_format>syslog</log_format>
@@ -251,8 +245,7 @@
   </localfile>
   {% endif %}
  
-
-  <!-- Database logs (default only, will work for )-->
+  <!-- Database logs (default only, will work package install? )-->
 
   {% if merged_log_monitoring.database.mysql and discovered_services.database.mysql -%}
   <localfile>
@@ -268,7 +261,14 @@
   </localfile>
   {% endif %}
 
-  <!-- Command monitoring (not tested and may never be used by me)-->
+  <!-- Command monitoring -->
+  <!-- 
+        This can be handy to get output from a cli and feed it to some parser.
+        Perhaps a loki or inflyux data pull.  
+        Those are NOT remote!!!
+
+        I will leave these examples for now.
+   -->
 
   {% if merged_log_monitoring.commands.disk_space -%}
   <localfile>
@@ -287,13 +287,11 @@
   {% endif %}
 
   {% if merged_log_monitoring.commands.last_logins -%}
-
   <localfile>
     <log_format>full_command</log_format>
     <command>last -n 20</command>
     <frequency>360</frequency>
   </localfile>
-
   {% endif %}
 
   {% if merged_log_monitoring.commands.open_files -%}
@@ -330,11 +328,11 @@
   {% endif -%}
   {% endfor %}
 
-  <!-- system log files that may not be in journald  -->
+  <!-- system log files that may not be in journald  I am only using sendmail -->
 
   {% if merged_log_monitoring.local_files.mail -%}
   <localfile>
-    <location>/var/log/maillog</location>
+    <location>/var/log/mail.log</location>
     <log_format>syslog</log_format>
     <restrict type="0sregex">warning|error|fatal|panic|crit|alert|emerg</restrict>
   </localfile>

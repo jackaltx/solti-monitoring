@@ -21,10 +21,6 @@ isolated_profile:
     syscollector:
       enabled: yes
       interval: "1h"
-    cis_cat:
-      enabled: no # Resource-intensive, disabled
-    osquery:
-      enabled: no # Resource-intensive, disabled
     active_response:
       enabled: no # Often not needed in isolated environments SMELL?
 
@@ -67,10 +63,6 @@ internal_profile:
     syscollector:
       enabled: yes
       interval: "1h"
-    cis_cat:
-      enabled: no # Still resource-intensive
-    osquery:
-      enabled: no # Still resource-intensive
     active_response:
       enabled: no # disable automatic responses
 
@@ -132,11 +124,6 @@ internet_facing_profile:
     syscollector:
       enabled: yes
       interval: "30m" # More frequent inventory collection
-    cis_cat:
-      enabled: yes # Enable compliance scanning
-      interval: "1d" # Daily scanning
-    osquery:
-      enabled: yes # Enable advanced endpoint visibility
     active_response:
       enabled: no # Disable automatic responses
       block_malicious: yes # Block malicious activity
@@ -226,13 +213,8 @@ ispconfig_profile:
     syscollector:
       enabled: yes
       interval: "30m" # More frequent inventory collection
-    cis_cat:
-      enabled: yes # Enable compliance scanning
-      interval: "1d" # Daily scanning
-    osquery:
-      enabled: yes # Enable advanced endpoint visibility
     active_response:
-      enabled: no # Desable automatic responses
+      enabled: no # Disable automatic responses
       block_malicious: yes # Block malicious activity
 
   wazuh_log_monitoring:
