@@ -1,0 +1,62 @@
+---
+# Agent state control
+fail2ban_state: present # Options: present, configure, absent
+
+# Git versioning
+fail2ban_git_versioning:
+  enabled: yes
+  repository_path: "/var/lib/fail2ban/git"
+  commit_msg: "Configuration updated by Ansible on {{ ansible_date_time.iso8601 }}"
+  manage_repository: yes # Should the role create/init the git repo if missing?
+
+# Main fail2ban configuration
+fail2ban_config:
+  loglevel: INFO
+  logtarget: /var/log/fail2ban.log
+  syslogsocket: auto
+  socket: /var/run/fail2ban/fail2ban.sock
+  pidfile: /var/run/fail2ban/fail2ban.pid
+  dbfile: /var/lib/fail2ban/fail2ban.sqlite3
+  dbpurgeage: 86400  # 1 day
+  dbmaxmatches: 10
+
+# Default jail settings
+fail2ban_jail_defaults:
+  ignoreip: 127.0.0.1/8 ::1
+  bantime: 10m
+  findtime: 10m
+  maxretry: 5
+  backend: auto
+  usedns: warn
+  logencoding: auto
+  enabled: false
+  mode: normal
+  filter: %(__name__)s
+  banaction: iptables-multiport
+  banaction_allports: iptables-allports
+
+# List of enabled jails with their specific configurations
+fail2ban_jails:
+  - name: sshd
+    enabled: true
+    port: ssh
+    logpath: "%(sshd_log)s"
+    maxretry: 3
+    findtime: 10m
+    bantime: 1h
+    action: 
+      - %(action_)s
+      - "%(action_abuseipdb)s[abuseipdb_category=\"18,22\"]"
+
+  - name: apache-auth
+    enabled: true
+    port: http,https
+    filter: apache-auth
+    logpath: /var/log/apache2/error.log
+    maxretry: 3
+    findtime: 1h
+    bantime: 1d
+
+# Services that should be automatically enabled and started
+fail2ban_services:
+  - fail2ban

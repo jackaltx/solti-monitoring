@@ -1,0 +1,8 @@
+---
+# Handlers for fail2ban role
+
+- name: restart fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+  when: not ansible_check_mode
