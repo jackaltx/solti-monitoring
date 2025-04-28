@@ -274,7 +274,7 @@ The multi-layered verification system provides confidence in the deployment:
 ./svc-exec.sh influxdb backup
 ```
 
-Note:This patter is very handy for executing any yaml task file in the role's task directory.
+Note:This pattern is very handy for executing any yaml task file in the role's task directory.
 So look inside each role for little handy surprises.
 
 ## Advanced Configuration
