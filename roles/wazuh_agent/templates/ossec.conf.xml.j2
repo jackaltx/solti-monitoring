@@ -1,0 +1,355 @@
+<!-- Wazuh Agent configuration - Ansible managed SMELL add date/time -->
+
+<ossec_config>
+  <!-- Global configuration -->
+  <global>
+    <email_notification>no</email_notification>
+  </global>
+
+  <!-- Client configuration -->
+  <client>
+    <server>
+      <address>{{ wazuh_server_address }}</address>
+      <port>{{ wazuh_server_port }}</port>
+      <protocol>{{ wazuh_server_protocol }}</protocol>
+    </server>
+    <config-profile>{{ ansible_distribution | lower }}, {{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}</config-profile>
+    <crypto_method>aes</crypto_method>
+    <notify_time>10</notify_time>
+    <time-reconnect>60</time-reconnect>
+    <auto_restart>yes</auto_restart>
+  </client>
+
+  <client_buffer>
+    <disabled>no</disabled>
+    <queue_size>{{ wazuh_agent_buffer_queue_size }}</queue_size>
+    <events_per_second>{{ wazuh_agent_buffer_events_per_second }}</events_per_second>
+  </client_buffer>
+
+  <!-- 
+          Policy Monitoring Section
+   -->
+
+  <!-- Rootcheck module -->
+  {% if wazuh_security_modules.rootcheck.enabled -%}
+  <rootcheck>
+    <disabled>no</disabled>
+    <check_files>yes</check_files>
+    <check_trojans>yes</check_trojans>
+    <check_dev>yes</check_dev>
+    <check_sys>yes</check_sys>
+    <check_pids>yes</check_pids>
+    <check_ports>yes</check_ports>
+    <check_if>yes</check_if>
+    <frequency>{{ wazuh_security_modules.rootcheck.frequency }}</frequency>
+
+    <!-- This section is from from deb12 -->
+
+    <rootkit_files>etc/shared/rootkit_files.txt</rootkit_files>
+    <rootkit_trojans>etc/shared/rootkit_trojans.txt</rootkit_trojans>
+    <skip_nfs>yes</skip_nfs>
+    <ignore>/var/lib/containerd</ignore>
+    <ignore>/var/lib/docker/overlay2</ignore>
+
+    <!-- End added section -->
+
+  </rootcheck>
+  {% endif %}
+
+  <!-- 
+        File Integrity Monitoring (FIM) Section
+        SMELL  Claude has version issues???
+   -->
+
+  {% if wazuh_security_modules.syscheck.enabled -%}
+  <!-- Syscheck module -->
+  <syscheck>
+    <disabled>no</disabled>
+    <frequency>{{ wazuh_security_modules.syscheck.frequency }}</frequency>
+    <scan_on_start>{{ 'yes' if wazuh_security_modules.syscheck.scan_on_start else 'no' }}</scan_on_start>
+    <alert_new_files>yes</alert_new_files>
+    <process_priority>{{ wazuh_security_modules.syscheck.process_priority }}</process_priority>
+    
+    <!-- Monitored directories -->
+    {% for dir in wazuh_security_modules.syscheck.directories -%}
+    <directories check_all="{{ 'yes' if dir.check_all else 'no' }}">{{ dir.path }}</directories>
+    {% endfor %}
+
+    <!-- Ignored paths -->
+    {% for path in wazuh_security_modules.syscheck.ignore_paths -%}
+    <ignore>{{ path }}</ignore>
+    {% endfor %}
+
+
+    <!-- Maximum output throughput -->
+    <max_eps>{{ wazuh_security_modules.syscheck.max_eps }}</max_eps>
+
+    <!-- Database synchronization settings -->
+    <synchronization>
+      <enabled>{{ 'yes' if wazuh_security_modules.syscheck.synchronization.enabled else 'no' }}</enabled>
+      <interval>{{ wazuh_security_modules.syscheck.synchronization.interval }}</interval>
+      <max_eps>{{ wazuh_security_modules.syscheck.synchronization.max_eps }}</max_eps>
+    </synchronization>
+
+    <skip_nfs>{{ 'yes' if wazuh_security_modules.syscheck.skip_settings.nfs else 'no' }}</skip_nfs>
+    <skip_dev>{{ 'yes' if wazuh_security_modules.syscheck.skip_settings.dev else 'no' }}</skip_dev>
+    <skip_proc>{{ 'yes' if wazuh_security_modules.syscheck.skip_settings.proc else 'no' }}</skip_proc>
+    <skip_sys>{{ 'yes' if wazuh_security_modules.syscheck.skip_settings.sys else 'no' }}</skip_sys>
+
+
+    <!-- This rest of this section! TODO evaluate  SMELL hardcoded -->
+
+    <!-- File types to ignore -->
+    <ignore type="sregex">.log$|.swp$</ignore>
+
+    <!-- Check the file, but never compute the diff -->
+    <nodiff>/etc/ssl/private.key</nodiff>
+
+    <!-- Nice value for Syscheck process -->
+    <process_priority>10</process_priority>
+
+  </syscheck>{% endif %}
+
+
+  <!-- Security Configuration Assessment --> 
+  <!-- (TODO: verify this replaces cis-cat)-->
+  {% if wazuh_security_modules.sca.enabled -%}
+  <sca>
+    <enabled>yes</enabled>
+    <scan_on_start>yes</scan_on_start>
+    <interval>{{ wazuh_security_modules.sca.interval }}</interval>
+    <skip_nfs>yes</skip_nfs>
+  </sca>
+  {% endif %}
+
+  <!-- System inventory -->
+  {% if wazuh_security_modules.syscollector.enabled -%}
+  <wodle name="syscollector">
+    <disabled>no</disabled>
+    <interval>{{ wazuh_security_modules.syscollector.interval }}</interval>
+    <scan_on_start>yes</scan_on_start>
+    <hardware>yes</hardware>
+    <os>yes</os>
+    <network>yes</network>
+    <packages>yes</packages>
+    <ports all="no">yes</ports>
+    <processes>yes</processes>
+  </wodle>{% endif %}
+
+  <!-- Active response -->
+  <!--
+    NOTE: I am using fail2ban, so I am handing service and network locally
+    This would be appropriate if you had several servers wanted a step up.
+
+  -->
+  {% if wazuh_security_modules.active_response.enabled -%}
+  <active-response>
+    <disabled>no</disabled>
+    <ca_store>etc/wpk_root.pem</ca_store>
+    <ca_verification>yes</ca_verification>
+  </active-response>
+  
+  {% if wazuh_security_modules.active_response.block_malicious -%}
+  <command>
+    <name>firewall-drop</name>
+    <executable>firewall-drop.sh</executable>
+    <expect>srcip</expect>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+  
+  <active-response>
+    <command>firewall-drop</command>
+    <location>local</location>
+    <level>7</level>
+    <timeout>600</timeout>
+  </active-response>
+  {% endif %}
+  {% endif %}
+
+  <!-- 
+        Log collection configuration Section 
+  -->
+
+  <!-- System logs via journald -->
+  <!--
+    I am sending logs to Loki. I am throttling the noise 
+    hoping to focus on the bad things. Hoping it will
+    add value.
+  -->
+
+{% if merged_log_monitoring.system.journald %}
+  <localfile>
+    <location>journald</location>
+    <log_format>journald</log_format>
+{% for filter in merged_log_monitoring.journald_filters %}
+{% if filter.enabled %}
+    <filter field='{{ filter.facility }}'>{{ filter.query }}</filter>
+{% endif %}
+{% endfor %}
+  </localfile>
+{% endif %}
+
+  !-- This is for log files, things outside of journald -->
+
+  <!-- Audit log  -->
+  {%+ if merged_log_monitoring.system.audit +%}
+  <localfile>
+    <log_format>audit</log_format>
+    <location>/var/log/audit/audit.log</location>
+  </localfile>
+  {% endif %}
+
+  <!-- Debian packages -->
+  {% if merged_log_monitoring.system.dpkg and ansible_os_family == 'Debian' %}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.dpkg }}</location>
+  </localfile>
+  {% endif %}
+
+  <!-- Redhat packages -->
+  {% if merged_log_monitoring.system.rpm and ansible_os_family == 'RedHat' %}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.rpm }}</location>
+  </localfile>
+  {% endif %}
+
+  <!-- Web server logs (default only, not for ispconfig)-->
+
+  {% if merged_log_monitoring.web.apache_access and discovered_services.web.apache -%}
+  <localfile>
+    <log_format>apache</log_format>
+    <location>{{ log_locations.apache_access }}</location>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.web.apache_error and discovered_services.web.apache -%}
+  <localfile>
+    <log_format>apache_error</log_format>
+    <location>{{ log_locations.apache_error }}</location>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.web.nginx_access and discovered_services.web.nginx -%}
+  <localfile>
+    <log_format>nginx</log_format>
+    <location>{{ log_locations.nginx_access }}</location>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.web.nginx_error and discovered_services.web.nginx -%}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.nginx_error }}</location>
+  </localfile>
+  {% endif %}
+ 
+  <!-- Database logs (default only, will work package install? )-->
+
+  {% if merged_log_monitoring.database.mysql and discovered_services.database.mysql -%}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.mysql }}</location>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.database.postgresql and discovered_services.database.postgresql -%}
+  <localfile>
+    <log_format>postgresql</log_format>
+    <location>{{ log_locations.postgresql }}</location>
+  </localfile>
+  {% endif %}
+
+  <!-- Command monitoring -->
+  <!-- 
+        This can be handy to get output from a cli and feed it to some parser.
+        Perhaps a loki or inflyux data pull.  
+        Those are NOT remote!!!
+
+        I will leave these examples for now.
+   -->
+
+  {% if merged_log_monitoring.commands.disk_space -%}
+  <localfile>
+    <log_format>command</log_format>
+    <command>df -h</command>
+    <frequency>360</frequency>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.commands.network_ports -%}
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>netstat -tulpn | grep LISTEN | sort</command>
+    <frequency>360</frequency>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.commands.last_logins -%}
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>last -n 20</command>
+    <frequency>360</frequency>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.commands.open_files -%}
+
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>lsof -P -n +L1</command>
+    <frequency>720</frequency>
+  </localfile>
+
+  {% endif %}
+
+  {% if merged_log_monitoring.commands.process_list -%}
+
+  <localfile>
+    <log_format>full_command</log_format>
+    <command>ps -eo user,pid,ppid,cmd --sort=-pcpu | head -n 15</command>
+    <frequency>360</frequency>
+  </localfile>
+
+  {% endif %}
+
+  <!-- Custom log files -->
+
+  {% for log in merged_log_monitoring.custom -%}
+  {% if log.enabled -%}
+  <localfile>
+    <log_format>{{ log.format }}</log_format>
+    <location>{{ log.path }}</location>
+{% if log.ignore_type_pcre2 is defined and log.ignore_type_pcre2 %}
+    <ignore type="PCRE2">{{ log.ignore_type_pcre2 }}</ignore>
+{% endif %}
+  </localfile>
+  {% endif -%}
+  {% endfor %}
+
+  <!-- system log files that may not be in journald  I am only using sendmail -->
+
+  {% if merged_log_monitoring.local_files.mail -%}
+  <localfile>
+    <location>/var/log/mail.log</location>
+    <log_format>syslog</log_format>
+    <restrict type="0sregex">warning|error|fatal|panic|crit|alert|emerg</restrict>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.local_files.auth -%}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.auth }}</location>
+  </localfile>
+  {% endif %}
+
+  {% if merged_log_monitoring.local_files.syslog -%}
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>{{ log_locations.syslog }}</location>
+  </localfile>
+  {% endif %}
+
+</ossec_config>

@@ -1,0 +1,59 @@
+---
+# Deep verification of Wazuh configuration
+
+# Check if agent is connected and reporting
+- name: Check agent status
+  shell: /var/ossec/bin/agent-control -i {{ ansible_facts.hostname }} -s
+  register: agent_status
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Display agent status
+  debug:
+    msg: "{{ agent_status.stdout }}"
+  when: not ansible_check_mode and agent_status is defined
+
+# Examine configuration for recommended security modules
+- name: Read current ossec.conf
+  command: cat {{ wazuh_config_file }}
+  register: current_config
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify syscheck configuration
+  debug:
+    msg: "Syscheck is {{ 'enabled' if '<syscheck>' in current_config.stdout and '<frequency>' in current_config.stdout else 'disabled or incomplete' }}"
+  when: not ansible_check_mode and current_config is defined
+
+- name: Verify rootcheck configuration
+  debug:
+    msg: "Rootcheck is {{ 'enabled' if '<rootcheck>' in current_config.stdout and '<frequency>' in current_config.stdout else 'disabled or incomplete' }}"
+  when: not ansible_check_mode and current_config is defined
+
+# Verify log monitoring based on detected services
+- name: Verify web server log monitoring
+  debug:
+    msg:
+      - "Apache access log monitoring: {{ 'Configured' if discovered_services.web.apache and ('<location>' + log_locations.apache_access) in current_config.stdout else 'Not applicable or not configured' }}"
+      - "Apache error log monitoring: {{ 'Configured' if discovered_services.web.apache and ('<location>' + log_locations.apache_error) in current_config.stdout else 'Not applicable or not configured' }}"
+      - "Nginx access log monitoring: {{ 'Configured' if discovered_services.web.nginx and ('<location>' + log_locations.nginx_access) in current_config.stdout else 'Not applicable or not configured' }}"
+      - "Nginx error log monitoring: {{ 'Configured' if discovered_services.web.nginx and ('<location>' + log_locations.nginx_error) in current_config.stdout else 'Not applicable or not configured' }}"
+  when: not ansible_check_mode and current_config is defined and discovered_services is defined
+
+- name: Verify database log monitoring
+  debug:
+    msg:
+      - "MySQL log monitoring: {{ 'Configured' if discovered_services.database.mysql and ('<location>' + log_locations.mysql) in current_config.stdout else 'Not applicable or not configured' }}"
+      - "PostgreSQL log monitoring: {{ 'Configured' if discovered_services.database.postgresql and ('<location>' + log_locations.postgresql.split('*')[0]) in current_config.stdout else 'Not applicable or not configured' }}"
+  when: not ansible_check_mode and current_config is defined and discovered_services is defined
+
+# Verify container-specific configurations
+- name: Verify container configuration
+  debug:
+    msg:
+      - "Container paths excluded: {{ 'Yes' if discovered_services.containers.podman or discovered_services.containers.docker else 'Not needed' }}"
+      - "Podman paths in ignore list: {{ 'Configured' if '/var/lib/containers' in current_config.stdout else 'Not configured but needed' if discovered_services.containers.podman else 'Not applicable' }}"
+      - "Docker paths in ignore list: {{ 'Configured' if '/var/lib/docker' in current_config.stdout else 'Not configured but needed' if discovered_services.containers.docker else 'Not applicable' }}"
+  when: not ansible_check_mode and current_config is defined and discovered_services is defined
+##############################
