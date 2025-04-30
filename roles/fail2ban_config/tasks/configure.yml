@@ -1,0 +1,130 @@
+---
+# =====================================================================================================
+# This section is about saving the pre-change configuration in git
+#
+# It provides a baseline git config (installs git, configures git, create repo if required, commits pending )
+#
+# As this is a managed system, there should never be any changes in this section after creation
+#
+
+- name: Pre-update save configurarion block,
+  when: fail2ban_git_versioning.enabled | bool
+  block:
+    - name: Ensure Git is installed
+      package:
+        name: git
+        state: present
+
+    - name: Create Git repository directory
+      file:
+        path: "{{ fail2ban_git_versioning.repository_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+      when: fail2ban_git_versioning.manage_repository | bool
+
+    - name: Check if Git repository exists
+      stat:
+        path: "{{ fail2ban_git_versioning.repository_path }}/.git"
+      register: git_repo_stat
+
+    - name: Initialize Git repository if needed
+      command:
+        cmd: git init
+        chdir: "{{ fail2ban_git_versioning.repository_path }}"
+      when: >
+        fail2ban_git_versioning.manage_repository | bool and
+        not git_repo_stat.stat.exists | default(false)
+
+    - name: Copy current fail2ban config files to Git repository
+      shell: |
+        cp -r /etc/fail2ban/* {{ fail2ban_git_versioning.repository_path }}/
+      args:
+        creates: "{{ fail2ban_git_versioning.repository_path }}/fail2ban.conf"
+
+    - name: Configure Git user information
+      command:
+        cmd: "{{ item }}"
+        chdir: "{{ fail2ban_git_versioning.repository_path }}"
+      with_items:
+        - git config user.name "Ansible Automation"
+        - git config user.email "ansible@{{ ansible_fqdn }}"
+      changed_when: false
+
+    - name: Commit current configuration (pre-change)
+      shell:
+        cmd: |
+          git add -A
+          git commit -m "Configuration before Ansible update on {{ ansible_date_time.iso8601 }}" || true
+        chdir: "{{ fail2ban_git_versioning.repository_path }}"
+      changed_when: false
+      ignore_errors: true # In case there are no changes to commit
+
+# =====================================================================================================
+
+# Generate fail2ban configuration files
+# SMELL  REmove this block..I do not want to replace the default conf
+# - name: Configure fail2ban.conf
+#   template:
+#     src: fail2ban.conf.j2
+#     dest: /etc/fail2ban/fail2ban.conf
+#     owner: root
+#     group: root
+#     mode: 0644
+#   notify: restart fail2ban
+
+# SMELL This one needs to be exactly like the current one on angela!!!!!
+- name: Configure jail.local
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
+
+# Create custom filter files if any
+- name: Create custom filter files
+  template:
+    src: "{{ item.src }}"
+    dest: "/etc/fail2ban/filter.d/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items: "{{ fail2ban_custom_filters | default([]) }}"
+  notify: restart fail2ban
+
+# need to copy in the "called for" templates for jail and action
+
+# =====================================================================================================
+# This section is about saving the changed configuration in git
+
+- name: Save new configuraiton block
+  when: fail2ban_git_versioning.enabled | bool
+  block:
+    # Copy updated configuration to git repository
+    - name: Copy updated fail2ban config files to Git repository
+      shell: |
+        cp -r /etc/fail2ban/* {{ fail2ban_git_versioning.repository_path }}/
+
+    - name: Commit updated configuration
+      shell:
+        cmd: |
+          git add -A
+          git commit -m "{{ fail2ban_git_versioning.commit_msg }}" || true
+        chdir: "{{ fail2ban_git_versioning.repository_path }}"
+      changed_when: false
+      ignore_errors: true # In case there are no changes to commit
+
+    - name: Show configuration changes
+      shell:
+        cmd: git diff HEAD~1 HEAD
+        chdir: "{{ fail2ban_git_versioning.repository_path }}"
+      register: config_diff
+      changed_when: false
+
+    - name: Display configuration changes
+      debug:
+        msg: "{{ config_diff.stdout_lines }}"
+      when: config_diff.stdout != ""
