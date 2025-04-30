@@ -1,0 +1,81 @@
+---
+# Agent state control
+fail2ban_state: present # Options: present, configure, absent
+
+fail2ban_abuseipdb_api: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  35323830333031646165666137386336653966633132363564623037373933366339363034346563
+  3232316132663166373764623363383930653631343631310a636535303134386137383161656630
+  66626134313838633961396536643935313636363762366132353837373036373964356536353637
+  3362646564353338650a626439626439303533666366366163383731613464633336313731656332
+  36613265363637396266303836653532366534333536333732313931346331643031346662613161
+  32653630353064363862393866323735396533663831313535313030626536653638656138373366
+  34666164626430376137636365643563633662373834396434363361306138643434663431636562
+  37363362303530663130366362396136356466356533306664363138326565356433623136656238
+  6433
+
+# Git versioning
+fail2ban_git_versioning:
+  enabled: yes
+  repository_path: "/var/lib/fail2ban/git"
+  commit_msg: "Configuration updated by Ansible on {{ ansible_date_time.iso8601 }}"
+  manage_repository: yes # Should the role create/init the git repo if missing?
+
+# Main fail2ban configuration
+# Depricated: I am not going to override defaults at this time
+# fail2ban_config:
+#   loglevel: INFO
+#   logtarget: /var/log/fail2ban.log
+#   syslogsocket: auto
+#   socket: /var/run/fail2ban/fail2ban.sock
+#   pidfile: /var/run/fail2ban/fail2ban.pid
+#   dbfile: /var/lib/fail2ban/fail2ban.sqlite3
+#   dbpurgeage: 86400 # 1 day
+#   dbmaxmatches: 10
+
+# Default jail settings
+# TODO  ensure they match my current configuratiopn
+fail2ban_jail_defaults:
+  ignoreip: 127.0.0.1/8 ::1
+  bantime: 10m
+  findtime: 10m
+  maxretry: 5
+  backend: auto
+  usedns: warn
+  logencoding: auto
+  enabled: false
+  mode: normal
+  filter: %(__name__)s
+  banaction: iptables-multiport
+  banaction_allports: iptables-allports
+
+# SMELL TODO CLAUDE:  I don't want to do this...I prefer each in their own group of files
+#  see files/jail.d
+#
+#  I want to turn these on/off with a profile.
+
+# # List of enabled jails with their specific configurations
+# fail2ban_jails:
+#   - name: sshd
+#     enabled: true
+#     port: ssh
+#     logpath: "%(sshd_log)s"
+#     maxretry: 3
+#     findtime: 10m
+#     bantime: 1h
+#     action:
+#       - %(action_)s
+#       - '%(action_abuseipdb)s[abuseipdb_category="18,22"]'
+
+#   - name: apache-auth
+#     enabled: true
+#     port: http,https
+#     filter: apache-auth
+#     logpath: /var/log/apache2/error.log
+#     maxretry: 3
+#     findtime: 1h
+#     bantime: 1d
+
+# Services that should be automatically enabled and started
+fail2ban_services:
+  - fail2ban

@@ -1,23 +1,5 @@
----
-# Tasks for installing fail2ban
-
-# Install common prerequisites
-- name: Install common prerequisites
-  package:
-    name: "{{ common_packages }}"
-    state: present
-  when: not ansible_check_mode
-
-# Install fail2ban package
-- name: Install fail2ban
-  package:
-    name: "{{ fail2ban_packages }}"
-    state: present
-  when: not ansible_check_mode
-  register: package_installed
-
-# README.md
 # Fail2Ban with Git Configuration Versioning
+
 ## Overview
 
 This Ansible role manages Fail2Ban with an integrated Git-based configuration tracking system, allowing for complete version control of all changes to your Fail2Ban setup. It provides a reliable way to track configuration changes over time, with the ability to easily roll back to prior working configurations.
@@ -118,6 +100,7 @@ This git-based versioning approach can be extended to other monitoring tools usi
 5. Restart the service if needed
 
 Examples of other tools that could benefit from this approach:
+
 - Telegraf
 - Logrotate
 - UFW Firewall rules
