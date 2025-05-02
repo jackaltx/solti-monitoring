@@ -1,0 +1,68 @@
+---
+# This file handles pre-configuration git versioning for monitoring tools
+# It should be included before making configuration changes
+# Parameters:
+#   versioning.component_name: The name of the component being versioned (e.g., fail2ban)
+#   versioning.repository_path: Path to the git repository
+#   versioning.config_path: Path to the configuration files to be versioned
+#   versioning.commit_msg: Message template for commit messages
+
+# Ensure Git is installed
+- name: Ensure Git is installed
+  package:
+    name: git
+    state: present
+
+# Create Git repository directory
+- name: Create Git repository directory for {{ versioning.component_name }}
+  file:
+    path: "{{ versioning.repository_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  when: versioning.manage_repository | default(true) | bool
+
+# Check if Git repository exists
+- name: Check if Git repository exists for {{ versioning.component_name }}
+  stat:
+    path: "{{ versioning.repository_path }}/.git"
+  register: git_repo_stat
+
+# Initialize Git repository if needed
+- name: Initialize Git repository for {{ versioning.component_name }} if needed
+  command:
+    cmd: git init
+    chdir: "{{ versioning.repository_path }}"
+  when: >
+    versioning.manage_repository | default(true) | bool and
+    not git_repo_stat.stat.exists | default(false)
+
+# Copy current config files to Git repository
+- name: Copy current {{ versioning.component_name }} config files to Git repository
+  shell: |
+    mkdir -p {{ versioning.repository_path }}
+    cp -r {{ versioning.config_path }}/* {{ versioning.repository_path }}/
+  args:
+    creates: "{{ versioning.repository_path }}/{{ versioning.component_name }}.conf"
+  changed_when: false
+
+# Configure Git user information
+- name: Configure Git user information for {{ versioning.component_name }}
+  command:
+    cmd: "{{ item }}"
+    chdir: "{{ versioning.repository_path }}"
+  with_items:
+    - git config user.name "Ansible Automation"
+    - git config user.email "ansible@{{ ansible_fqdn }}"
+  changed_when: false
+
+# Commit current configuration (pre-change)
+- name: Commit current {{ versioning.component_name }} configuration (pre-change)
+  shell:
+    cmd: |
+      git add -A
+      git commit -m "{{ versioning.component_name }} configuration before Ansible update on {{ ansible_date_time.iso8601 }}" || true
+    chdir: "{{ versioning.repository_path }}"
+  changed_when: false
+  ignore_errors: true # In case there are no changes to commit
