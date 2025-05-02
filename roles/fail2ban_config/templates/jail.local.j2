@@ -20,53 +20,9 @@ findtime = {{ fail2ban_jail_defaults.findtime }}
 # Number of failures before a host gets banned.
 maxretry = {{ fail2ban_jail_defaults.maxretry }}
 
-# Backend to use for determining whether host is valid.
-backend = {{ fail2ban_jail_defaults.backend }}
-
-# Specifies if DNS lookups are done when determining whether a host is valid.
-usedns = {{ fail2ban_jail_defaults.usedns }}
-
-# Encoding used for logs processing
-logencoding = {{ fail2ban_jail_defaults.logencoding }}
-
-# Default banning action
-banaction = {{ fail2ban_jail_defaults.banaction }}
-banaction_allports = {{ fail2ban_jail_defaults.banaction_allports }}
-
-# Default setting for all jails (defaults to false)
-enabled = {{ fail2ban_jail_defaults.enabled }}
-
-# Default mode
-mode = {{ fail2ban_jail_defaults.mode }}
-
-# Individual jail configurations
-{% for jail in fail2ban_jails %}
-[{{ jail.name }}]
-enabled = {{ jail.enabled | lower }}
-{% if jail.port is defined %}
-port = {{ jail.port }}
-{% endif %}
-{% if jail.filter is defined %}
-filter = {{ jail.filter }}
-{% endif %}
-{% if jail.logpath is defined %}
-logpath = {{ jail.logpath }}
-{% endif %}
-{% if jail.maxretry is defined %}
-maxretry = {{ jail.maxretry }}
-{% endif %}
-{% if jail.findtime is defined %}
-findtime = {{ jail.findtime }}
-{% endif %}
-{% if jail.bantime is defined %}
-bantime = {{ jail.bantime }}
-{% endif %}
-{% if jail.action is defined %}
-{% if jail.action is string %}
-action = {{ jail.action }}
-{% else %}
-action = {{ jail.action | join('\n         ') }}
-{% endif %}
-{% endif %}
-
-{% endfor %}
+# https://denshub.com/fail2ban-server-protection/#techy-with-latest-release
+bantime.increment    = {{ bantime_increment }}
+bantime.rndtime      = {{ bantime.rndtime }}
+bantime.maxtime      = {{ bantime.maxtime }}
+bantime.factor       = {{ bantime.factor }}
+bantime.overalljails = {{ bantime.overalljails }}
