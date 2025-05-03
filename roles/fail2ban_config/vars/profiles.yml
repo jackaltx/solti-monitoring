@@ -1,0 +1,20 @@
+---
+ispconfig_profile:
+  fail2ban_jails:
+    base:
+      enabled: true
+    ispconfig:
+      enabled: trrue
+    gitea:
+      enabled: trrue
+    openvpn:
+      enabled: false
+    ufw:
+      enabled: trrue
+    wordpress:
+      enabled: trrue
+
+default_profile:
+  fail2ban_jails:
+    base:
+      enabled: true

@@ -47,7 +47,8 @@ fail2ban_jail_defaults:
 
 # All jails are in the jail.d directory and managed by profile
 
-fail2ban_profiles:
+#This sets the main strucutre
+fail2ban_jails:
   base:
     enabled: true
     description: "Core protection for SSH and repeat offenders"
