@@ -12,6 +12,14 @@
 - name: Install or Configure fail2ban
   when: fail2ban_state == "present" or fail2ban_state == "configure"
   block:
+    - name: Load deployment profiles
+      include_vars: profiles.yml
+
+    - name: Set variables based on deployment profile
+      set_fact:
+        fail2ban_jails: "{{ fail2ban_jails | combine(lookup('vars', fail2ban_jail_profile + '_profile').fail2ban_jails, recursive=True) }}"
+      when: fail2ban_jail_profile is defined and fail2ban_jail_profile in ['default','ispconfig']
+
     # Install the package (idempotent)
     - name: Install fail2ban
       package:

@@ -61,12 +61,12 @@
 
 - name: Create custom filter files
   copy:
-    src: "filter.d/{{ item.src }}"
-    dest: "/etc/fail2ban/filter.d/{{ item.dest }}"
+    src: "filter.d/{{ item }}"
+    dest: "/etc/fail2ban/filter.d/{{ item }}"
     owner: root
     group: root
     mode: 0644
-  with_items: "{{ fail2ban_custom_filters | default([]) }}"
+  loop: "{{ fail2ban_custom_filters | default([]) }}"
   notify: restart fail2ban
 
 # .............................................................................
@@ -103,6 +103,21 @@
     #
     #  These are not really template files, but on thing a a time!!
     #
+
+    - name: Build list of enabled jail files
+      set_fact:
+        enabled_jail_files: "{{ enabled_jail_files | default([]) + profile.jails }}"
+      loop: "{{ fail2ban_jails | dict2items }}"
+      loop_control:
+        loop_var: profile_item
+      vars:
+        profile: "{{ profile_item.value }}"
+      when: profile.enabled | bool
+
+    - name: Print list of jails
+      ansible.builtin.debug:
+        var: enabled_jail_files
+
     - name: Deploy enabled jail files
       template:
         src: "templates/jail.d/{{ item }}"
@@ -110,24 +125,16 @@
         owner: root
         group: root
         mode: 0644
-      loop: >
-        {% set enabled_jails = [] %}
-        {% for profile_name, profile in fail2ban_profiles.items() %}
-          {% if profile.enabled | bool %}
-            {% for jail in profile.jails %}
-              {% set enabled_jails = enabled_jails + [jail] %}
-            {% endfor %}
-          {% endif %}
-        {% endfor %}
-        {{ enabled_jails | unique | list }}
+      loop: "{{ enabled_jail_files | default([]) }}"
       notify: restart fail2ban
 
     # Log which profiles are enabled for documentation
-    - name: Log enabled fail2ban profiles
+
+    - name: Log enabled fail2ban jail files
       debug:
         msg: |
           Enabled fail2ban profiles: 
-          {% for profile_name, profile in fail2ban_profiles.items() %}
+          {% for profile_name, profile in fail2ban_jails.items() %}
             {% if profile.enabled | bool %}
           - {{ profile_name }}: {{ profile.description }}
             {% endif %}
