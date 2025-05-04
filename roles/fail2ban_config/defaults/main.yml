@@ -2,6 +2,13 @@
 # Agent state control
 fail2ban_state: present # Options: present, configure, absent
 
+# Deployment profile - determines default security and logging settings
+# Options: default, ispconfig
+fail2ban_jail_profile: "default"
+
+# Smell, default to false and do better on key
+fail2ban_abuseipdb_enabled: false
+
 fail2ban_abuseipdb_api: !vault |
   $ANSIBLE_VAULT;1.1;AES256
   35323830333031646165666137386336653966633132363564623037373933366339363034346563
@@ -17,7 +24,7 @@ fail2ban_abuseipdb_api: !vault |
 # Git versioning
 fail2ban_git_versioning:
   enabled: yes
-  repository_path: "/var/lib/fail2ban/git"
+  repository_path: "/opt/solti-repo/fail2ban"
   commit_msg: "Configuration updated by Ansible on {{ ansible_date_time.iso8601 }}"
   manage_repository: yes # Should the role create/init the git repo if missing?
 
