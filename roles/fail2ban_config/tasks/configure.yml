@@ -48,6 +48,7 @@
 # make this optional ??
 
 - name: Configure jail.local
+  when: fail2ban_abuseipdb_enabled
   template:
     src: abuseipdb.conf.j2
     dest: /etc/fail2ban/action.d/abuseipdb.conf
