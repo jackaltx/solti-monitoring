@@ -20,6 +20,14 @@
         fail2ban_jails: "{{ fail2ban_jails | combine(lookup('vars', fail2ban_jail_profile + '_profile').fail2ban_jails, recursive=True) }}"
       when: fail2ban_jail_profile is defined and fail2ban_jail_profile in ['default','ispconfig']
 
+    - name: Print configuration profile
+      ansible.builtin.debug:
+        var: fail2ban_jail_profile
+
+    - name: Print configuration profile
+      ansible.builtin.debug:
+        var: fail2ban_jails
+
     # Install the package (idempotent)
     - name: Install fail2ban
       package:

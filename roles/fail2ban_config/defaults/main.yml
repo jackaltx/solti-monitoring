@@ -29,16 +29,18 @@ fail2ban_git_versioning:
   manage_repository: yes # Should the role create/init the git repo if missing?
 
 # Main fail2ban configuration
-# Depricated: I am not going to override defaults at this time
-# fail2ban_config:
-#   loglevel: INFO
-#   logtarget: /var/log/fail2ban.log
-#   syslogsocket: auto
-#   socket: /var/run/fail2ban/fail2ban.sock
-#   pidfile: /var/run/fail2ban/fail2ban.pid
-#   dbfile: /var/lib/fail2ban/fail2ban.sqlite3
-#   dbpurgeage: 86400 # 1 day
-#   dbmaxmatches: 10
+# Claude:  fix the fail2ban.local.j2 to allow these as optional arguments
+# I want to keep the system defaults where I need to (like log level and allow_ipv5 )
+fail2ban_config:
+  loglevel: WARNING
+  allowipv6: auto
+  logtarget: /var/log/fail2ban.log
+  syslogsocket: auto
+  socket: /var/run/fail2ban/fail2ban.sock
+  pidfile: /var/run/fail2ban/fail2ban.pid
+  dbfile: /var/lib/fail2ban/fail2ban.sqlite3
+  dbpurgeage: 86400 # 1 day
+  dbmaxmatches: 10
 
 # Default jail settings taken from angela
 fail2ban_jail_defaults:
@@ -69,9 +71,6 @@ fail2ban_jails:
       - apache-default.conf
       - ispconfig-apache.conf
       - mail-svc.conf
-      - dovecot.conf
-      - postfix.conf
-      - named-refused.conf
       - pure-ftpd.conf
   gitea:
     enabled: false
@@ -92,14 +91,15 @@ fail2ban_jails:
     enabled: false
     description: "Wordpress protection "
     jails:
-      - wordpress-soft.conf
-      - wordpress-hard.conf
+      - wordpress.conf
 
 fail2ban_custom_filters:
   - apache-badbots-jkl.conf
   - apache-brute-jkl.conf
   - apache-combined-jkl.conf
   - apache-jkl.conf
+  - apache-auth.conf
+  - apache-4xx.conf
   - gitea.conf
   - openvpn.conf
   - openvpn-standalone.conf
