@@ -4,15 +4,15 @@ ispconfig_profile:
     base:
       enabled: true
     ispconfig:
-      enabled: trrue
+      enabled: true
     gitea:
-      enabled: trrue
+      enabled: false
     openvpn:
       enabled: false
     ufw:
-      enabled: trrue
+      enabled: false
     wordpress:
-      enabled: trrue
+      enabled: true
 
 default_profile:
   fail2ban_jails:

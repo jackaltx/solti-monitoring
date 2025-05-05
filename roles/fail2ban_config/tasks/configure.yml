@@ -3,7 +3,8 @@
 # This section is about saving the pre-change configuration in git
 
 - name: Pre-update save configuration
-  include_tasks: git_versioning_pre.yml
+  ansible.builtin.include_tasks:
+    file: "../../shared/git/git_versioning_pre.yml"
   when: fail2ban_git_versioning.enabled | bool
   vars:
     versioning:
@@ -20,16 +21,14 @@
 
 # Generate fail2ban configuration files
 #
-# SMELL  REmove this block?
-#
-# - name: Configure fail2ban.conf
-#   template:
-#     src: fail2ban.conf.j2
-#     dest: /etc/fail2ban/fail2ban.conf
-#     owner: root
-#     group: root
-#     mode: 0644
-#   notify: restart fail2ban
+- name: Configure fail2ban.local
+  template:
+    src: fail2ban.local.j2
+    dest: /etc/fail2ban/fail2ban.local
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
 
 # .............................................................................
 # SMELL This one needs to be exactly like the current one on angela!!!!!
@@ -151,7 +150,8 @@
   changed_when: false
 
 - name: Save new configuration
-  include_tasks: git_versioning_post.yml
+  ansible.builtin.include_tasks:
+    file: "../../shared/git/git_versioning_post.yml"
   when: fail2ban_git_versioning.enabled | bool
   vars:
     versioning:
