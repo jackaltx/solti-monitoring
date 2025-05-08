@@ -57,19 +57,6 @@
   notify: restart fail2ban
 
 # .............................................................................
-# Create custom filter files if any
-
-- name: Create custom filter files
-  copy:
-    src: "filter.d/{{ item }}"
-    dest: "/etc/fail2ban/filter.d/{{ item }}"
-    owner: root
-    group: root
-    mode: 0644
-  loop: "{{ fail2ban_custom_filters | default([]) }}"
-  notify: restart fail2ban
-
-# .............................................................................
 
 - name: Configure fail2ban jails based on profiles
   block:
@@ -101,7 +88,6 @@
     # Note the flow.  build a list by
     #  looping over the profile dicionary (if enabled lool over jails)
     #
-    #  These are not really template files, but on thing a a time!!
     #
 
     - name: Build list of enabled jail files
@@ -126,6 +112,32 @@
         group: root
         mode: 0644
       loop: "{{ enabled_jail_files | default([]) }}"
+      notify: restart fail2ban
+
+    # Deploy the required filter files for the given jails
+
+    - name: Build list of enabled filter files
+      set_fact:
+        enabled_filter_files: "{{ enabled_filter_files | default([]) + profile.filters | default([]) }}"
+      loop: "{{ fail2ban_jails | dict2items }}"
+      loop_control:
+        loop_var: profile_item
+      vars:
+        profile: "{{ profile_item.value }}"
+      when: profile.enabled | bool
+
+    - name: Print list of filters
+      ansible.builtin.debug:
+        var: enabled_filter_files
+
+    - name: Deploy enabled filter files
+      copy:
+        src: "filter.d/{{ item }}"
+        dest: "/etc/fail2ban/filter.d/{{ item }}"
+        owner: root
+        group: root
+        mode: 0644
+      loop: "{{ enabled_filter_files | default([]) }}"
       notify: restart fail2ban
 
     # Log which profiles are enabled for documentation
