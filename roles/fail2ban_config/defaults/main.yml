@@ -56,7 +56,9 @@ fail2ban_jail_defaults:
 
 # All jails are in the jail.d directory and managed by profile
 
-#This sets the main strucutre
+# This a is a dictionary of capability groups than may be configured.
+# It includes jails and the filters
+
 fail2ban_jails:
   base:
     enabled: true
@@ -72,35 +74,57 @@ fail2ban_jails:
       - ispconfig-apache.conf
       - mail-svc.conf
       - pure-ftpd.conf
+    filters:
+      - apache-4xx.conf
+      - apache-auth.conf
+      - apache-malicious.conf
+      - named-amplification.conf
+      - named-ddos.conf
+      - named-denied-custom.conf
   gitea:
     enabled: false
     description: "Code repository protection"
     jails:
+      - gitea.conf
+    filters:
       - gitea.conf
   openvpn:
     enabled: false
     description: "Openvpn server protection"
     jails:
       - openvpn.conf
+    filters:
+      - openvpn.conf
+      - openvpn-standalone.conf
   ufw:
     enabled: false
-    description: "Network protection (TBD)"
+    description: "Network protection"
     jails:
+      - ufw-probe.conf
+    filters:
       - ufw-probe.conf
   wordpress:
     enabled: false
-    description: "Wordpress protection "
+    description: "Wordpress protection"
     jails:
       - wordpress.conf
+    filters:
+      - wordpress.conf
+      - wordpress-extra.conf
+      - wordpress-hard.conf
+      - wordpress-soft.conf
+      - wordpress-vhost.conf
+      - wp-exploits.conf
 
+#............................................
 fail2ban_custom_filters:
-  - apache-badbots-jkl.conf
-  - apache-brute-jkl.conf
-  - apache-combined-jkl.conf
-  - apache-jkl.conf
-  - apache-auth.conf
   - apache-4xx.conf
+  - apache-auth.conf
+  - apache-malicious.conf
   - gitea.conf
+  - named-amplification.conf
+  - named-ddos.conf
+  - named-denied-custom.conf
   - openvpn.conf
   - openvpn-standalone.conf
   - ufw-probe.conf
