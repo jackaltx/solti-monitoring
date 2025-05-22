@@ -1,6 +1,9 @@
 # SOLTI Monitoring Collection
 
-A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
+
+A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. It adds in fail2ban for stand-alone detection/response. There is preliminary work on a WAZUH client for cluster monitoring.
+
+This goal of this collection is to provided tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
 
 ## What is SOLTI?
 
@@ -11,13 +14,15 @@ solti/
 ├── solti-monitor/      # System monitoring and metrics collection (this project)
 ├── solti-conductor/    # Proxmox management and orchestration
 ├── solti-ensemble/     # Support tools and shared utilities
-├── solti-containers/   # Support containers for testing
-└── solti-score/        # Documentation and playbooks
+├── solti-containers/   # Support containers for testing (Minio, Vault, Mattermost, ...)
+└── solti-score/        # Documentation and playbooks (private only for now)
 ```
 
 ## Architecture Overview
 
-The collection is built around two parallel monitoring pipelines with comprehensive testing frameworks:
+The collection is built around parallel monitoring pipelines with comprehensive testing frameworks. 
+
+Recently the project started to focus on "active response" technologies.
 
 ### Monitoring Pipelines
 
@@ -49,6 +54,15 @@ The collection is built around two parallel monitoring pipelines with comprehens
   - `manage-svc.sh`: Service lifecycle management
   - `svc-exec.sh`: Task-oriented service operations
   - Integration test runners and reporting tools
+
+### Active Response 
+
+- ** Fail2Ban
+  - xxx
+  - 
+
+- ** Wazuh Client
+  - xxx   
 
 ## Getting Started
 
