@@ -1,4 +1,4 @@
-# SOLTI Monitoring Collection
+# Ansible Collection - jackaltx.solti_monitoring
 
 A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
 
@@ -23,14 +23,14 @@ The collection is built around two parallel monitoring pipelines with comprehens
 
 #### Metrics Pipeline
 
-- **Telegraf** (Client): Collects system and application metrics
-- **InfluxDB** (Server): Stores time-series metrics data
+- **[Telegraf](roles/telegraf/README.md)** (Client): Collects system and application metrics
+- **[InfluxDB](roles/influxdb/README.md)** (Server): Stores time-series metrics data
 - Supports customizable input plugins and multiple output configurations
 
 #### Logging Pipeline
 
-- **Alloy** (Client): Collects and forwards system and application logs
-- **Loki** (Server): Stores and indexes log data
+- **[Alloy](roles/alloy/README.md)** (Client): Collects and forwards system and application logs
+- **[Loki](roles/loki/README.md)** (Server): Stores and indexes log data
 - Flexible configuration for various log sources and filtering
 
 ### Testing Framework
@@ -65,54 +65,71 @@ The collection is built around two parallel monitoring pipelines with comprehens
 
 ### Installation
 
-1. Clone the repository:
-
 ```bash
-git clone https://github.com/your-org/solti-monitoring.git
-cd solti-monitoring
+ansible-galaxy collection install jackaltx.solti_monitoring
 ```
 
-2. Install collection dependencies:
+## Core Roles
 
-```bash
-ansible-galaxy collection install -r requirements.yml
-```
+### Server Components
 
-3. Set up testing environment (optional):
+#### [InfluxDB](roles/influxdb/README.md)
 
-```bash
-# For Proxmox testing
-source ./solti-init.sh
-```
+**Time Series Database for Metrics Storage** - Automated InfluxDB v2.x installation with bucket management, token-based authentication, and support for both local disk and S3-compatible storage. Includes initial setup, organization configuration, and integration preparation for Telegraf clients.
+
+#### [Loki](roles/loki/README.md)
+
+**Log Aggregation System** - Horizontally-scalable log storage with label-based indexing. Supports local filesystem, NFS mounts, and S3-compatible object storage. Designed for cost-effective operation without full-text indexing, focusing on efficient label-based queries.
+
+### Client Components
+
+#### [Telegraf](roles/telegraf/README.md)
+
+**Metrics Collection Agent** - Collects system and application metrics with support for multiple input plugins (CPU, memory, disk, network, Apache, MySQL, Redis, Memcached). Configurable outputs to multiple InfluxDB instances with automatic token discovery for local installations.
+
+#### [Alloy](roles/alloy/README.md)
+
+**Log Collection Agent** - Modern log collector based on Grafana Alloy. Supports systemd journal, file sources, and application-specific log parsing for Apache, Bind9, Fail2ban, mail services, WireGuard, and Gitea. Includes multi-line log support and label enrichment.
+
+### Support Components
+
+#### [NFS Client](roles/nfs-client/README.md)
+
+**NFS Storage Support** - Manages NFS client installation and mount configuration with optimized mount options for monitoring components. Supports multiple shares and cross-platform compatibility.
+
+### Testing & Verification
+
+#### [Log Tests](roles/log_tests/README.md)
+
+**Log Pipeline Verification** - Comprehensive testing for the Loki-Alloy log collection stack. Validates service connectivity, data flow, query capabilities, and generates detailed integration reports.
+
+#### [Metrics Tests](roles/metrics_tests/README.md)
+
+**Metrics Pipeline Verification** - Integration testing for the InfluxDB-Telegraf metrics collection stack. Verifies data ingestion, query functionality, bucket configuration, and health status.
+
+### Security & Configuration Management
+
+#### [Fail2Ban Config](roles/fail2ban_config/README.md)
+
+**Fail2Ban with Git Versioning** - Manages Fail2Ban with integrated Git-based configuration tracking. Provides complete version control of security configurations with automatic commits, rollback capabilities, and compliance audit trails.
+
+#### [Wazuh Agent](roles/wazuh_agent/README.md)
+
+**Security Monitoring Agent** - Comprehensive Wazuh agent management with deployment profiles (isolated, internal, internet_facing, ispconfig), intelligent service detection, Git-based configuration versioning, and container environment support.
 
 ## Deployment Patterns
 
 ### Quick Deploy with Utility Scripts
 
-This pattern is very repetitive, so using a geneator to create and execute a playbook
-is relatively easy.
-
 ```bash
 $ ./manage-svc.sh 
-Error: Incorrect number of arguments
 Usage: manage-svc.sh [-h HOST] <service> <action>
 
-Options:
-  -h HOST    Target host from inventory (default: uses hosts defined in role)
-
-Services:
-  - loki
-  - alloy
-  - influxdb
-  - telegraf
-
-Actions:
-  - remove
-  - install
+Services: loki, alloy, influxdb, telegraf
+Actions: remove, install, deploy, prepare
 ```
 
-There are two ways to deploy, either use the inventory
-default file groups: "ServiceNmae"_svc.
+Deploy using inventory default groups:
 
 ```bash
 # Deploy a metrics server
@@ -122,7 +139,7 @@ default file groups: "ServiceNmae"_svc.
 ./manage-svc.sh loki deploy
 ```
 
-Or designate a host or inventory group using -h option
+Or target specific hosts:
 
 ```bash
 # Deploy clients to specific hosts
@@ -143,13 +160,14 @@ Or designate a host or inventory group using -h option
         
     - role: loki
       vars:
-        loki_local_storage: true  # For testing/development
+        loki_local_storage: true
 
 - name: Deploy Monitoring Agents
   hosts: all_servers
   roles:
     - role: telegraf
       vars:
+        telegraf_outputs: ['central']
         telgraf2influxdb_configs:
           central:
             url: "http://monitoring.example.com:8086"
@@ -159,123 +177,11 @@ Or designate a host or inventory group using -h option
             
     - role: alloy
       vars:
-        alloy_loki_endpoint: "monitoring.example.com:3100"
-        alloy_monitor_apache: true  # Enable Apache log collection
+        alloy_loki_endpoints:
+          - label: main
+            endpoint: "monitoring.example.com"
+        alloy_monitor_apache: true
 ```
-
-## Role Documentation
-
-### Server Components
-
-- [InfluxDB](roles/influxdb/README.md) - Time series database for metrics storage
-  - Local and NFS storage options
-  - Token-based authentication
-  - Bucket management
-
-- [Loki](roles/loki/README.md) - Horizontally-scalable log aggregation system
-  - Local filesystem or S3-compatible storage
-  - Label-based indexing
-  - Query optimization
-
-### Client Components
-
-- [Telegraf](roles/telegraf/README.md) - Agent for collecting, processing, and reporting metrics
-  - Multiple input plugin support
-  - Configurable outputs
-  - Low overhead collection
-
-- [Alloy](roles/alloy/README.md) - Log collection agent based on Grafana Alloy
-  - Journal and file source support
-  - Preprocessing and filtering
-  - Multi-target forwarding
-
-### Support Components
-
-- [NFS Client](roles/nfs-client/README.md) - NFS storage support for monitoring components
-  - Optimized mount configurations
-  - Cross-platform support
-
-### Testing Components
-
-- [log_tests](roles/log_tests/README.md) - Verification for log collection stack
-  - Connection testing
-  - Log ingestion verification
-  - Query validation
-
-- [metrics_tests](roles/metrics_tests/README.md) - Verification for metrics collection stack
-  - Service status verification
-  - Data flow validation
-  - Health checks
-
-## Testing Infrastructure
-
-### Molecule Framework
-
-Multiple test scenarios are available for comprehensive verification:
-
-- **GitHub**: CI-focused testing with Podman containers
-  - Quick validation of core functionality
-  - Parallelized component testing
-  - Artifact generation
-
-- **Podman**: Local container-based testing
-  - Rapid development feedback
-  - Multi-distribution testing
-  - Network isolation testing
-
-- **Proxmox**: Full stack VM-based testing
-  - Real-world deployment simulation
-  - Performance testing
-  - Long-running stability tests
-
-### Running Tests
-
-```bash
-# Quick local tests with Podman
-./run-podman-tests.sh
-
-# Complete environment tests with Proxmox
-./run-proxmox-tests.sh
-
-# Integration tests across components
-./run-integration-tests.sh
-
-# Unit tests for individual roles
-./run-unit-tests.sh
-```
-
-### Verification System
-
-The multi-layered verification system provides confidence in the deployment:
-
-1. **Base Level (Level 0)**: Core service functionality
-   - Service running status
-   - Port accessibility
-   - Basic configuration
-
-2. **Integration Level (Level 1)**: Component interaction
-   - Client-server communication
-   - Data flow verification
-   - Authentication validation
-
-3. **Extended Level (Level 2)**: Advanced functionality
-   - Performance metrics
-   - Error handling
-   - Edge case testing
-
-```bash
-# Run verification for Loki
-./svc-exec.sh loki verify
-
-# Run extended verification
-./svc-exec.sh loki verify1
-
-# Run specific tasks
-./svc-exec.sh influxdb backup
-```
-
-Note:This pattern is very handy for executing any yaml task file in the role's task directory.
-So look inside each role for little handy surprises.
 
 ## Advanced Configuration
 
@@ -335,78 +241,96 @@ telgraf2influxdb_configs:
 #### Alloy with Advanced Log Collection
 
 ```yaml
-alloy_loki_endpoint: "loki.example.com"
+alloy_loki_endpoints:
+  - label: main
+    endpoint: "loki.example.com"
 alloy_monitor_apache: true
 alloy_monitor_fail2ban: true
 alloy_monitor_mail: true
 alloy_monitor_bind9: true
 ```
 
-## Development and Contributing
+## Testing Infrastructure
 
-### Development Workflow
+### Molecule Framework
 
-1. Fork the repository
-2. Set up local testing environment
-3. Make changes and run tests:
+Multiple test scenarios are available for comprehensive verification:
 
-   ```bash
-   molecule test -s podman
-   ```
+- **GitHub**: CI-focused testing with Podman containers
+- **Podman**: Local container-based testing  
+- **Proxmox**: Full stack VM-based testing
 
-4. Submit a pull request with test results
+### Running Tests
 
-### Code Organization
+```bash
+# Quick local tests with Podman
+./run-podman-tests.sh
 
-```
-solti-monitoring/
-├── roles/                  # Core component roles
-├── molecule/               # Test scenarios
-│   ├── github/             # GitHub CI tests
-│   ├── podman/             # Container tests
-│   ├── proxmox/            # VM tests
-│   └── shared/             # Shared test resources
-├── playbooks/              # Example playbooks
-├── group_vars/             # Variable definitions
-├── *.sh                    # Utility scripts
-└── verify_output/          # Test results
+# Complete environment tests with Proxmox
+./run-proxmox-tests.sh
+
+# Integration tests across components
+./run-integration-tests.sh
 ```
 
-## Known Limitations
+### Verification System
 
-1. Operating System Support
-   - Primary support for Debian 11/12
-   - Experimental Rocky Linux 9 support
-   - Other distributions may require adaptation
+The multi-layered verification system provides confidence in deployment:
 
-2. Storage Backends
-   - InfluxDB: Local or NFS storage
-   - Loki: Local or S3-compatible storage
+1. **Level 0**: Core service functionality
+2. **Level 1**: Component interaction  
+3. **Level 2**: Advanced functionality
 
-3. Authentication
-   - Basic token authentication implemented
-   - External authentication requires manual configuration
+```bash
+# Run verification for Loki
+./svc-exec.sh loki verify
 
-## Troubleshooting
+# Run extended verification
+./svc-exec.sh loki verify1
 
-- **Service fails to start**:
-  - Check logs with `journalctl -u <service-name>`
-  - Run verification: `./svc-exec.sh <service-name> verify`
+# Run specific tasks
+./svc-exec.sh influxdb backup
+```
 
-- **Connection issues between components**:
-  - Verify network connectivity
-  - Check port accessibility
-  - Run integration tests: `./run-integration-tests.sh`
+## Utility Scripts
 
-- **Data not appearing in queries**:
-  - Verify client configuration
-  - Check authentication tokens
-  - Examine service logs for ingestion errors
+### manage-svc.sh
+
+Service lifecycle management with dynamically generated playbooks.
+
+### svc-exec.sh  
+
+Task-oriented service operations for verification and maintenance.
+
+Both scripts provide convenient ways to manage the monitoring stack without manually creating playbooks.
+
+## Installation
+
+```bash
+ansible-galaxy collection install jackaltx.solti_monitoring
+```
+
+## Usage
+
+```yaml
+- hosts: monitoring_servers
+  roles:
+    - jackaltx.solti_monitoring.influxdb
+    - jackaltx.solti_monitoring.loki
+
+- hosts: monitored_servers  
+  roles:
+    - jackaltx.solti_monitoring.telegraf
+    - jackaltx.solti_monitoring.alloy
+```
 
 ## License
 
 MIT License - see the [LICENSE](LICENSE) file for details
 
-## Author Information
+## Authors
 
-Created and maintained by Jack Lavender with significant contributions from Claude (Anthropic). This project represents a collaborative effort combining practical infrastructure expertise with systematic documentation and architectural design.
+- **Jack Lavender** - Infrastructure automation and testing specialist
+- **Claude AI** - AI-powered development assistant
+
+This project represents a collaborative effort combining practical infrastructure expertise with systematic documentation and architectural design.
