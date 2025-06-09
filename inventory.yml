@@ -1,9 +1,9 @@
 ---
 all:
   vars:
-    domain: a0a0.org
+    domain: example.com
     mylab_nolog: "{{ cluster_secure_log | bool | default(true) }}"
-    ansible_user: lavender
+    ansible_user: my_local_provisioning_username
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
 
   children:
