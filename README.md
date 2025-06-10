@@ -1,176 +1,199 @@
-Ansible Collection - jackaltx.solti_monitoring
+# Ansible Collection - jackaltx.solti_monitoring
 
-A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. Part of the SOLTI (Systems Oriented Laboratory Testing & Integration) framework with advanced testing and utility script automation.
-What is SOLTI?
+A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. This collection provides tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
 
-Systems Oriented Laboratory Testing & Integration (SOLTI) is a suite of Ansible collections designed for defining and testing networked laboratory environments. The project emphasizes methodical testing, system behavior analysis, and component integration to combat entropy and maintain reliable systems.
+## What is SOLTI?
 
+**S**ystems **O**riented **L**aboratory **T**esting & **I**ntegration (SOLTI) is a suite of Ansible collections designed for defining and testing networked laboratory environments. The project emphasizes methodical testing, system behavior analysis, and component integration to combat entropy and maintain reliable systems.
+
+```
 solti/
-├── solti-monitoring/   # System monitoring and metrics collection (this project)
+├── solti-monitor/      # System monitoring and metrics collection (this project)
 ├── solti-conductor/    # Proxmox management and orchestration
 ├── solti-ensemble/     # Support tools and shared utilities
 ├── solti-containers/   # Support containers for testing
 └── solti-score/        # Documentation and playbooks
+```
 
-Architecture Overview
+## Architecture Overview
 
 The collection is built around two parallel monitoring pipelines with comprehensive testing frameworks:
-Monitoring Pipelines
-Metrics Pipeline
 
-    Telegraf (Client): Collects system and application metrics
-    InfluxDB (Server): Stores time-series metrics data
-    Supports customizable input plugins and multiple output configurations
+### Monitoring Pipelines
 
-Logging Pipeline
+#### Metrics Pipeline
 
-    Alloy (Client): Collects and forwards system and application logs
-    Loki (Server): Stores and indexes log data
-    Flexible configuration for various log sources and filtering
+- **[Telegraf](roles/telegraf/README.md)** (Client): Collects system and application metrics
+- **[InfluxDB](roles/influxdb/README.md)** (Server): Stores time-series metrics data
+- Supports customizable input plugins and multiple output configurations
 
-Testing Framework
+#### Logging Pipeline
 
-    Multi-Environment Testing: GitHub CI, Podman containers, Proxmox VMs
-    Verification System: Multi-level verification tasks for deep testing
-    Utility Scripts: Purpose-built scripts for efficient operations
-        manage-svc.sh: Service lifecycle management
-        svc-exec.sh: Task-oriented service operations
+- **[Alloy](roles/alloy/README.md)** (Client): Collects and forwards system and application logs
+- **[Loki](roles/loki/README.md)** (Server): Stores and indexes log data
+- Flexible configuration for various log sources and filtering
 
-AI-Powered Security Integration
+### Testing Framework
 
-Security roles include Claude AI integration for professional analysis:
+- **Molecule Testing**: Multiple test scenarios for different environments
+  - GitHub CI integration with Podman containers
+  - Proxmox VM testing for full-stack verification
+  - Local development testing with quick feedback loops
 
-    Git-Based Configuration Versioning: Complete audit trails
-    Intelligent Recommendations: AI-powered security assessments
-    Compliance Validation: Automated security framework alignment
+- **Verification System**: Multi-level verification tasks for deep testing
+  - Component-level verification
+  - Integration verification across components
+  - System-level verification of the entire stack
 
-Getting Started
-Prerequisites
+- **Utility Scripts**: Purpose-built scripts for efficient operations
+  - `manage-svc.sh`: Service lifecycle management
+  - `svc-exec.sh`: Task-oriented service operations
+  - Integration test runners and reporting tools
 
-    Ansible 2.9 or higher
-    Python 3.6 or higher
-    Supported platforms: Debian 11/12 (primary), Rocky Linux 9 (experimental)
-    For testing: Podman/Docker or Proxmox environment
+## Getting Started
 
-Installation
+### Prerequisites
 
-bash
+- Ansible 2.9 or higher
+- Python 3.6 or higher
+- For local testing:
+  - Podman or Docker (for container-based testing)
+  - Proxmox environment (for VM-based testing)
+- Supported platforms:
+  - Debian 11/12 (primary support)
+  - Rocky Linux 9 (experimental support)
 
+### Installation
+
+```bash
 ansible-galaxy collection install jackaltx.solti_monitoring
+```
 
-Core Roles
-Server Components
-InfluxDB
+## Core Roles
 
-Time Series Database for Metrics Storage - Automated InfluxDB v2.x installation with bucket management, token-based authentication, and support for both local disk and S3-compatible storage. Includes initial setup, organization configuration, and integration preparation for Telegraf clients.
-Loki
+### Server Components
 
-Log Aggregation System - Horizontally-scalable log storage with label-based indexing. Supports local filesystem, NFS mounts, and S3-compatible object storage. Designed for cost-effective operation without full-text indexing, focusing on efficient label-based queries.
-Client Components
-Telegraf
+#### [InfluxDB](roles/influxdb/README.md)
 
-Metrics Collection Agent - Collects system and application metrics with support for multiple input plugins (CPU, memory, disk, network, Apache, MySQL, Redis, Memcached). Configurable outputs to multiple InfluxDB instances with automatic token discovery for local installations.
-Alloy
+**Time Series Database for Metrics Storage** - Automated InfluxDB v2.x installation with bucket management, token-based authentication, and support for both local disk and S3-compatible storage. Includes initial setup, organization configuration, and integration preparation for Telegraf clients.
 
-Log Collection Agent - Modern log collector based on Grafana Alloy. Supports systemd journal, file sources, and application-specific log parsing for Apache, Bind9, Fail2ban, mail services, WireGuard, and Gitea. Includes multi-line log support and label enrichment.
-Support Components
-NFS Client
+#### [Loki](roles/loki/README.md)
 
-NFS Storage Support - Manages NFS client installation and mount configuration with optimized mount options for monitoring components. Supports multiple shares and cross-platform compatibility.
-Testing & Verification
-Log Tests
+**Log Aggregation System** - Horizontally-scalable log storage with label-based indexing. Supports local filesystem, NFS mounts, and S3-compatible object storage. Designed for cost-effective operation without full-text indexing, focusing on efficient label-based queries.
 
-Log Pipeline Verification - Comprehensive testing for the Loki-Alloy log collection stack. Validates service connectivity, data flow, query capabilities, and generates detailed integration reports.
-Metrics Tests
+### Client Components
 
-Metrics Pipeline Verification - Integration testing for the InfluxDB-Telegraf metrics collection stack. Verifies data ingestion, query functionality, bucket configuration, and health status.
-Security & Configuration Management
-Fail2Ban Config
+#### [Telegraf](roles/telegraf/README.md)
 
-Fail2Ban with Git Versioning - Manages Fail2Ban with integrated Git-based configuration tracking. Provides complete version control of security configurations with automatic commits, rollback capabilities, and compliance audit trails.
-Wazuh Agent
+**Metrics Collection Agent** - Collects system and application metrics with support for multiple input plugins (CPU, memory, disk, network, Apache, MySQL, Redis, Memcached). Configurable outputs to multiple InfluxDB instances with automatic token discovery for local installations.
 
-Security Monitoring Agent - Comprehensive Wazuh agent management with deployment profiles (isolated, internal, internet_facing, ispconfig), intelligent service detection, Git-based configuration versioning, and container environment support.
-Deployment Patterns
-Quick Deploy with Utility Scripts
+#### [Alloy](roles/alloy/README.md)
 
-bash
+**Log Collection Agent** - Modern log collector based on Grafana Alloy. Supports systemd journal, file sources, and application-specific log parsing for Apache, Bind9, Fail2ban, mail services, WireGuard, and Gitea. Includes multi-line log support and label enrichment.
 
-$ ./manage-svc.sh
+### Support Components
+
+#### [NFS Client](roles/nfs-client/README.md)
+
+**NFS Storage Support** - Manages NFS client installation and mount configuration with optimized mount options for monitoring components. Supports multiple shares and cross-platform compatibility.
+
+### Testing & Verification
+
+#### [Log Tests](roles/log_tests/README.md)
+
+**Log Pipeline Verification** - Comprehensive testing for the Loki-Alloy log collection stack. Validates service connectivity, data flow, query capabilities, and generates detailed integration reports.
+
+#### [Metrics Tests](roles/metrics_tests/README.md)
+
+**Metrics Pipeline Verification** - Integration testing for the InfluxDB-Telegraf metrics collection stack. Verifies data ingestion, query functionality, bucket configuration, and health status.
+
+### Security & Configuration Management
+
+#### [Fail2Ban Config](roles/fail2ban_config/README.md)
+
+**Fail2Ban with Git Versioning** - Manages Fail2Ban with integrated Git-based configuration tracking. Provides complete version control of security configurations with automatic commits, rollback capabilities, and compliance audit trails.
+
+#### [Wazuh Agent](roles/wazuh_agent/README.md)
+
+**Security Monitoring Agent** - Comprehensive Wazuh agent management with deployment profiles (isolated, internal, internet_facing, ispconfig), intelligent service detection, Git-based configuration versioning, and container environment support.
+
+## Deployment Patterns
+
+### Quick Deploy with Utility Scripts
+
+```bash
+$ ./manage-svc.sh 
 Usage: manage-svc.sh [-h HOST] <service> <action>
 
 Services: loki, alloy, influxdb, telegraf
 Actions: remove, install, deploy, prepare
+```
 
 Deploy using inventory default groups:
 
-bash
-
+```bash
 # Deploy a metrics server
-
 ./manage-svc.sh influxdb deploy
 
 # Deploy a log server
-
 ./manage-svc.sh loki deploy
+```
 
 Or target specific hosts:
 
-bash
-
+```bash
 # Deploy clients to specific hosts
-
 ./manage-svc.sh -h client01 telegraf deploy
 ./manage-svc.sh -h client01 alloy deploy
+```
 
-Complete Stack Deployment
+### Complete Stack Deployment
 
-yaml
-
+```yaml
 - name: Deploy Monitoring Server
   hosts: monitoring_servers
   roles:
-  - role: influxdb
+    - role: influxdb
       vars:
         influxdb_org: "myorg"
         influxdb_bucket: "metrics"
-
-  - role: loki
+        
+    - role: loki
       vars:
         loki_local_storage: true
 
 - name: Deploy Monitoring Agents
   hosts: all_servers
   roles:
-  - role: telegraf
+    - role: telegraf
       vars:
         telegraf_outputs: ['central']
         telgraf2influxdb_configs:
           central:
-            url: "<http://monitoring.example.com:8086>"
+            url: "http://monitoring.example.com:8086"
             token: "{{ influxdb_token }}"
             bucket: "telegraf"
             org: "myorg"
-
-  - role: alloy
+            
+    - role: alloy
       vars:
         alloy_loki_endpoints:
           - label: main
             endpoint: "monitoring.example.com"
         alloy_monitor_apache: true
+```
 
-Advanced Configuration
-Storage Configuration
-InfluxDB Storage Options
+## Advanced Configuration
 
-yaml
+### Storage Configuration
 
+#### InfluxDB Storage Options
+
+```yaml
 # Local storage (default)
-
 influxdb_data_path: /var/lib/influxdb
 
 # NFS storage
-
 influxdb_data_path: /mnt/nfs/influxdb
 mount_nfs_share: true
 cluster_nfs_mounts:
@@ -180,109 +203,134 @@ cluster_nfs_mounts:
     opts: "rw,noatime,bg"
     state: "mounted"
     fstype: "nfs4"
+```
 
-Loki Storage Options
+#### Loki Storage Options
 
-yaml
-
+```yaml
 # Local storage
-
 loki_local_storage: true
 
 # S3 storage
-
 loki_local_storage: false
 loki_endpoint: "s3.example.com"
 loki_s3_bucket: "loki-logs"
 loki_key_id: "ACCESS_KEY_ID"
 loki_access_key: "SECRET_ACCESS_KEY"
+```
 
-Testing Infrastructure
-Molecule Framework
+### Client Configuration Examples
 
-Multiple test scenarios for comprehensive verification:
+#### Telegraf with Multiple Outputs
 
-    GitHub: CI-focused testing with Podman containers
-    Podman: Local container-based testing
-    Proxmox: Full stack VM-based testing
+```yaml
+telegraf_outputs: ['central', 'local']
+telgraf2influxdb_configs:
+  central:
+    url: "https://central-monitoring.example.com"
+    token: "{{ central_token }}"
+    bucket: "telegraf"
+    org: "central"
+  local:
+    url: "http://localhost"
+    token: "{{ local_token }}"
+    bucket: "local_metrics"
+    org: "local"
+```
 
-Verification System
+#### Alloy with Advanced Log Collection
 
-Multi-layered verification provides deployment confidence:
+```yaml
+alloy_loki_endpoints:
+  - label: main
+    endpoint: "loki.example.com"
+alloy_monitor_apache: true
+alloy_monitor_fail2ban: true
+alloy_monitor_mail: true
+alloy_monitor_bind9: true
+```
 
-    Level 0: Core service functionality
-    Level 1: Component interaction
-    Level 2: Advanced functionality
+## Testing Infrastructure
 
-bash
+### Molecule Framework
 
+Multiple test scenarios are available for comprehensive verification:
+
+- **GitHub**: CI-focused testing with Podman containers
+- **Podman**: Local container-based testing  
+- **Proxmox**: Full stack VM-based testing
+
+### Running Tests
+
+```bash
+# Quick local tests with Podman
+./run-podman-tests.sh
+
+# Complete environment tests with Proxmox
+./run-proxmox-tests.sh
+
+# Integration tests across components
+./run-integration-tests.sh
+```
+
+### Verification System
+
+The multi-layered verification system provides confidence in deployment:
+
+1. **Level 0**: Core service functionality
+2. **Level 1**: Component interaction  
+3. **Level 2**: Advanced functionality
+
+```bash
 # Run verification for Loki
-
 ./svc-exec.sh loki verify
 
 # Run extended verification
-
 ./svc-exec.sh loki verify1
 
 # Run specific tasks
-
 ./svc-exec.sh influxdb backup
+```
 
-Utility Scripts
-manage-svc.sh
+## Utility Scripts
+
+### manage-svc.sh
 
 Service lifecycle management with dynamically generated playbooks.
-svc-exec.sh
+
+### svc-exec.sh  
 
 Task-oriented service operations for verification and maintenance.
 
 Both scripts provide convenient ways to manage the monitoring stack without manually creating playbooks.
-AI-Powered Security Analysis
 
-Security roles in this collection integrate with Claude AI for professional analysis:
+## Installation
 
-    Configuration Auditing: Automated security baseline assessment
-    Compliance Validation: Alignment with security frameworks
-    Intelligent Recommendations: AI-powered remediation guidance
-    Change Tracking: Git-based configuration versioning
-
-Want to try professional AI-powered security analysis? Sign up for Claude with my referral if ya want!
-Part of the SOLTI Ecosystem
-
-This collection is part of the broader SOLTI framework:
-
-    solti-monitoring: System monitoring and metrics collection (this collection)
-    solti-ensemble: Support tools and shared utilities
-    solti-conductor: Proxmox management and orchestration
-    solti-containers: Testing containers
-    solti-score: Documentation and playbooks
-
-Installation
-
-bash
-
+```bash
 ansible-galaxy collection install jackaltx.solti_monitoring
+```
 
-Usage
+## Usage
 
-yaml
-
+```yaml
 - hosts: monitoring_servers
   roles:
-  - jackaltx.solti_monitoring.influxdb
-  - jackaltx.solti_monitoring.loki
+    - jackaltx.solti_monitoring.influxdb
+    - jackaltx.solti_monitoring.loki
 
 - hosts: monitored_servers  
   roles:
-  - jackaltx.solti_monitoring.telegraf
-  - jackaltx.solti_monitoring.alloy
+    - jackaltx.solti_monitoring.telegraf
+    - jackaltx.solti_monitoring.alloy
+```
 
-License
+## License
 
-MIT License - see the LICENSE file for details
-Authors
+MIT License - see the [LICENSE](LICENSE) file for details
 
-    Jack Lavender - Infrastructure automation and testing specialist
-    Claude AI - AI-powered development assistant
+## Authors
+
+- **Jack Lavender** - Infrastructure automation and testing specialist
+- **Claude AI** - AI-powered development assistant
 
 This project represents a collaborative effort combining practical infrastructure expertise with systematic documentation and architectural design.
