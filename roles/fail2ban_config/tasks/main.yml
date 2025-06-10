@@ -1,0 +1,74 @@
+---
+# Main task handler for fail2ban role
+
+# Load OS-specific variables
+- name: Load OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+
+# Determine what to do based on fail2ban_state
+- name: Install or Configure fail2ban
+  when: fail2ban_state == "present" or fail2ban_state == "configure"
+  block:
+    - name: Load deployment profiles
+      include_vars: profiles.yml
+
+    - name: Set variables based on deployment profile
+      set_fact:
+        fail2ban_jails: "{{ fail2ban_jails | combine(lookup('vars', fail2ban_jail_profile + '_profile').fail2ban_jails, recursive=True) }}"
+      when: fail2ban_jail_profile is defined and fail2ban_jail_profile in ['default','ispconfig']
+
+    - name: Print configuration profile
+      ansible.builtin.debug:
+        var: fail2ban_jail_profile
+
+    - name: Print configuration profile
+      ansible.builtin.debug:
+        var: fail2ban_jails
+
+    # Install the package (idempotent)
+    - name: Install fail2ban
+      package:
+        name: fail2ban
+        state: present
+
+    # Configure fail2ban if in configure state
+    - name: Configure fail2ban
+      include_tasks: configure.yml
+      when: fail2ban_state == "configure"
+
+    # Ensure service is enabled and started
+    - name: Enable and start fail2ban service
+      service:
+        name: fail2ban
+        enabled: yes
+        state: started
+
+# Remove fail2ban if in absent state
+- name: Remove fail2ban
+  when: fail2ban_state == "absent"
+  block:
+    # Stop and disable service
+    - name: Stop and disable fail2ban service
+      service:
+        name: fail2ban
+        state: stopped
+        enabled: no
+      failed_when: false
+
+    # Backup configuration before removal
+    - name: Backup fail2ban configuration before removal
+      copy:
+        src: /etc/fail2ban/
+        dest: "/etc/fail2ban-backup-{{ ansible_date_time.iso8601 | regex_replace(':', '-') }}"
+        remote_src: yes
+      when: fail2ban_git_versioning.enabled | bool
+      ignore_errors: true
+
+    # Remove package
+    - name: Remove fail2ban package
+      package:
+        name: fail2ban
+        state: absent

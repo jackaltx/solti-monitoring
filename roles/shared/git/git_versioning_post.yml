@@ -1,0 +1,44 @@
+---
+# This file handles post-configuration git versioning for monitoring tools
+# It should be included after making configuration changes
+# Parameters:
+#   versioning.component_name: The name of the component being versioned (e.g., fail2ban)
+#   versioning.repository_path: Path to the git repository
+#   versioning.config_path: Path to the configuration files to be versioned
+#   versioning.commit_msg: Message template for commit messages
+
+# Note: The copying of updated files to the git repository is assumed to be done
+# before including this file, as it's component-specific
+
+# Commit updated configuration
+- name: Commit updated {{ versioning.component_name }} configuration
+  shell:
+    cmd: |
+      git add -A
+      git commit -m "{{ versioning.commit_msg | default('Configuration updated by Ansible on ' + ansible_date_time.iso8601) }}" || true
+    chdir: "{{ versioning.repository_path }}"
+  changed_when: false
+  ignore_errors: true # In case there are no changes to commit
+
+# Show configuration changes
+- name: Show {{ versioning.component_name }} configuration changes
+  shell:
+    cmd: git diff HEAD~1 HEAD
+    chdir: "{{ versioning.repository_path }}"
+  register: config_diff
+  changed_when: false
+  ignore_errors: true # In case there is only one commit
+
+# Display configuration changes
+- name: Display {{ versioning.component_name }} configuration changes
+  debug:
+    msg: "{{ config_diff.stdout_lines | default(['No changes or unable to determine changes']) }}"
+  when: config_diff.stdout is defined and config_diff.stdout != ""
+
+# Create tag for this change if specified
+- name: Create git tag for {{ versioning.component_name }} configuration
+  command:
+    cmd: git tag -a "{{ versioning.tag_name }}" -m "{{ versioning.tag_message | default('Configuration tag created by Ansible') }}"
+    chdir: "{{ versioning.repository_path }}"
+  when: versioning.tag_name is defined
+  changed_when: true

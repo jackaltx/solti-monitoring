@@ -1,0 +1,172 @@
+---
+# =====================================================================================================
+# This section is about saving the pre-change configuration in git
+
+- name: Pre-update save configuration
+  ansible.builtin.include_tasks:
+    file: "../../shared/git/git_versioning_pre.yml"
+  when: fail2ban_git_versioning.enabled | bool
+  vars:
+    versioning:
+      component_name: "fail2ban"
+      repository_path: "{{ fail2ban_git_versioning.repository_path }}"
+      config_path: "/etc/fail2ban"
+      manage_repository: "{{ fail2ban_git_versioning.manage_repository }}"
+
+# =====================================================================================================
+#
+#  Configure specic files:  fail2ban.conf,  jail.local, jail.d, filter.d
+#
+#  ..I do not want to replace the default conf at this time, but in case I have to, leave it in
+
+# Generate fail2ban configuration files
+#
+- name: Configure fail2ban.local
+  template:
+    src: fail2ban.local.j2
+    dest: /etc/fail2ban/fail2ban.local
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
+
+# .............................................................................
+# SMELL This one needs to be exactly like the current one on angela!!!!!
+
+- name: Configure jail.local
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
+
+# .............................................................................
+# Create action.d/abuseipdb.con for reporting
+# make this optional ??
+
+- name: Configure jail.local
+  when: fail2ban_abuseipdb_enabled
+  template:
+    src: abuseipdb.conf.j2
+    dest: /etc/fail2ban/action.d/abuseipdb.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
+
+# .............................................................................
+
+- name: Configure fail2ban jails based on profiles
+  block:
+    # First, ensure the jail.d directory exists
+    - name: Ensure jail.d directory exists
+      file:
+        path: /etc/fail2ban/jail.d
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    # Remove all current jail files except those with leading underscore
+    - name: Find current jail files
+      find:
+        paths: /etc/fail2ban/jail.d
+        patterns: "*.conf"
+        excludes: "_*.conf"
+      register: current_jail_files
+
+    - name: Remove current jail files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ current_jail_files.files }}"
+
+    # Deploy only the jail files from enabled profiles
+    #
+    # Note the flow.  build a list by
+    #  looping over the profile dicionary (if enabled lool over jails)
+    #
+    #
+
+    - name: Build list of enabled jail files
+      set_fact:
+        enabled_jail_files: "{{ enabled_jail_files | default([]) + profile.jails }}"
+      loop: "{{ fail2ban_jails | dict2items }}"
+      loop_control:
+        loop_var: profile_item
+      vars:
+        profile: "{{ profile_item.value }}"
+      when: profile.enabled | bool
+
+    - name: Print list of jails
+      ansible.builtin.debug:
+        var: enabled_jail_files
+
+    - name: Deploy enabled jail files
+      template:
+        src: "templates/jail.d/{{ item }}"
+        dest: "/etc/fail2ban/jail.d/{{ item }}"
+        owner: root
+        group: root
+        mode: 0644
+      loop: "{{ enabled_jail_files | default([]) }}"
+      notify: restart fail2ban
+
+    # Deploy the required filter files for the given jails
+
+    - name: Build list of enabled filter files
+      set_fact:
+        enabled_filter_files: "{{ enabled_filter_files | default([]) + profile.filters | default([]) }}"
+      loop: "{{ fail2ban_jails | dict2items }}"
+      loop_control:
+        loop_var: profile_item
+      vars:
+        profile: "{{ profile_item.value }}"
+      when: profile.enabled | bool
+
+    - name: Print list of filters
+      ansible.builtin.debug:
+        var: enabled_filter_files
+
+    - name: Deploy enabled filter files
+      copy:
+        src: "filter.d/{{ item }}"
+        dest: "/etc/fail2ban/filter.d/{{ item }}"
+        owner: root
+        group: root
+        mode: 0644
+      loop: "{{ enabled_filter_files | default([]) }}"
+      notify: restart fail2ban
+
+    # Log which profiles are enabled for documentation
+
+    - name: Log enabled fail2ban jail files
+      debug:
+        msg: |
+          Enabled fail2ban profiles: 
+          {% for profile_name, profile in fail2ban_jails.items() %}
+            {% if profile.enabled | bool %}
+          - {{ profile_name }}: {{ profile.description }}
+            {% endif %}
+          {% endfor %}
+
+# =====================================================================================================
+# This section is about saving the changed configuration in git
+
+- name: Copy updated fail2ban config files to Git repository
+  shell: |
+    cp -r /etc/fail2ban/* {{ fail2ban_git_versioning.repository_path }}/
+  when: fail2ban_git_versioning.enabled | bool
+  changed_when: false
+
+- name: Save new configuration
+  ansible.builtin.include_tasks:
+    file: "../../shared/git/git_versioning_post.yml"
+  when: fail2ban_git_versioning.enabled | bool
+  vars:
+    versioning:
+      component_name: "fail2ban"
+      repository_path: "{{ fail2ban_git_versioning.repository_path }}"
+      commit_msg: "{{ fail2ban_git_versioning.commit_msg }}"

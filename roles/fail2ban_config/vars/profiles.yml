@@ -1,0 +1,22 @@
+---
+#  This is used to build installable profiles
+
+ispconfig_profile:
+  fail2ban_jails:
+    base:
+      enabled: true
+    ispconfig:
+      enabled: true
+    gitea:
+      enabled: false
+    openvpn:
+      enabled: false
+    ufw:
+      enabled: false
+    wordpress:
+      enabled: true
+
+default_profile:
+  fail2ban_jails:
+    base:
+      enabled: true

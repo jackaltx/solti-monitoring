@@ -1,0 +1,140 @@
+---
+# Agent state control
+fail2ban_state: present # Options: present, configure, absent
+
+# Deployment profile - determines default security and logging settings
+# Options: default, ispconfig
+fail2ban_jail_profile: "default"
+
+# Smell, default to false and do better on key
+fail2ban_abuseipdb_enabled: false
+
+fail2ban_abuseipdb_api: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  35323830333031646165666137386336653966633132363564623037373933366339363034346563
+  3232316132663166373764623363383930653631343631310a636535303134386137383161656630
+  66626134313838633961396536643935313636363762366132353837373036373964356536353637
+  3362646564353338650a626439626439303533666366366163383731613464633336313731656332
+  36613265363637396266303836653532366534333536333732313931346331643031346662613161
+  32653630353064363862393866323735396533663831313535313030626536653638656138373366
+  34666164626430376137636365643563633662373834396434363361306138643434663431636562
+  37363362303530663130366362396136356466356533306664363138326565356433623136656238
+  6433
+
+# Git versioning
+fail2ban_git_versioning:
+  enabled: yes
+  repository_path: "/opt/solti-repo/fail2ban"
+  commit_msg: "Configuration updated by Ansible on {{ ansible_date_time.iso8601 }}"
+  manage_repository: yes # Should the role create/init the git repo if missing?
+
+# Main fail2ban configuration
+# Claude:  fix the fail2ban.local.j2 to allow these as optional arguments
+# I want to keep the system defaults where I need to (like log level and allow_ipv5 )
+fail2ban_config:
+  loglevel: WARNING
+  allowipv6: auto
+  logtarget: /var/log/fail2ban.log
+  syslogsocket: auto
+  socket: /var/run/fail2ban/fail2ban.sock
+  pidfile: /var/run/fail2ban/fail2ban.pid
+  dbfile: /var/lib/fail2ban/fail2ban.sqlite3
+  dbpurgeage: 86400 # 1 day
+  dbmaxmatches: 10
+
+# Default jail settings taken from angela
+fail2ban_jail_defaults:
+  ignoreip: 127.0.0.1/8 ::1
+  bantime: 60m
+  findtime: 30m
+  maxretry: 3
+  bantime_increment: true
+  bantime_rndtime: 30m
+  bantime_maxtime: 30d
+  bantime_factor: 2
+  bantime_overalljails: true
+
+# All jails are in the jail.d directory and managed by profile
+
+# This a is a dictionary of capability groups than may be configured.
+# It includes jails and the filters
+
+fail2ban_jails:
+  base:
+    enabled: true
+    description: "Core protection for SSH and repeat offenders"
+    jails:
+      - sshd.conf
+      - recidive.conf
+  ispconfig:
+    enabled: false
+    description: "ISPconfig services protection"
+    jails:
+      - apache-default.conf
+      - ispconfig-apache.conf
+      - mail-svc.conf
+      - pure-ftpd.conf
+    filters:
+      - apache-4xx.conf
+      - apache-auth.conf
+      - apache-malicious.conf
+      - named-amplification.conf
+      - named-ddos.conf
+      - named-denied-custom.conf
+  gitea:
+    enabled: false
+    description: "Code repository protection"
+    jails:
+      - gitea.conf
+    filters:
+      - gitea.conf
+  openvpn:
+    enabled: false
+    description: "Openvpn server protection"
+    jails:
+      - openvpn.conf
+    filters:
+      - openvpn.conf
+      - openvpn-standalone.conf
+  ufw:
+    enabled: false
+    description: "Network protection"
+    jails:
+      - ufw-probe.conf
+    filters:
+      - ufw-probe.conf
+  wordpress:
+    enabled: false
+    description: "Wordpress protection"
+    jails:
+      - wordpress.conf
+    filters:
+      - wordpress.conf
+      - wordpress-extra.conf
+      - wordpress-hard.conf
+      - wordpress-soft.conf
+      - wordpress-vhost.conf
+      - wp-exploits.conf
+
+#............................................
+fail2ban_custom_filters:
+  - apache-4xx.conf
+  - apache-auth.conf
+  - apache-malicious.conf
+  - gitea.conf
+  - named-amplification.conf
+  - named-ddos.conf
+  - named-denied-custom.conf
+  - openvpn.conf
+  - openvpn-standalone.conf
+  - ufw-probe.conf
+  - wordpress.conf
+  - wordpress-extra.conf
+  - wordpress-hard.conf
+  - wordpress-soft.conf
+  - wordpress-vhost.conf
+  - wp-exploits.conf
+
+# Services that should be automatically enabled and started
+fail2ban_services:
+  - fail2ban
