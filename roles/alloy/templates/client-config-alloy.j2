@@ -67,13 +67,13 @@ loki.relabel "journal" {
 
 
 // =======================================================================================
-loki.source.journal "read"  {
-  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
-  relabel_rules = loki.relabel.journal.rules
-  max_age       = "12h"
-  path          = "/var/log/journal"
-  labels        = {component = "loki.source.journal"}
-}
+// loki.source.journal "read"  {
+//   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+//   relabel_rules = loki.relabel.journal.rules
+//   max_age       = "12h"
+//   path          = "/var/log/journal"
+//   labels        = {component = "loki.source.journal"}
+// }
 
 {# Then create write sections for each endpoint #}
 {% for endpoint in alloy_loki_endpoints %}
