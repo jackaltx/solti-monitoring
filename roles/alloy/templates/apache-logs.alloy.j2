@@ -33,12 +33,6 @@ local.file_match "apache_error" {
     host        = "{{ ansible_hostname }}",
     job         = "apache",
     label       = "httpd_error",
-  }, {
-    __address__ = "localhost",
-    __path__    = "/var/log/ispconfig/httpd/*/error.log",
-    host        = "{{ ansible_hostname }}",
-    job         = "apache",
-    label       = "httpd_error",
   }]
 }
 
