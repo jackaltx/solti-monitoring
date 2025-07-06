@@ -1,9 +1,9 @@
 // =======================================================================================
 // Bind9 DNS server logs collection configuration for Alloy
-// Updated to also collect from systemd journal in addition to log files
+// Journal-only configuration (no log files)
 
 // =======================================================================================
-// Journal source for Bind9 logs (ISPConfig compatibility)
+// Journal source for Bind9 logs
 loki.relabel "bind9_journal" {
   forward_to = []
   
@@ -29,8 +29,8 @@ loki.relabel "bind9_journal" {
   }
   
   rule {
-    target_label = "label"
-    replacement = "dns_journal"
+    target_label = "log_type"
+    replacement = "dns"
   }
 }
 
@@ -38,11 +38,38 @@ loki.relabel "bind9_journal" {
 loki.process "bind9_journal_logs" {
   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
   
-  // Extract log message patterns
+  // Set default log level
+  stage.labels {
+    values = {
+      log_level = "info",
+    }
+  }
+  
+  // Override log level for warnings/errors
+  stage.match {
+    selector = "{severity=\"warning\"}"
+    stage.labels {
+      values = {
+        log_level = "warning",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{severity=\"error\"}"
+    stage.labels {
+      values = {
+        log_level = "error",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Zone operations
   stage.match {
     selector = "{job=\"bind9\"} |~ \"zone\""
     stage.regex {
-      expression = "zone (?P<zone>[^ :]+)"
+      expression = "zone (?P<zone>[^/\\s:]+)"
     }
     stage.labels {
       values = {
@@ -52,35 +79,147 @@ loki.process "bind9_journal_logs" {
     }
   }
   
-  // Detect query patterns
+  // Zone loading events
+  stage.match {
+    selector = "{event_type=\"zone_operation\"} |~ \"loaded\""
+    stage.labels {
+      values = {
+        zone_action = "loaded",
+      }
+    }
+  }
+  
+  // Zone refresh events
+  stage.match {
+    selector = "{event_type=\"zone_operation\"} |~ \"refresh\""
+    stage.labels {
+      values = {
+        zone_action = "refresh",
+      }
+    }
+  }
+  
+  // DNSSEC signed zones
+  stage.match {
+    selector = "{event_type=\"zone_operation\"} |~ \"DNSSEC signed\""
+    stage.labels {
+      values = {
+        zone_action = "dnssec_signed",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Transfer operations
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"transfer of\""
+    
+    // Extract client, zone, and transfer type
+    stage.regex {
+      expression = "client [^\\s]+ (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: transfer of '(?P<zone>[^']+)': (?P<transfer_details>.*)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "transfer",
+        client_ip = null,
+        zone = null,
+        transfer_details = null,
+      }
+    }
+  }
+
+  // Detect transfer types
+  stage.match {
+    selector = "{event_type=\"transfer\", transfer_details=~\".*AXFR.*\"}"
+    stage.labels {
+      values = {
+        transfer_type = "AXFR",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{event_type=\"transfer\", transfer_details=~\".*IXFR.*\"}"
+    stage.labels {
+      values = {
+        transfer_type = "IXFR",
+      }
+    }
+  }
+
+  // Detect transfer status
+  stage.match {
+    selector = "{event_type=\"transfer\", transfer_details=~\".*started.*\"}"
+    stage.labels {
+      values = {
+        transfer_status = "started",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{event_type=\"transfer\", transfer_details=~\".*ended.*\"}"
+    stage.labels {
+      values = {
+        transfer_status = "ended",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Notify operations
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"received notify\""
+    stage.regex {
+      expression = "client [^\\s]+ (?P<client_ip>[^#]+)#(?P<client_port>\\d+): received notify for zone '(?P<zone>[^']+)'"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "notify",
+        notify_direction = "inbound",
+        client_ip = null,
+        zone = null,
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"sending notifies\""
+    stage.regex {
+      expression = "zone (?P<zone>[^/\\s:]+).*sending notifies.*serial (?P<serial>\\d+)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "notify",
+        notify_direction = "outbound",
+        zone = null,
+        serial = null,
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Query operations (if logged)
   stage.match {
     selector = "{job=\"bind9\"} |~ \"query\""
     stage.regex {
-      expression = "query:.*(?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?P<query_flags>.*)"
+      expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: query:.*(?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?P<query_flags>.*)"
     }
     stage.labels {
       values = {
         event_type = "query",
+        client_ip = null,
         query_domain = null,
         query_type = null,
       }
     }
   }
   
-  // Detect client information when present
-  stage.match {
-    selector = "{job=\"bind9\"} |~ \"client\""
-    stage.regex {
-      expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)"
-    }
-    stage.labels {
-      values = {
-        client_ip = null,
-      }
-    }
-  }
-  
-  // Detect DNSSEC operations
+  // =======================================================================================
+  // DNSSEC operations
   stage.match {
     selector = "{job=\"bind9\"} |~ \"DNSSEC|key|signing|verify\""
     stage.labels {
@@ -90,24 +229,93 @@ loki.process "bind9_journal_logs" {
     }
   }
   
-  // Detect transfers
+  // Managed keys
   stage.match {
-    selector = "{job=\"bind9\"} |~ \"transfer|AXFR|IXFR\""
+    selector = "{job=\"bind9\"} |~ \"managed-keys-zone\""
+    stage.regex {
+      expression = "managed-keys-zone: Key (?P<key_id>\\d+) for zone (?P<zone>[^\\s]+) is now (?P<key_status>[^\\s]+)"
+    }
+    
     stage.labels {
       values = {
-        event_type = "transfer",
+        event_type = "dnssec",
+        dnssec_action = "managed_key",
+        zone = null,
+        key_id = null,
+        key_status = null,
       }
     }
   }
   
-  // Detect security events
+  // =======================================================================================
+  // Security events
   stage.match {
     selector = "{job=\"bind9\"} |~ \"denied|refused|TSIG|security\""
     stage.labels {
       values = {
         event_type = "security",
+        alert_level = "medium",
       }
     }
+  }
+  
+  // =======================================================================================
+  // Server operations
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"starting|exiting|shutting down|running|reloading\""
+    stage.labels {
+      values = {
+        event_type = "server_operation",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{event_type=\"server_operation\"} |~ \"reloading configuration succeeded\""
+    stage.labels {
+      values = {
+        server_action = "config_reload",
+        status = "success",
+      }
+    }
+  }
+  
+  stage.match {
+    selector = "{event_type=\"server_operation\"} |~ \"running\""
+    stage.labels {
+      values = {
+        server_action = "started",
+        status = "running",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Configuration issues
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"has no address records\""
+    stage.regex {
+      expression = "zone ([^/]+)/IN: ([^']+)'([^']+)' has no address records"
+    }
+    stage.labels {
+      values = {
+        event_type = "config_warning",
+        warning_type = "missing_address_records",
+        alert_level = "low",
+      }
+    }
+  }
+  
+  // =======================================================================================
+  // Drop noisy automatic empty zone messages
+  stage.match {
+    selector = "{job=\"bind9\"} |~ \"automatic empty zone\""
+    action = "drop"
+  }
+  
+  // Clean up labels to reduce cardinality
+  stage.label_drop {
+    values = ["client_port", "transfer_details", "query_flags"]
   }
 }
 
@@ -118,539 +326,3 @@ loki.source.journal "bind9_journal_source" {
   max_age = "12h"
   labels = {component = "loki.source.journal.bind9"}
 }
-
-// =======================================================================================
-// Define file match pattern for Bind9 log files - updated with correct paths
-local.file_match "bind9_general" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/general.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_general",
-  }]
-}
-
-local.file_match "bind9_queries" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/query.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_query",
-  }]
-}
-
-local.file_match "bind9_dnssec" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/dnssec.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_dnssec",
-  }]
-}
-
-local.file_match "bind9_security" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/security.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_security",
-  }]
-}
-
-local.file_match "bind9_transfers" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/transfers.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_transfer",
-  }]
-}
-
-local.file_match "bind9_notify" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/bind/notify.log",
-    host        = "angela",
-    job         = "bind9",
-    label       = "dns_notify",
-  }]
-}
-
-// =======================================================================================
-// Process pipeline for Bind9 general logs
-loki.process "bind9_general_logs" {
-  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
-
-  // Basic Bind9 log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?P<severity>\\w+): (?P<category>\\w+): (?P<message>.*)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      severity = null,
-      category = null,
-    }
-  }
-  
-  // Zone loading events
-  stage.match {
-    selector = "{message=~\"loaded zone\"}"
-    stage.regex {
-      expression = "loaded zone '(?P<zone>[^']+)'"
-    }
-    stage.labels {
-      values = {
-        event_type = "zone_load",
-      }
-    }
-  }
-  
-  // Zone refresh events
-  stage.match {
-    selector = "{message=~\"zone.*refresh\"}"
-    stage.regex {
-      expression = "zone (?P<zone>[^:]+)"
-    }
-    stage.labels {
-      values = {
-        event_type = "zone_refresh",
-      }
-    }
-  }
-  
-  // Configuration issues
-  stage.match {
-    selector = "{message=~\"bad zone\"}"
-    stage.labels {
-      values = {
-        config_issue = "true",
-      }
-    }
-  }
-  
-  // Server operations
-  stage.match {
-    selector = "{message=~\"starting|exiting|shutting down\"}"
-    stage.labels {
-      values = {
-        event_type = "server_operation",
-      }
-    }
-  }
-  
-  // NXDOMAIN responses
-  stage.match {
-    selector = "{message=~\"NXDOMAIN\"}"
-    stage.labels {
-      values = {
-        dns_response = "nxdomain",
-      }
-    }
-  }
-  
-  // SERVFAIL responses
-  stage.match {
-    selector = "{message=~\"SERVFAIL\"}"
-    stage.labels {
-      values = {
-        dns_response = "servfail",
-      }
-    }
-  }
-  
-  // Drop some routine log entries to reduce noise
-  stage.match {
-    selector = "{severity=\"info\", message=~\"success\"}"
-    action   = "drop"
-  }
-}
-
-// =======================================================================================
-// Process pipeline for query logs
-loki.process "bind9_query_logs" {
-  forward_to = [loki.write.monitor11.receiver]
-  
-  // Query log format
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?:client|query)[ :]+(?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: (?P<query_info>.+)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      client_ip = null,
-    }
-  }
-  
-  // Extract query details
-  stage.regex {
-    source = "query_info"
-    expression = "(?P<query_domain>[^ ]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?P<query_flags>.*)"
-  }
-  
-  // Track common record types
-  stage.match {
-    selector = "{query_type=\"A\"}"
-    stage.labels {
-      values = {
-        query_type = "A",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_type=\"AAAA\"}"
-    stage.labels {
-      values = {
-        query_type = "AAAA",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_type=\"MX\"}"
-    stage.labels {
-      values = {
-        query_type = "MX",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_type=\"TXT\"}"
-    stage.labels {
-      values = {
-        query_type = "TXT",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_type=\"PTR\"}"
-    stage.labels {
-      values = {
-        query_type = "PTR",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_type=\"NS\"}"
-    stage.labels {
-      values = {
-        query_type = "NS",
-      }
-    }
-  }
-  
-  // Track common result types
-  stage.match {
-    selector = "{query_flags=~\".*NXDOMAIN.*\"}"
-    stage.labels {
-      values = {
-        result = "nxdomain",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_flags=~\".*NOERROR.*\"}"
-    stage.labels {
-      values = {
-        result = "success",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_flags=~\".*REFUSED.*\"}"
-    stage.labels {
-      values = {
-        result = "refused",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{query_flags=~\".*SERVFAIL.*\"}"
-    stage.labels {
-      values = {
-        result = "servfail",
-      }
-    }
-  }
-  
-  // Drop local queries to reduce noise
-  stage.match {
-    selector = "{client_ip=\"127.0.0.1\"}"
-    action = "drop"
-  }
-  
-  // Clean up labels to reduce cardinality
-  stage.label_drop {
-    values = ["client_port", "query_info"]
-  }
-}
-
-// =======================================================================================
-// Process pipeline for DNSSEC logs
-loki.process "bind9_dnssec_logs" {
-  forward_to = [loki.write.monitor11.receiver]
-
-  // Basic log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?P<severity>\\w+): (?P<category>\\w+): (?P<message>.*)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      severity = null,
-      category = null,
-      dnssec_event = "true",
-    }
-  }
-  
-  // DNSSEC verification
-  stage.match {
-    selector = "{message=~\"verify\"}"
-    stage.labels {
-      values = {
-        dnssec_action = "verify",
-      }
-    }
-  }
-  
-  // DNSSEC signing
-  stage.match {
-    selector = "{message=~\"sign\"}"
-    stage.labels {
-      values = {
-        dnssec_action = "sign",
-      }
-    }
-  }
-  
-  // Key related events
-  stage.match {
-    selector = "{message=~\"key\"}"
-    stage.labels {
-      values = {
-        dnssec_action = "key",
-      }
-    }
-  }
-}
-
-// =======================================================================================
-// Process pipeline for security logs
-loki.process "bind9_security_logs" {
-  forward_to = [loki.write.monitor11.receiver]
-
-  // Basic log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?P<severity>\\w+): (?P<category>\\w+): (?P<message>.*)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      severity = null,
-      category = null,
-      security_event = "true",
-    }
-  }
-  
-  // Extract client IP if present
-  stage.match {
-    selector = "{message=~\"client\"}"
-    stage.regex {
-      expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)"
-    }
-  }
-  
-  // Denied/refused queries
-  stage.match {
-    selector = "{message=~\"denied|refused\"}"
-    stage.labels {
-      values = {
-        security_action = "deny",
-      }
-    }
-  }
-  
-  // TSIG errors
-  stage.match {
-    selector = "{message=~\"TSIG\"}"
-    stage.labels {
-      values = {
-        security_action = "tsig_error",
-      }
-    }
-  }
-}
-
-// =======================================================================================
-// Process pipeline for transfer logs
-loki.process "bind9_transfer_logs" {
-  forward_to = [loki.write.monitor11.receiver]
-
-  // Basic log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?P<severity>\\w+): (?P<category>\\w+): (?P<message>.*)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      severity = null,
-      category = null,
-      transfer_event = "true",
-    }
-  }
-  
-  // Extract zone and peer information
-  stage.match {
-    selector = "{message=~\"transfer of\"}"
-    stage.regex {
-      expression = "transfer of '(?P<zone>[^']+)'.*from (?P<peer_ip>[^:]+)"
-    }
-  }
-  
-  // Transfer results
-  stage.match {
-    selector = "{message=~\"Transfer completed\"}"
-    stage.labels {
-      values = {
-        transfer_result = "success",
-      }
-    }
-  }
-  
-  stage.match {
-    selector = "{message=~\"Transfer failed\"}"
-    stage.labels {
-      values = {
-        transfer_result = "failed",
-      }
-    }
-  }
-}
-
-// =======================================================================================
-// Process pipeline for notify logs
-loki.process "bind9_notify_logs" {
-  forward_to = [loki.write.monitor11.receiver]
-
-  // Basic log parsing
-  stage.regex {
-    expression = "^(?P<timestamp>\\d+-\\w+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?P<severity>\\w+): (?P<category>\\w+): (?P<message>.*)$"
-  }
-  
-  stage.timestamp {
-    source = "timestamp"
-    format = "02-Jan-2006 15:04:05.000"
-  }
-  
-  stage.labels {
-    values = {
-      severity = null,
-      category = null,
-      notify_event = "true",
-    }
-  }
-  
-  // Extract zone and peer information
-  stage.match {
-    selector = "{message=~\"notify\"}"
-    stage.regex {
-      expression = "notify(?:.*)zone (?P<zone>[^:]+).*to (?P<peer_ip>[^:]+)"
-    }
-  }
-  
-  // Notify sent
-  stage.match {
-    selector = "{message=~\"sending notify\"}"
-    stage.labels {
-      values = {
-        notify_direction = "outbound",
-      }
-    }
-  }
-  
-  // Notify received
-  stage.match {
-    selector = "{message=~\"received notify\"}"
-    stage.labels {
-      values = {
-        notify_direction = "inbound",
-      }
-    }
-  }
-}
-
-// =======================================================================================
-// Source definitions to read the Bind9 log files
-loki.source.file "bind9_general_source" {
-  targets               = local.file_match.bind9_general.targets
-  forward_to            = [loki.process.bind9_general_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-
-loki.source.file "bind9_query_source" {
-  targets               = local.file_match.bind9_queries.targets
-  forward_to            = [loki.process.bind9_query_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-
-loki.source.file "bind9_dnssec_source" {
-  targets               = local.file_match.bind9_dnssec.targets
-  forward_to            = [loki.process.bind9_dnssec_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-
-loki.source.file "bind9_security_source" {
-  targets               = local.file_match.bind9_security.targets
-  forward_to            = [loki.process.bind9_security_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-
-loki.source.file "bind9_transfer_source" {
-  targets               = local.file_match.bind9_transfers.targets
-  forward_to            = [loki.process.bind9_transfer_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-
-loki.source.file "bind9_notify_source" {
-  targets               = local.file_match.bind9_notify.targets
-  forward_to            = [loki.process.bind9_notify_logs.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
-

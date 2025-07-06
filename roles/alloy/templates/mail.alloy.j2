@@ -8,9 +8,9 @@ local.file_match "mail_logs" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/mail.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_hostname }}",
     job         = "mail",
-    label       = "mail",
+    log_level = "info",  // <- Default value
   }]
 }
 
@@ -34,15 +34,20 @@ loki.process "mail_logs" {
   //   expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<service_name>[^:]+):(?P<message>.*)$"
   // }
 
+
   // First, fix the initial regex pattern to properly separate PID
   stage.regex {
-    expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<raw_service>[^:]+):\\s+(?P<message>.*)$"
-  }
+    // traditional syslog format 
+    // expression = "^(?P<timestamp>\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+)\\s+(?P<hostname>\\S+)\\s+(?P<raw_service>[^:]+):\\s+(?P<message>.*)$"
 
+    // current RFC3339 format
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+[+-]\\d{2}:\\d{2})\\s+(?P<hostname>\\S+)\\s+(?P<raw_service>[^:]+):\\s+(?P<message>.*)$"
+  }
 
   stage.timestamp {
     source = "timestamp"
-    format = "Jan _2 15:04:05"
+    // format = "Jan _2 15:04:05"  // syslog format
+    format = "RFC3339"
   }
 
   // =======================================================================================

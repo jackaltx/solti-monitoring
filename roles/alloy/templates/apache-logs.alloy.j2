@@ -5,6 +5,9 @@
 // =======================================================================================
 // Define common local file match patterns first
 
+// Error and Access logs are different on ispconfig  
+// I am collecting for security. other_vhosts_access has all the vhost.  SMELL create readme
+
 local.file_match "apache_vhost_access" {
   path_targets = [{
     __address__ = "localhost",

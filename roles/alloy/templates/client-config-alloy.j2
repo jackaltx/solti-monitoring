@@ -12,29 +12,6 @@ logging {
 }
 
 // =======================================================================================
-loki.relabel "journal" {
-  forward_to = []
-
-  rule {
-    source_labels = ["__journal_priority_keyword"]
-    target_label  = "level"
-  }
-  rule {
-    source_labels = ["__journal__systemd_unit"]
-    target_label  = "unit"
-  }
-  rule {
-    source_labels = ["__journal__hostname"]
-    target_label = "hostname"
-  }
-  rule {
-    source_labels = ["__journal__transport"]
-    target_label = "transport"
-  }
-}
-
-
-// =======================================================================================
 // Include optional monitoring components based on configuration
 {% if alloy_monitor_apache | default(false) %}
 {% include 'apache-logs.alloy.j2' %}
@@ -67,13 +44,36 @@ loki.relabel "journal" {
 
 
 // =======================================================================================
-// loki.source.journal "read"  {
-//   forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
-//   relabel_rules = loki.relabel.journal.rules
-//   max_age       = "12h"
-//   path          = "/var/log/journal"
-//   labels        = {component = "loki.source.journal"}
-// }
+// Jounald is monitoried by default
+
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "hostname"
+  }
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label = "transport"
+  }
+}
+
+loki.source.journal "read"  {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+  relabel_rules = loki.relabel.journal.rules
+  max_age       = "12h"
+  // path          = "/var/log/journal"
+  labels        = {component = "loki.source.journal"}
+}
 
 {# Then create write sections for each endpoint #}
 {% for endpoint in alloy_loki_endpoints %}
