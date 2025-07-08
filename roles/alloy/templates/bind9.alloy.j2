@@ -29,9 +29,20 @@ loki.relabel "bind9_journal" {
   }
   
   rule {
-    target_label = "log_type"
-    replacement = "dns"
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
   }
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "hostname"
+  }
+
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label = "transport"
+  }
+
 }
 
 // Journal processing pipeline for Bind9

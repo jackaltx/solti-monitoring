@@ -32,7 +32,7 @@ fail2ban_git_versioning:
 # Claude:  fix the fail2ban.local.j2 to allow these as optional arguments
 # I want to keep the system defaults where I need to (like log level and allow_ipv5 )
 fail2ban_config:
-  loglevel: WARNING
+  loglevel: INFO
   allowipv6: auto
   logtarget: /var/log/fail2ban.log
   syslogsocket: auto
@@ -51,7 +51,7 @@ fail2ban_jail_defaults:
   bantime_increment: true
   bantime_rndtime: 30m
   bantime_maxtime: 30d
-  bantime_factor: 2
+  bantime_factor: 3
   bantime_overalljails: true
 
 # All jails are in the jail.d directory and managed by profile

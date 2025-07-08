@@ -30,21 +30,34 @@ loki.process "fail2ban" {
     expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+(?P<message>.*)$"
   }
 
+
   stage.timestamp {
     source = "timestamp"
     format = "2006-01-02 15:04:05,000"
   }
   
-  // Set default log level
+  // .................................................
+  // Set default log level with other labels?
+  // Override log level based on severity
+
   stage.labels {
     values = {
       component = null,
       severity = null,
       log_level = "info",
+      // raw_message = "message",  // debug only
     }
   }
 
-  // Override log level based on severity
+  stage.match {
+    selector = "{severity=\"NOTICE\"}"
+    stage.labels {
+      values = {
+        log_level = "notice",
+      }
+    }
+  }
+
   stage.match {
     selector = "{severity=\"WARNING\"}"
     stage.labels {
@@ -63,28 +76,28 @@ loki.process "fail2ban" {
     }
   }
 
-  // Extract jail information (only present in some messages)
-  stage.match {
-    selector = "{message=~\"\\\\[.*\\\\]\"}"
-    stage.regex {
-      source = "message"
-      expression = "\\[(?P<jail>[^\\]]+)\\]\\s+(?P<action_message>.*)"
-    }
-    
-    stage.labels {
-      values = {
-        jail = null,
-        action_message = null,
-      }
+  // .................................................
+  // Extract jail information from ALL messages
+  stage.regex {
+    source = "message"
+    expression = "\\[(?P<jail>[^\\]]+)\\]\\s+(?P<action_message>.*)"
+  }
+
+  // Always promote extracted fields to labels (they'll be empty if not extracted)
+  stage.labels {
+    values = {
+      jail = null,
+      action_message = null,
     }
   }
 
+  // .................................................
   // Extract ban/unban actions with IP addresses
   stage.match {
     selector = "{jail!=\"\"}"
     stage.regex {
       source = "action_message"
-      expression = "(?P<action_type>Ban|Unban|Found|already banned)\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+      expression = "(?P<action_type>Ban|Unban|Restore Ban|Found|already banned)\\s+(?P<source_ip>[\\da-fA-F.:]+)"
     }
     
     stage.labels {
@@ -92,6 +105,20 @@ loki.process "fail2ban" {
         event_type = "jail_action",
         action_type = null,
         source_ip = null,
+      }
+    }
+  }
+
+  // .................................................
+  // action_type filter for restore ban
+  stage.match {
+    selector = "{action_type=\"Restore Ban\"}"
+    stage.labels {
+      values = {
+        action_type = "restore_ban",
+        event_type = "restore_ban",
+        alert_level = "medium",
+        retain_ip = "true",
       }
     }
   }
@@ -143,7 +170,8 @@ loki.process "fail2ban" {
     }
   }
 
-  // Handle action execution failures
+  // .................................................
+  // Handle component action execution failures
   stage.match {
     selector = "{component=\"actions\", message=~\"Failed to execute.*\"}"
     stage.regex {
