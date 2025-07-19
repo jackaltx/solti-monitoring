@@ -1,0 +1,227 @@
+// =======================================================================================
+// Fail2ban logs collection configuration for Alloy
+
+// =======================================================================================
+// Define file match pattern for fail2ban
+local.file_match "fail2ban" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/fail2ban.log",
+    host        = "{{ ansible_hostname }}",
+    job         = "fail2ban",
+    log_type    = "security",
+  }]
+}
+
+// =======================================================================================
+// Process pipeline for fail2ban logs
+loki.process "fail2ban" {
+  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Handle multi-line log entries
+  stage.multiline {
+    firstline     = "\\d{4}-\\d{2}-\\d{2}"
+    max_lines     = 10
+    max_wait_time = "1s"
+  }
+
+  // Basic fail2ban log parsing - more flexible regex
+  stage.regex {
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+(?P<message>.*)$"
+  }
+
+
+  stage.timestamp {
+    source = "timestamp"
+    format = "2006-01-02 15:04:05,000"
+  }
+  
+  // .................................................
+  // Set default log level with other labels?
+  // Override log level based on severity
+
+  stage.labels {
+    values = {
+      component = null,
+      severity = null,
+      log_level = "info",
+      // raw_message = "message",  // debug only
+    }
+  }
+
+  stage.match {
+    selector = "{severity=\"NOTICE\"}"
+    stage.labels {
+      values = {
+        log_level = "notice",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{severity=\"WARNING\"}"
+    stage.labels {
+      values = {
+        log_level = "warning",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{severity=\"ERROR\"}"
+    stage.labels {
+      values = {
+        log_level = "error",
+      }
+    }
+  }
+
+  // .................................................
+  // Extract jail information from ALL messages
+  stage.regex {
+    source = "message"
+    expression = "\\[(?P<jail>[^\\]]+)\\]\\s+(?P<action_message>.*)"
+  }
+
+  // Always promote extracted fields to labels (they'll be empty if not extracted)
+  stage.labels {
+    values = {
+      jail = null,
+      action_message = null,
+    }
+  }
+
+  // .................................................
+  // Extract ban/unban actions with IP addresses
+  stage.match {
+    selector = "{jail!=\"\"}"
+    stage.regex {
+      source = "action_message"
+      expression = "(?P<action_type>Ban|Unban|Restore Ban|Found|already banned)\\s+(?P<source_ip>[\\da-fA-F.:]+)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "jail_action",
+        action_type = null,
+        source_ip = null,
+      }
+    }
+  }
+
+  // .................................................
+  // action_type filter for restore ban
+  stage.match {
+    selector = "{action_type=\"Restore Ban\"}"
+    stage.labels {
+      values = {
+        action_type = "restore_ban",
+        event_type = "restore_ban",
+        alert_level = "medium",
+        retain_ip = "true",
+      }
+    }
+  }
+
+  // Handle "already banned" as a specific case
+  stage.match {
+    selector = "{action_type=\"already banned\"}"
+    stage.labels {
+      values = {
+        action_type = "already_banned",
+        alert_level = "low",
+      }
+    }
+  }
+
+  // Ban actions
+  stage.match {
+    selector = "{action_type=\"Ban\"}"
+    stage.labels {
+      values = {
+        event_type = "ban",
+        alert_level = "high",
+        retain_ip = "true",
+      }
+    }
+  }
+
+  // Unban actions
+  stage.match {
+    selector = "{action_type=\"Unban\"}"
+    stage.labels {
+      values = {
+        event_type = "unban",
+        alert_level = "medium",
+        retain_ip = "true",
+      }
+    }
+  }
+
+  // Handle API errors (like AbuseIPDB rate limiting)
+  stage.match {
+    selector = "{component=\"utils\", message=~\".*curl.*429.*\"}"
+    stage.labels {
+      values = {
+        event_type = "api_error",
+        error_type = "rate_limit",
+        alert_level = "low",
+      }
+    }
+  }
+
+  // .................................................
+  // Handle component action execution failures
+  stage.match {
+    selector = "{component=\"actions\", message=~\"Failed to execute.*\"}"
+    stage.regex {
+      source = "message"
+      expression = "Failed to execute (?P<failed_action>\\w+) jail '(?P<failed_jail>[^']+)' action '(?P<failed_action_name>[^']+)'.*Error (?P<failed_action_type>\\w+) (?P<failed_ip>[\\da-fA-F.:]+)"
+    }
+    
+    stage.labels {
+      values = {
+        event_type = "action_failure",
+        failed_action = null,
+        failed_jail = null,
+        failed_action_name = null,
+        failed_ip = null,
+        alert_level = "medium",
+      }
+    }
+  }
+
+  // Drop Found actions (too noisy)
+  stage.match {
+    selector = "{action_type=\"Found\"}"
+    action = "drop"
+  }
+
+  // Drop API rate limit errors (too noisy)
+  stage.match {
+    selector = "{error_type=\"rate_limit\"}"
+    action = "drop"
+  }
+
+  // Keep source IPs only for important events
+  stage.match {
+    selector = "{retain_ip!=\"true\", event_type!~\"ban|unban|action_failure\"}"
+    stage.label_drop {
+      values = ["source_ip"]
+    }
+  }
+
+  // Clean up temporary and verbose labels
+  stage.label_drop {
+    values = ["retain_ip", "pid", "message", "action_message"]
+  }
+
+}
+
+// =======================================================================================
+// Source definition to read the fail2ban log file
+loki.source.file "fail2ban" {
+  targets               = local.file_match.fail2ban.targets
+  forward_to            = [loki.process.fail2ban.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}

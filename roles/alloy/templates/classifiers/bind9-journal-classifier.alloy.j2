@@ -1,0 +1,417 @@
+// ====================================================================
+// Bind9 DNS service classification and processing
+// Processes named/bind9 logs from journald
+// No sources or endpoints - just classification and parsing logic
+
+// ====================================================================
+// Primary service identification - entry gate
+stage.match {
+	selector = "{service=\"named\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "dns",
+		}
+	}
+}
+
+// ====================================================================
+// Zone Operations
+
+// Zone loading events
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*loaded.*zone.*\"}"
+
+	stage.regex {
+		expression = "loaded serial (?P<serial>\\d+).*zone (?P<zone>[^\\s:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type  = "zone_operation",
+			zone_action = "loaded",
+		}
+	}
+}
+
+// Zone refresh events
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*zone.*refresh.*\"}"
+
+	stage.regex {
+		expression = "zone (?P<zone>[^/\\s:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type  = "zone_operation",
+			zone_action = "refresh",
+		}
+	}
+}
+
+// DNSSEC signed zones
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*zone.*DNSSEC signed.*\"}"
+
+	stage.regex {
+		expression = "zone (?P<zone>[^/\\s:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type  = "zone_operation",
+			zone_action = "dnssec_signed",
+		}
+	}
+}
+
+// Zone serial updates
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*sending notifies.*serial.*\"}"
+
+	stage.regex {
+		expression = "zone (?P<zone>[^/\\s:]+).*sending notifies.*serial (?P<serial>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "notify",
+			notify_direction = "outbound",
+		}
+	}
+}
+
+// ====================================================================
+// Transfer Operations
+
+// Zone transfer requests
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*transfer of.*\"}"
+
+	stage.regex {
+		expression = "client [^\\s]+ (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: transfer of '(?P<zone>[^']+)': (?P<transfer_details>.*)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type = "transfer",
+		}
+	}
+}
+
+// Transfer type identification
+stage.match {
+	selector = "{event_type=\"transfer\", transfer_details=~\".*AXFR.*\"}"
+
+	stage.static_labels {
+		values = {
+			transfer_type = "AXFR",
+		}
+	}
+}
+
+stage.match {
+	selector = "{event_type=\"transfer\", transfer_details=~\".*IXFR.*\"}"
+
+	stage.static_labels {
+		values = {
+			transfer_type = "IXFR",
+		}
+	}
+}
+
+// Transfer status tracking
+stage.match {
+	selector = "{event_type=\"transfer\", transfer_details=~\".*started.*\"}"
+
+	stage.static_labels {
+		values = {
+			transfer_status = "started",
+		}
+	}
+}
+
+stage.match {
+	selector = "{event_type=\"transfer\", transfer_details=~\".*ended.*\"}"
+
+	stage.static_labels {
+		values = {
+			transfer_status = "ended",
+		}
+	}
+}
+
+// ====================================================================
+// Notify Operations
+
+// Inbound notify messages
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*received notify.*\"}"
+
+	stage.regex {
+		expression = "client [^\\s]+ (?P<client_ip>[^#]+)#(?P<client_port>\\d+): received notify for zone '(?P<zone>[^']+)'"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "notify",
+			notify_direction = "inbound",
+		}
+	}
+}
+
+// ====================================================================
+// Query Operations (if query logging is enabled)
+
+// DNS queries
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*query:.*\"}"
+
+	// Claude we just changed this
+	stage.regex {
+		expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: query: (?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?: (?P<query_flags>.*))?"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type = "query",
+		}
+	}
+}
+
+// Query response classification
+stage.match {
+	selector = "{event_type=\"query\", query_flags=~\".*\\\\+E.*\"}"
+
+	stage.static_labels {
+		values = {
+			query_edns = "true",
+		}
+	}
+}
+
+stage.match {
+	selector = "{event_type=\"query\", query_flags=~\".*\\\\+D.*\"}"
+
+	stage.static_labels {
+		values = {
+			query_dnssec = "true",
+		}
+	}
+}
+
+// ====================================================================
+// DNSSEC Operations
+
+// DNSSEC validation events
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*DNSSEC|key|signing|verify.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "dnssec",
+		}
+	}
+}
+
+// Managed keys operations
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*managed-keys-zone.*\"}"
+
+	stage.regex {
+		expression = "managed-keys-zone: Key (?P<key_id>\\d+) for zone (?P<zone>[^\\s]+) is now (?P<key_status>[^\\s]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type    = "dnssec",
+			dnssec_action = "managed_key",
+		}
+	}
+}
+
+// DNSSEC signing operations
+stage.match {
+	selector = "{event_type=\"dnssec\", raw_message=~\".*signing.*\"}"
+
+	stage.static_labels {
+		values = {
+			dnssec_action = "signing",
+		}
+	}
+}
+
+// DNSSEC validation results
+stage.match {
+	selector = "{event_type=\"dnssec\", raw_message=~\".*validation.*\"}"
+
+	stage.static_labels {
+		values = {
+			dnssec_action = "validation",
+		}
+	}
+}
+
+// ====================================================================
+// Security Events
+
+// Access denied events
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*denied|refused|TSIG.*error.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type  = "security",
+			alert_level = "medium",
+		}
+	}
+}
+
+// TSIG authentication failures
+stage.match {
+	selector = "{event_type=\"security\", raw_message=~\".*TSIG.*\"}"
+
+	stage.regex {
+		expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: .*TSIG.*(?P<tsig_error>.*)"
+	}
+
+	stage.static_labels {
+		values = {
+			security_type = "tsig_failure",
+		}
+	}
+}
+
+// Query refused events
+stage.match {
+	selector = "{event_type=\"security\", raw_message=~\".*query.*refused.*\"}"
+
+	stage.regex {
+		expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: query \\(cache\\) '(?P<refused_domain>[^']+)'/(?P<query_type>[^\\s]+) refused"
+	}
+
+	stage.static_labels {
+		values = {
+			security_type = "query_refused",
+		}
+	}
+}
+
+// ====================================================================
+// Server Operations
+
+// Server startup/shutdown events
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*starting|exiting|shutting down|running|reloading.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "server_operation",
+		}
+	}
+}
+
+// Configuration reload events
+stage.match {
+	selector = "{event_type=\"server_operation\", raw_message=~\".*reloading configuration succeeded.*\"}"
+
+	stage.static_labels {
+		values = {
+			server_action = "config_reload",
+			status        = "success",
+		}
+	}
+}
+
+// Server running status
+stage.match {
+	selector = "{event_type=\"server_operation\", raw_message=~\".*running.*\"}"
+
+	stage.static_labels {
+		values = {
+			server_action = "started",
+			status        = "running",
+		}
+	}
+}
+
+// ====================================================================
+// Configuration Issues and Warnings
+
+// Missing address records warning
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*has no address records.*\"}"
+
+	stage.regex {
+		expression = "zone ([^/]+)/IN: ([^']+)'([^']+)' has no address records"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type   = "config_warning",
+			warning_type = "missing_address_records",
+			alert_level  = "low",
+		}
+	}
+}
+
+// Network unreachable warnings
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*network unreachable.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type   = "config_warning",
+			warning_type = "network_unreachable",
+			alert_level  = "medium",
+		}
+	}
+}
+
+// ====================================================================
+// Noise Reduction
+
+// Drop automatic empty zone messages (too noisy)
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*automatic empty zone.*\"}"
+	action   = "drop"
+}
+
+// Drop routine cache cleaning messages
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*cleaning cache.*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Cleanup to reduce cardinality
+
+// Keep client IPs only for security and transfer events
+stage.match {
+	selector = "{service_type=\"dns\", event_type=~\"security|transfer\"}"
+
+	stage.static_labels {
+		values = {
+			track_client = "true",
+		}
+	}
+}
+
+// Drop client IPs for routine operations
+stage.match {
+	selector = "{service_type=\"dns\", track_client!=\"true\"}"
+
+	stage.label_drop {
+		values = ["client_ip", "client_port"]
+	}
+}
+
+// Final cleanup
+stage.match {
+	selector = "{service_type=\"dns\"}"
+
+	stage.label_drop {
+		values = ["track_client", "transfer_details", "query_flags"]
+	}
+}

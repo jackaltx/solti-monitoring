@@ -1,0 +1,40 @@
+---
+# tasks file for alloy
+
+# ......................................
+- name: Install Allow service to feed measurements to a Loki service
+  when: alloy_state == 'present'
+  block:
+    # - name: Package install
+    #   ansible.builtin.include_tasks:
+    #     file: "../../shared/grafana/tasks/{{ ansible_os_family }}-install.yml"
+    #   vars:
+    #     package: alloy
+
+    # ..............................................
+    # Alloy takes one and only one configuration file
+    #
+    - name: "Template config  in /etc/alloy/config.alloy "
+      ansible.builtin.template:
+        src: client-config.alloy.j2
+        dest: "{{ alloy_config }}-sample"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      notify:
+        - Restart alloy
+
+    # ....................................................................
+    # Alloy used the /etc/default directory to keep environment variables
+    #
+    # - name: "Template config  in /etc/default/alloy"
+    #   ansible.builtin.template:
+    #     src: etc-default-alloy.j2
+    #     dest: /etc/default/alloy
+    #     owner: root
+    #     group: alloy
+    #     mode: "0640"
+    #   become: true
+    #   notify:
+    #     - Restart alloy
