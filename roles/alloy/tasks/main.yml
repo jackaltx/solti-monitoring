@@ -16,7 +16,7 @@
     #
     - name: "Template config  in /etc/alloy/config.alloy "
       ansible.builtin.template:
-        src: client-config-alloy.j2
+        src: client-config.alloy.j2
         dest: "{{ alloy_config }}"
         owner: root
         group: root

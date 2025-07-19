@@ -1,0 +1,428 @@
+// ====================================================================
+// WireGuard VPN service classification and processing
+// Processes kernel messages containing wireguard logs from journald
+// No sources or endpoints - just classification and parsing logic
+
+// ====================================================================
+// Primary service identification - entry gate
+// WireGuard logs come through kernel, so we need to filter by message content
+stage.match {
+	selector = "{service=\"kernel\", raw_message=~\".*wireguard.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "vpn",
+		}
+	}
+}
+
+// Extract interface name from all WireGuard messages
+stage.match {
+	selector = "{service_type=\"vpn\"}"
+
+	stage.regex {
+		expression = "wireguard: (?P<interface>\\w+): (?P<event_message>.*)"
+	}
+}
+
+// ====================================================================
+// Connection Establishment Events
+
+// Handshake initiation (incoming connection attempt)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Receiving handshake initiation.*\"}"
+
+	stage.regex {
+		expression = "Receiving handshake initiation from peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_attempt",
+			connection_state = "handshake_received",
+		}
+	}
+}
+
+// Handshake response (outgoing response to connection)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Sending handshake response.*\"}"
+
+	stage.regex {
+		expression = "Sending handshake response to peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_attempt",
+			connection_state = "handshake_sent",
+		}
+	}
+}
+
+// Handshake initiation (outgoing connection attempt)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Sending handshake initiation.*\"}"
+
+	stage.regex {
+		expression = "Sending handshake initiation to peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_attempt",
+			connection_state = "handshake_initiated",
+		}
+	}
+}
+
+// ====================================================================
+// Connection Success Events
+
+// Keypair creation (successful connection establishment)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Keypair.*created.*\"}"
+
+	stage.regex {
+		expression = "Keypair (?P<keypair_id>\\d+) created for peer (?P<peer_id>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_established",
+			connection_state = "connected",
+		}
+	}
+}
+
+// Receiving handshake response (connection confirmed)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Receiving handshake response.*\"}"
+
+	stage.regex {
+		expression = "Receiving handshake response from peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_established",
+			connection_state = "handshake_confirmed",
+		}
+	}
+}
+
+// ====================================================================
+// Connection Maintenance Events
+
+// Keepalive packets (connection active)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Receiving keepalive.*\"}"
+
+	stage.regex {
+		expression = "Receiving keepalive packet from peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_maintenance",
+			connection_state = "active",
+		}
+	}
+}
+
+// Sending keepalive packets
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Sending keepalive.*\"}"
+
+	stage.regex {
+		expression = "Sending keepalive packet to peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_maintenance",
+			connection_state = "keepalive_sent",
+		}
+	}
+}
+
+// ====================================================================
+// Connection Termination Events
+
+// Keypair destruction (connection ending)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Keypair.*destroyed.*\"}"
+
+	stage.regex {
+		expression = "Keypair (?P<keypair_id>\\d+) destroyed for peer (?P<peer_id>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_closing",
+			connection_state = "key_destroyed",
+		}
+	}
+}
+
+// Retrying handshake (connection issues)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Retrying handshake.*\"}"
+
+	stage.regex {
+		expression = "Retrying handshake with peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_retry",
+			connection_state = "retrying",
+		}
+	}
+}
+
+// ====================================================================
+// Error and Security Events
+
+// Invalid MAC errors (authentication failure)
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Invalid MAC of handshake.*\"}"
+
+	stage.regex {
+		expression = "Invalid MAC of handshake, dropping packet from (?P<peer_ip>[^:]+):(?P<peer_port>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_error",
+			connection_state = "invalid_handshake",
+			alert_level      = "medium",
+		}
+	}
+}
+
+// Packet with invalid nonce
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Packet has invalid nonce.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_error",
+			connection_state = "invalid_nonce",
+			alert_level      = "low",
+		}
+	}
+}
+
+// Handshake timeout
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Handshake for peer.*did not complete.*\"}"
+
+	stage.regex {
+		expression = "Handshake for peer (?P<peer_id>\\d+) \\((?P<peer_ip>[^:]+):(?P<peer_port>\\d+)\\) did not complete"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type       = "connection_error",
+			connection_state = "handshake_timeout",
+			alert_level      = "low",
+		}
+	}
+}
+
+// General errors
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\".*error|invalid|failed.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type  = "connection_error",
+			alert_level = "medium",
+		}
+	}
+}
+
+// ====================================================================
+// Data Transfer Events (if enabled in WireGuard logging)
+
+// Data packet reception
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Receiving packet.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type         = "data_transfer",
+			transfer_direction = "inbound",
+		}
+	}
+}
+
+// Data packet transmission
+stage.match {
+	selector = "{service_type=\"vpn\", event_message=~\"Sending packet.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type         = "data_transfer",
+			transfer_direction = "outbound",
+		}
+	}
+}
+
+// ====================================================================
+// Peer Identification and Classification
+// Add friendly names for known peer IDs (customize for your setup)
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"1\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "mobile-phone",
+			peer_type = "mobile",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"2\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "laptop-work",
+			peer_type = "laptop",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"3\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "home-office",
+			peer_type = "site-to-site",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"16\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "mobile-user-1",
+			peer_type = "mobile",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"18\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "mobile-user-2",
+			peer_type = "mobile",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"vpn\", peer_id=\"19\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "remote-office",
+			peer_type = "site-to-site",
+		}
+	}
+}
+
+// Unknown peers
+stage.match {
+	selector = "{service_type=\"vpn\", peer_name=\"\"}"
+
+	stage.static_labels {
+		values = {
+			peer_name = "unknown",
+			peer_type = "unclassified",
+		}
+	}
+}
+
+// ====================================================================
+// Connection Pattern Analysis
+
+// Frequent reconnections (potential connection issues)
+stage.match {
+	selector = "{service_type=\"vpn\", event_type=\"connection_attempt\", peer_type=\"mobile\"}"
+
+	stage.static_labels {
+		values = {
+			connection_pattern = "mobile_reconnect",
+		}
+	}
+}
+
+// Site-to-site stability monitoring
+stage.match {
+	selector = "{service_type=\"vpn\", event_type=~\"connection_error|connection_retry\", peer_type=\"site-to-site\"}"
+
+	stage.static_labels {
+		values = {
+			connection_pattern = "site_instability",
+			alert_level        = "high",
+		}
+	}
+}
+
+// ====================================================================
+// Noise Reduction
+
+// Drop noisy data transfer logs if they're too frequent
+// Uncomment if data transfer logging creates too much noise
+// stage.match {
+//   selector = "{service_type=\"vpn\", event_type=\"data_transfer\"}"
+//   action = "drop"
+// }
+
+// Drop successful keepalives for established connections to reduce noise
+stage.match {
+	selector = "{service_type=\"vpn\", event_type=\"connection_maintenance\", connection_state=\"active\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Security and Monitoring Focus
+
+// Keep IP addresses only for security events and connection establishment
+stage.match {
+	selector = "{service_type=\"vpn\", event_type=~\"connection_error|connection_established|connection_attempt\"}"
+
+	stage.static_labels {
+		values = {
+			track_peer_ip = "true",
+		}
+	}
+}
+
+// Drop peer IPs for routine maintenance events
+stage.match {
+	selector = "{service_type=\"vpn\", track_peer_ip!=\"true\"}"
+
+	stage.label_drop {
+		values = ["peer_ip", "peer_port"]
+	}
+}
+
+// ====================================================================
+// Final cleanup to reduce cardinality
+stage.match {
+	selector = "{service_type=\"vpn\"}"
+
+	stage.label_drop {
+		values = ["track_peer_ip", "event_message"]
+	}
+}
