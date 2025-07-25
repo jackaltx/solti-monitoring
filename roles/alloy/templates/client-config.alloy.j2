@@ -10,6 +10,28 @@ logging {
   level = "info"
 }
 
+
+// =======================================================================================
+// File-based log sources for services that don't use journald or need specific file parsing
+
+{% if alloy_monitor_apache | default(false) %}
+{% include 'apache.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_ispconfig | default(false) %}
+{% include 'apache-ispconfig.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_fail2ban | default(false) %}
+{% include 'fail2ban.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_gitea | default(false) %}
+{% include 'gitea.alloy.j2' %}
+{% endif %}
+
+
+
 // =======================================================================================
 // Main journal relabeling rules - enhanced for service classification
 loki.relabel "journal" {
@@ -42,25 +64,6 @@ loki.relabel "journal" {
 }
 
 
-// =======================================================================================
-// File-based log sources for services that don't use journald or need specific file parsing
-
-{% if alloy_monitor_apache | default(false) %}
-{% include 'apache.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_ispconfig | default(false) %}
-{% include 'apache-ispconfig.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_fail2ban | default(false) %}
-{% include 'fail2ban.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_gitea | default(false) %}
-{% include 'gitea.alloy.j2' %}
-{% endif %}
-
 
 // =======================================================================================
 // Unified journal processing pipeline with modular service classifiers
@@ -68,9 +71,10 @@ loki.process "journal_classifier" {
   forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
   // Initialize service_type label for all entries
-  stage.labels {
+  stage.static_labels {
     values = {
-      service_type = "",
+      service_type = "",  // SMELL This along with the host name are the main keys
+      // raw_message0 = null ,  // SMELL  This is for debug only
     }
   }
 
@@ -140,9 +144,9 @@ loki.process "journal_classifier" {
 
   // ====================================================================
   // Cleanup labels to reduce cardinality
-  stage.label_drop {
-    values = ["raw_message"]
-  }
+  // stage.label_drop {
+  //   values = ["raw_message"]
+  // }
 }
 
 
