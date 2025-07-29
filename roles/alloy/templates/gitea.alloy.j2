@@ -9,11 +9,11 @@ local.file_match "gitea" {
 }
 
 loki.process "gitea" {
-  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
   // Extract timestamp and log level
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<source>.*?)\\s+\\[(?P<level>\\w+)\\] (?P<message>.*)"
+    expression = "^(?P<timestamp>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<source>.*) \\[(?P<level>\\w+)\\] (?P<message>.*)"
   }
 
   // Convert timestamp to standard format
@@ -25,31 +25,10 @@ loki.process "gitea" {
   // Add basic labels
   stage.labels {
     values = {
-      level = null,
-      source = null,
+      level = "",
+      source = "",
     }
   }
-
-  // Parse router log entries specifically  
-  stage.match {
-    selector = "{message=~\"router: completed.*\"}"
-    
-    stage.regex {
-      source = "message"
-      expression = "router: completed (?P<gitea_method>\\w+) (?P<gitea_path>\\S+) for [^:]+:\\d+, (?P<gitea_status>\\d+)"
-    }
-    
-    // Only add the labels we want to keep
-    stage.static_labels {
-      values = {
-        gitea_method = null,
-        gitea_path = null, 
-        gitea_status = null,
-      }
-    }
-  }
-  
-
 }
 
 loki.source.file "gitea" {
