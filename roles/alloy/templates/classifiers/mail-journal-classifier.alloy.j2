@@ -1,3 +1,5 @@
+// --> mail classifier
+//
 // ====================================================================
 // Mail service classification and processing
 // Processes Postfix and Dovecot logs from journald
@@ -6,7 +8,7 @@
 // ====================================================================
 // Primary service identification
 stage.match {
-	selector = "{service=~\"postfix.*|dovecot.*\"}"
+	selector = "{service_name=~\"postfix.*|dovecot.*\"}"
 
 	stage.static_labels {
 		values = {
@@ -350,6 +352,7 @@ stage.match {
 	selector = "{service_type=\"mail\"}"
 
 	stage.label_drop {
-		values = ["track_source"]
+		values = ["track_source", "service_component"]
 	}
 }
+// <-- mail classifier

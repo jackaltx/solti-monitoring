@@ -7,7 +7,7 @@
 // Primary service identification - entry gate
 // WireGuard logs come through kernel, so we need to filter by message content
 stage.match {
-	selector = "{service=\"kernel\", raw_message=~\".*wireguard.*\"}"
+	selector = "{service_name=\"kernel\", raw_message=~\".*wireguard.*\"}"
 
 	stage.static_labels {
 		values = {

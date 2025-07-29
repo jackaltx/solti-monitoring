@@ -12,7 +12,7 @@ local.file_match "apache_vhost_access" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/other_vhosts_access.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "apache",
     label       = "httpd_access",
   }]
@@ -22,7 +22,7 @@ local.file_match "apache_access" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/access.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "apache",
     label       = "httpd_access",
     vhost       = "SystemRoot",
@@ -33,7 +33,7 @@ local.file_match "apache_error" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/apache2/error.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "apache",
     label       = "httpd_error",
   }]
