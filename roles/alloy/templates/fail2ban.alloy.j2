@@ -7,7 +7,7 @@ local.file_match "fail2ban" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/fail2ban.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "fail2ban",
     log_type    = "security",
   }]
@@ -93,8 +93,10 @@ loki.process "fail2ban" {
 
   // .................................................
   // Extract ban/unban actions with IP addresses
+  // IMPORTANT: Only extract action_type from NOTICE level logs
+  // ERROR logs may contain "Ban" in error messages but are not actual ban events
   stage.match {
-    selector = "{jail!=\"\"}"
+    selector = "{jail!=\"\", severity=\"NOTICE\"}"
     stage.regex {
       source = "action_message"
       expression = "(?P<action_type>Ban|Unban|Restore Ban|Found|already banned)\\s+(?P<source_ip>[\\da-fA-F.:]+)"

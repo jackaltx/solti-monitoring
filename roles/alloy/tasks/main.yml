@@ -2,7 +2,7 @@
 # tasks file for alloy
 
 # ......................................
-- name: Install Allow service to feed measurements to a Loki service
+- name: Install Alloy service to feed measurements to a Loki service
   when: alloy_state == 'present'
   block:
     - name: Package install
@@ -10,6 +10,19 @@
         file: "../../shared/grafana/tasks/{{ ansible_os_family }}-install.yml"
       vars:
         package: alloy
+
+    # ..............................................
+    # Ensure alloy user can read log files from other services
+    #
+    - name: Add alloy user to necessary groups for log access
+      ansible.builtin.user:
+        name: alloy
+        groups: "{{ alloy_additional_groups | default([]) }}"
+        append: true
+      become: true
+      when: alloy_additional_groups is defined and alloy_additional_groups | length > 0
+      notify:
+        - Restart alloy
 
     # ..............................................
     # Alloy takes one and only one configuration file

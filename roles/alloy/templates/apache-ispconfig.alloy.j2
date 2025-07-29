@@ -9,7 +9,7 @@ local.file_match "ispconfig_site_error" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/ispconfig/httpd/*/error.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "apache",
     label       = "ispconfig_error",
   }]

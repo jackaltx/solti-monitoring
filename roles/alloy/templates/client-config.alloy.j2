@@ -10,28 +10,6 @@ logging {
   level = "info"
 }
 
-
-// =======================================================================================
-// File-based log sources for services that don't use journald or need specific file parsing
-
-{% if alloy_monitor_apache | default(false) %}
-{% include 'apache.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_ispconfig | default(false) %}
-{% include 'apache-ispconfig.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_fail2ban | default(false) %}
-{% include 'fail2ban.alloy.j2' %}
-{% endif %}
-
-{% if alloy_monitor_gitea | default(false) %}
-{% include 'gitea.alloy.j2' %}
-{% endif %}
-
-
-
 // =======================================================================================
 // Main journal relabeling rules - enhanced for service classification
 loki.relabel "journal" {
@@ -53,17 +31,16 @@ loki.relabel "journal" {
     source_labels = ["__journal__transport"]
     target_label = "transport"
   }
+  // Loki see "default labels"
   rule {
     source_labels = ["__journal_syslog_identifier"]
-    target_label = "service"
+    target_label = "service_name"
   }
   rule {
-    source_labels = ["__journal__message"]
+    source_labels = ["__journal_message"]
     target_label = "raw_message"
   }
 }
-
-
 
 // =======================================================================================
 // Unified journal processing pipeline with modular service classifiers
@@ -74,11 +51,12 @@ loki.process "journal_classifier" {
   stage.static_labels {
     values = {
       service_type = "",  // SMELL This along with the host name are the main keys
-      // raw_message0 = null ,  // SMELL  This is for debug only
     }
   }
 
+  // ...................................................................
   // Include individual service classifiers based on configuration
+
 {% if alloy_monitor_mail | default(false) %}
   // ====================================================================
   // Mail service classification and processing
@@ -99,54 +77,13 @@ loki.process "journal_classifier" {
 
   // ====================================================================
   // SSH service classification (always included for security monitoring)
-  stage.match {
-    selector = "{service=\"sshd\"}"
-    stage.static_labels {
-      values = {
-        service_type = "ssh",
-      }
-    }
-  }
-
-  // SSH authentication events
-  stage.match {
-    selector = "{service_type=\"ssh\", raw_message=~\".*authentication failure.*|.*Failed password.*|.*Accepted.*\"}"
-    stage.static_labels {
-      values = {
-        event_type = "authentication",
-      }
-    }
-  }
-
-  // ====================================================================
-  // Generic system log classification for anything not specifically handled
-  stage.match {
-    selector = "{service_type=\"\"}"
-    stage.static_labels {
-      values = {
-        service_type = "system",
-      }
-    }
-  }
-
-  // ====================================================================
-  // Drop noisy system messages to reduce log volume
-  stage.match {
-    selector = "{service_type=\"system\", level=\"debug\"}"
-    action = "drop"
-  }
-
-  // Drop systemd user session noise
-  stage.match {
-    selector = "{service_type=\"system\", raw_message=~\".*user@.*service.*\"}"
-    action = "drop"
-  }
+  {% include 'classifiers/ssh-journal-classifier.alloy.j2' %}
 
   // ====================================================================
   // Cleanup labels to reduce cardinality
-  // stage.label_drop {
-  //   values = ["raw_message"]
-  // }
+  stage.label_drop {
+    values = ["raw_message"]
+  }
 }
 
 
@@ -158,6 +95,27 @@ loki.source.journal "read" {
   max_age       = "12h"
   labels        = {component = "loki.source.journal"}
 }
+
+
+// =======================================================================================
+// File-based log sources for services that don't use journald or need specific file parsing
+
+{% if alloy_monitor_apache | default(false) %}
+{% include 'apache.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_ispconfig | default(false) %}
+{% include 'apache-ispconfig.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_fail2ban | default(false) %}
+{% include 'fail2ban.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_gitea | default(false) %}
+{% include 'gitea.alloy.j2' %}
+{% endif %}
+
 
 // =======================================================================================
 // Loki write endpoints
