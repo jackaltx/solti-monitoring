@@ -369,6 +369,24 @@ stage.match {
 	}
 }
 
+// DNS format errors (FORMERR)
+stage.match {
+	selector = "{service_type=\"dns\", raw_message=~\".*DNS format error.*FORMERR.*\"}"
+
+	stage.regex {
+		source     = "raw_message"
+		expression = "DNS format error from (?P<failed_server>[^\\s]+) resolving (?P<failed_domain>[^/]+)/(?P<record_type>[^\\s]+) for (?P<client_info>[^:]+): (?P<error_details>.*)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type  = "dns_error",
+			error_type  = "format_error",
+			alert_level = "low",
+		}
+	}
+}
+
 // ====================================================================
 // Noise Reduction
 
