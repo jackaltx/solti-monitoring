@@ -3,19 +3,33 @@ all:
   vars:
     domain: example.com
     mylab_nolog: "{{ cluster_secure_log | bool | default(true) }}"
-    ansible_user: my_local_provisioning_username
+
+    # Customiize to your configuration user
+    ansible_user: da_configurator_account
+
+    # Customnize this
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+
+    # SMELL: this is a wrong level
+    influx_org: example
+    influx_default_bucket: telegraf
 
   children:
     # ................................................
+    # This is a convenience for testing.  I put everyhing under mylab
+    # Then create subsets (metric_collectors, clients, and wazuh agent experiments)
     mylab:
       # .........................................
-      # mylab hosts on local proxmox server
       hosts:
+        # I was manual two distro's on alocal proxmox server
         monitor3:
           ansible_host: "monitor3.{{ domain }}"
         monitor4:
           ansible_host: "monitor4.{{ domain }}"
+
+        # linode script testing
+        linode_test:
+          ansible_host: "fleur.lavnet.net"
 
       # .........................................
       # mylab vars
@@ -27,7 +41,8 @@ all:
         metric_collectors:
           hosts:
             monitor3:
-              telegraf_outputs: [localhost, monitor11]
+              # see group_vars/all/telegraf2influx-configs.yml
+              telegraf_outputs: [localhost, sample]
 
             monitor4:
               telegraf_outputs: [localhost]
@@ -60,4 +75,4 @@ all:
           vars:
             wazuh_deployment_profile: internal
             wazuh_agent_state: configure
-            wazuh_server_address: 192.168.55.200
+            wazuh_server_address: 192.168.XX.200

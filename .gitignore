@@ -1,1 +1,6 @@
 jackaltx-solti.monitoring-1.0.0.tar.gz
+data/
+verify_output/
+tmp/
+*.tar.gz
+*.log

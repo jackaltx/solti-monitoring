@@ -1,0 +1,50 @@
+---
+- name: Sample monitoring Playbook For alloy_additional_groups
+  hosts: Your_Host_Here
+  become: true
+  vars:
+    # These are for files
+    alloy_monitor_apache: true
+    alloy_monitor_ispconfig: true
+    alloy_monitor_fail2ban: true
+    alloy_monitor_gitea: true
+    alloy_additional_groups:
+      - git
+
+    # these are classifiers for journald
+    alloy_monitor_mail: true
+    alloy_monitor_bind9: true
+    alloy_monitor_wg: true
+
+    alloy_custom_args: "--disable-reporting --server.http.listen-addr=127.0.0.1:12345"
+
+    alloy_loki_endpoints:
+      - label: monitor11
+        endpoint: "10.10.0.11"
+
+  pre_tasks:
+    - name: Debug variable paths
+      ansible.builtin.debug:
+        msg:
+          - "Playbook dir: {{ playbook_dir }}"
+          - "Inventory dir: {{ inventory_dir }}"
+          - "project_root: {{ inventory_dir }}"
+          - "ansible_config_file: {{ ansible_config_file }}"
+
+    - name: Ensure ansible temp directory exists with proper permissions
+      become: true
+      ansible.builtin.file:
+        path: /tmp/ansible-tmp
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
+
+  # tasks:
+  #   - name: Include role tasks
+  #     ansible.builtin.include_role:
+  #       name: jackaltx.solti_monitoring.alloy
+  #       tasks_from: generate-sample-config
+
+  roles:
+    - jackaltx.solti_monitoring.alloy
