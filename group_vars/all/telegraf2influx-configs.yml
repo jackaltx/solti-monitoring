@@ -3,29 +3,19 @@ telgraf2influxdb_configs:
   localhost:
     url: "http://127.0.0.1"
     token: ""
-    bucket: "telegraf"
-    org: "lavnet"
+    bucket: "{{ influx_default_bucket }}"
+    org: "{{ influx_org }}"
     namedrop: '["influxdb_oss"]'
     bucket_tag: ""
     exclude_bucket_tag: ""
     ping_timeout: "0s"
     read_idle_timeout: "0s"
     insecure_skip_verify: false
-  monitor2:
-    url: "http://monitor2.{{ domain }}"
-    token: !vault |
-      $ANSIBLE_VAULT;1.1;AES256
-      31643462363439373438373331633438383836326566633964646336386461626665613038313538
-      6335323137333332636238646564373964326237656330380a363462303330643063386231333364
-      66623366373334333332656163316363373036313133646661303266376661393765386238633165
-      3566323233353862350a643066626538373730616461616534373937623230653532613035656166
-      66386364643332666431383461326462363565386462326661613266383262383531313438326632
-      30616234633164373462303233393733353666663531346532636633353464386632613130626330
-      66666165623165356163323065356664306538393135373463653632626533396265393962313333
-      38366663323439366262363263366632613239643632646561303161373463666563646361333231
-      3937
-    bucket: "telegraf"
-    org: "lavnet"
+  sample:
+    url: "http://monitor.{{ domain }}"
+    token: YOUR_TOKEN_GOES_HERE
+    bucket: "{{ influx_default_bucket }}"
+    org: "{{ influx_org }}"
     namedrop: '["influxdb_oss"]'
     bucket_tag: ""
     exclude_bucket_tag: false

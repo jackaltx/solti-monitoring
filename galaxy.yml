@@ -21,4 +21,8 @@ documentation: http://docs.jackaltx.com
 homepage: http://github.com/jackaltx/solti_monitoring_collection
 issues: http://github.com/jackaltx/solti_monitoring_collection/issue/tracker
 
-build_ignore: []
+build_ignore:
+  - "data/"
+  - "verify_output/"
+  - ".git/"
+  - "tmp/"
