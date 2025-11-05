@@ -19,7 +19,7 @@ driver:
 #
 platforms:
   - name: "uut-ct0"
-    image: "ghcr.io/jackaltx/testing-containers/debian12-ssh:latest"
+    image: "ghcr.io/jackaltx/testing-containers/debian-ssh:12"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -31,7 +31,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    image: "ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest"
+    image: "ghcr.io/jackaltx/testing-containers/rocky-ssh:9"
     command: "/sbin/init"
     privileged: true
     volumes:
@@ -43,7 +43,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct2"
-    image: "ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    image: "ghcr.io/jackaltx/testing-containers/ubuntu-ssh:24"
     command: "/sbin/init"
     privileged: true
     volumes:
