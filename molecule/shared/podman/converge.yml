@@ -8,6 +8,11 @@
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
+    - name: Set test run timestamp (used across converge and verify)
+      set_fact:
+        verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
+        cacheable: yes
+
     - name: Debug information
       debug:
         msg:
@@ -15,8 +20,9 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
           - "Testing capability: {{ testing_capabilities }}"
+          - "Test timestamp: {{ verify_timestamp }}"
 
     # ................................................................
     # note this has to be loaded in each phase playbook!

@@ -68,6 +68,8 @@ provisioner:
       roles_path: roles
       interpreter_python: auto_silent
       host_key_checking: false
+      ansible_managed: "Ansible managed"
+      # deprecation_warnings: false
   playbooks:
     create: "../shared/podman/create.yml"
     prepare: "../shared/podman/prepare.yml"

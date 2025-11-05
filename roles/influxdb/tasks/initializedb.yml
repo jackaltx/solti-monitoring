@@ -28,7 +28,7 @@
         - name: Generate random password if set to 'generated'
           no_log: "{{ mylab_nolog | default(true) }}"
           ansible.builtin.set_fact:
-            influxdb_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=14, chars=['ascii_letters', 'digits'], seed=ansible_hostname) }}"
+            influxdb_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=14, chars=['ascii_letters', 'digits'], seed=ansible_facts['hostname']) }}"
           when: influxdb_password == "generated"
 
         - name: Initialize InfluxDB

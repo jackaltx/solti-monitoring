@@ -39,7 +39,7 @@
       delay: 10
 
     - name: Branch on Debian
-      when: ansible_distribution == "Debian"
+      when: ansible_facts['distribution'] == "Debian"
       block:
         - name: Install required packages
           apt:
@@ -58,7 +58,7 @@
             enabled: true
 
     - name: Branch on Rocky
-      when: ansible_distribution == "Rocky"
+      when: ansible_facts['distribution'] == "Rocky"
       block:
         - name: Install required packages
           dnf:
@@ -69,5 +69,5 @@
 
     - name: Fail for unsupported
       fail:
-        msg: "Distribution {{ ansible_distribution }} not supported"
-      when: ansible_distribution != "Debian" and ansible_distribution != "Rocky"
+        msg: "Distribution {{ ansible_facts['distribution'] }} not supported"
+      when: ansible_facts['distribution'] != "Debian" and ansible_facts['distribution'] != "Rocky"

@@ -99,7 +99,7 @@
         - /tmp/loki
         - /var/lib/loki
       when:
-        - ansible_selinux.status == 'enabled'
+        - ansible_facts['selinux']['status'] == 'enabled'
         - loki_dirs.changed
 
 ###################################################################################

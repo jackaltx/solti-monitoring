@@ -15,10 +15,18 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Activate virtual environment if it exists
+if [ -f "solti-venv/bin/activate" ]; then
+    source solti-venv/bin/activate
+else
+    echo "Warning: solti-venv not found. Run ./prepare-solti-env.sh first"
+    exit 1
+fi
+
 # Configuration
 DISTRIBUTIONS=(
     "rocky:rocky9-template"
-    "debian:debian-12-template"
+#    "debian:debian-12-template"
 )
 INTEGRATIONS=(
     "proxmox"

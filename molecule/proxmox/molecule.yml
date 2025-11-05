@@ -24,9 +24,12 @@ provisioner:
       roles_path: roles
       interpreter_python: auto_silent
       host_key_checking: false
+      ansible_managed: "Ansible managed"
+      # deprecation_warnings: false
   inventory:
     group_vars:
       all:
+        ansible_managed: "Ansible managed"
         proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | default('9100', true) | int }}"
         proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
         proxmox_vm_name: "uut-vm" # "{{ lookup('env', 'MOLECULE_NAME') | default('debian12-test',true) }}" # not used
