@@ -4,9 +4,14 @@
   become: true
 
   tasks:
-    - name: Initialize verify results dictionary
+    - name: Initialize verify results dictionaries
       set_fact:
         all_verify_results: {}
+        all_verify_failed: {}
+
+    - name: Set verify timestamp (if not already set from converge)
+      set_fact:
+        verify_timestamp: "{{ verify_timestamp | default(ansible_facts['date_time']['iso8601']) }}"
 
     - name: Load capability role definitions
       include_vars:
