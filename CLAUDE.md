@@ -78,10 +78,69 @@ All roles use a consistent state pattern:
 
 ## Testing Framework
 
+### Environment Setup
+
+Before running tests, set up the Python virtual environment:
+
+```bash
+# Create and configure virtual environment
+./prepare-solti-env.sh
+
+# Activate the environment
+source solti-venv/bin/activate
+```
+
+### Environment Variables
+
+- `LAB_DOMAIN` - Domain for container registry (default: `example.com`)
+  - Set in `~/.secrets/LabProvision` or export before testing
+  - Used to resolve container images: `gitea.${LAB_DOMAIN}:3001/jackaltx/testing-containers/`
+
+- `MOLECULE_CAPABILITIES` - Comma-separated list of capabilities to test
+  - Valid options: `logs`, `metrics`
+  - Default: `logs,metrics`
+  - Examples:
+    - `MOLECULE_CAPABILITIES=logs` - Test only Loki/Alloy
+    - `MOLECULE_CAPABILITIES=metrics` - Test only InfluxDB/Telegraf
+    - `MOLECULE_CAPABILITIES=logs,metrics` - Test all components
+
+### Running Molecule Tests
+
+#### Quick Start (Recommended)
+```bash
+# Run all tests with default capabilities (logs,metrics)
+./run-podman-tests.sh
+
+# Test only log collection
+MOLECULE_CAPABILITIES=logs ./run-podman-tests.sh
+
+# Test only metrics collection
+MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh
+```
+
+#### Direct Molecule Commands
+```bash
+# Activate virtual environment first
+source solti-venv/bin/activate
+
+# Full test cycle (destroy → create → prepare → converge → verify → destroy)
+molecule test -s podman
+
+# Individual test phases
+molecule create -s podman       # Create test containers
+molecule converge -s podman     # Apply roles
+molecule verify -s podman       # Run verification tasks
+molecule destroy -s podman      # Clean up containers
+
+# Other scenarios
+molecule test -s github         # GitHub CI scenario
+molecule test -s proxmox        # Proxmox VM testing (requires env vars)
+```
+
 ### Molecule Scenarios
-- `github/` - CI testing with Podman containers
-- `podman/` - Local container testing
-- `proxmox/` - Full VM testing on Proxmox infrastructure
+- `github/` - CI testing with Podman containers (automated)
+- `podman/` - Local container testing (default for development)
+- `proxmox/` - Full VM testing on Proxmox infrastructure (integration)
 
 ### Verification System
 Multi-level verification tasks in each role:
