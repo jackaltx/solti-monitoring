@@ -3,6 +3,7 @@
   hosts: localhost
   gather_facts: false
   vars:
+    domain: "{{ lookup('env', 'LAB_DOMAIN') | default('example.com', true) }}"
     molecule_inventory:
       all:
         hosts: {}
@@ -23,7 +24,7 @@
     - name: Create a container
       containers.podman.podman_container:
         name: "{{ item.name }}" # from platform in molecule.yml
-        image: "{{ item.image }}"
+        image: "{{ item.image | regex_replace('\\{\\{ domain \\}\\}', domain) }}"
         state: started
         network: "{{ item.network }}"
         log_driver: json-file

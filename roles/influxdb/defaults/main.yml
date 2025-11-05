@@ -39,3 +39,6 @@ influxdb_data_path: /var/lib/influxdb
 # nfs mounts have to happen before package install
 # SMELL: do I continue this??
 influxdb_nfs: false
+
+# this is for tiered storage, but that will not happen to v3
+influxdb_s3: false

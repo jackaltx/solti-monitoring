@@ -161,7 +161,7 @@ This role has no dependencies on other Ansible roles.
   roles:
     - role: jackaltx.solti_monitoring.wazuh_agent
       vars:
-        wazuh_server_address: "monitor3.a0a0.org"
+        wazuh_server_address: "monitor3.example.com"
         wazuh_deployment_profile: "internal"
         wazuh_agent_group: "linux-servers"
 ```

@@ -1,26 +1,32 @@
-# Collection build artifact
-jackaltx-solti.monitoring-1.0.0.tar.gz
+# Collection build artifacts
+*.tar.gz
 
 # Test and development artifacts
 verify_output/
 data/
 tmp/
 logs/
+
+# Python virtual environments
 solti-venv/
+.venv/
+venv/
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 .pytest_cache/
 
 # Ansible
 *.retry
 .ansible/
 
-# IDEs
+# IDEs and editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store

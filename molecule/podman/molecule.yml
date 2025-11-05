@@ -19,7 +19,7 @@ driver:
 #
 platforms:
   - name: "uut-ct0"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/debian12-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/debian-ssh:12"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -32,7 +32,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky93-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky-ssh:9"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -45,7 +45,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct2"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu-ssh:24"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -62,6 +62,7 @@ provisioner:
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    ANSIBLE_DEPRECATION_WARNINGS: "False"
   config_options:
     defaults:
       roles_path: roles
@@ -72,10 +73,11 @@ provisioner:
     prepare: "../shared/podman/prepare.yml"
     converge: "../shared/podman/converge.yml"
     verify: "../shared/verify/main.yml"
-    destory: "../shared/podman/destroy.yml"
+    destroy: "../shared/podman/destroy.yml"
   inventory:
     group_vars:
       all:
+        ansible_managed: "Ansible managed"
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
         ansible_connection: ssh

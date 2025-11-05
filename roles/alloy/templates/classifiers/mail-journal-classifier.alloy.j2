@@ -1,0 +1,358 @@
+// --> mail classifier
+//
+// ====================================================================
+// Mail service classification and processing
+// Processes Postfix and Dovecot logs from journald
+// No sources or endpoints - just classification and parsing logic
+
+// ====================================================================
+// Primary service identification
+stage.match {
+	selector = "{service_name=~\"postfix.*|dovecot.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "mail",
+		}
+	}
+}
+
+// Identify specific mail services
+stage.match {
+	selector = "{service_type=\"mail\", service=~\"postfix.*\"}"
+
+	stage.static_labels {
+		values = {
+			mail_service = "postfix",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"mail\", service=~\"dovecot.*\"}"
+
+	stage.static_labels {
+		values = {
+			mail_service = "dovecot",
+		}
+	}
+}
+
+// ====================================================================
+// Postfix service component identification
+stage.match {
+	selector = "{mail_service=\"postfix\", service=~\".*smtpd.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_component = "smtpd",
+			protocol          = "smtp",
+		}
+	}
+}
+
+stage.match {
+	selector = "{mail_service=\"postfix\", service=~\".*smtps.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_component = "smtpd",
+			protocol          = "smtps",
+		}
+	}
+}
+
+// ====================================================================
+// Drop local testing connections to reduce noise
+stage.match {
+	selector = "{service_type=\"mail\", raw_message=~\".*rip=::[[]1[]], lip=::[[]1[]].*no auth attempts.*\"}"
+	action   = "drop"
+}
+
+stage.match {
+	selector = "{service_type=\"mail\", raw_message=~\".*connect from localhost[[]::1[]].*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Authentication and Security Events
+
+// Authentication failures - high priority security events
+stage.match {
+	selector = "{service_type=\"mail\", raw_message=~\".*SASL.*authentication failed.*\"}"
+
+	stage.regex {
+		expression = "SASL (?P<auth_method>\\w+) authentication failed:.*sasl_username=(?P<attempted_user>[^\\s,]*)"
+	}
+
+	stage.static_labels {
+		values = {
+			warning_type = "auth_failure",
+			alert_level  = "medium",
+			event_type   = "mail_auth_failure",
+		}
+	}
+}
+
+// Dovecot authentication failures
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"dovecot\", raw_message=~\".*auth failed.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type  = "mail_auth_failure",
+			alert_level = "medium",
+		}
+	}
+}
+
+// Attack pattern classification
+stage.match {
+	selector = "{warning_type=\"auth_failure\", attempted_user=~\"(sales|admin|info|support)(@.*)?\"}"
+
+	stage.static_labels {
+		values = {
+			attack_pattern = "common_accounts",
+		}
+	}
+}
+
+stage.match {
+	selector = "{warning_type=\"auth_failure\", attempted_user=~\"[0-9]+(@.*)?\"}"
+
+	stage.static_labels {
+		values = {
+			attack_pattern = "numeric_accounts",
+		}
+	}
+}
+
+// ====================================================================
+// Mail Delivery and Connection Events
+
+// Dovecot successful logins
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"dovecot\", raw_message=~\".*Login:.*user=<.*\"}"
+
+	stage.regex {
+		expression = "user=<(?P<login_user>[^>]*)>, method=(?P<auth_method>\\w+), rip=(?P<remote_ip>[^,]+), lip=(?P<local_ip>[^,]+).*session=<(?P<session_id>[^>]+)>"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type    = "mail_login",
+			event_subtype = "success",
+		}
+	}
+}
+
+// Dovecot disconnections with session data
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"dovecot\", raw_message=~\".*Disconnected.*\"}"
+
+	stage.regex {
+		expression = "Disconnected \\((?P<disconnect_reason>[^\\)]+)\\): user=<(?P<disconnect_user>[^>]*)>.*session=<(?P<session_id>[^>]+)>"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type = "mail_disconnect",
+		}
+	}
+}
+
+// Dovecot logout events with stats
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"dovecot\", raw_message=~\".*Logged out.*\"}"
+
+	stage.regex {
+		expression = "Logged out in=(?P<bytes_in>\\d+) out=(?P<bytes_out>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type = "mail_logout",
+		}
+	}
+}
+
+// ====================================================================
+// Mail Flow Tracking
+
+// Postfix mail queuing
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"postfix\", raw_message=~\".*: from=<.*>, size=.*\"}"
+
+	stage.regex {
+		expression = "(?P<queue_id>[A-F0-9]+): from=<(?P<sender>[^>]*)>, size=(?P<message_size>\\d+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type = "mail_queued",
+		}
+	}
+}
+
+// Mail delivery status tracking
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"postfix\", raw_message=~\".*status=.*\"}"
+
+	stage.regex {
+		expression = "status=(?P<delivery_status>\\S+)"
+	}
+}
+
+stage.match {
+	selector = "{delivery_status=\"sent\"}"
+
+	stage.static_labels {
+		values = {
+			delivery_result = "success",
+		}
+	}
+}
+
+stage.match {
+	selector = "{delivery_status=\"bounced\"}"
+
+	stage.static_labels {
+		values = {
+			delivery_result = "bounce",
+		}
+	}
+}
+
+stage.match {
+	selector = "{delivery_status=\"deferred\"}"
+
+	stage.static_labels {
+		values = {
+			delivery_result = "deferred",
+		}
+	}
+}
+
+// ====================================================================
+// Spam and Security Blocks
+
+// Postfix rejections (spam/security blocks)
+stage.match {
+	selector = "{service_type=\"mail\", mail_service=\"postfix\", raw_message=~\".*NOQUEUE: reject:.*\"}"
+
+	stage.regex {
+		expression = "NOQUEUE: reject: RCPT from (?P<reject_host>[^\\[]+)\\[(?P<reject_ip>[^\\]]+)\\]: (?P<reject_code>\\d+) (?P<reject_subcode>[\\d\\.]+) (?P<reject_message>[^;]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type  = "mail_rejected",
+			alert_level = "low",
+		}
+	}
+}
+
+// Identify specific block reasons
+stage.match {
+	selector = "{event_type=\"mail_rejected\", reject_message=~\".*blocked using.*spamhaus.*\"}"
+
+	stage.static_labels {
+		values = {
+			block_reason   = "spamhaus",
+			block_category = "rbl",
+		}
+	}
+}
+
+// ====================================================================
+// Warning Classification
+
+// DNS resolution issues
+stage.match {
+	selector = "{service_type=\"mail\", raw_message=~\".*warning:.*does not resolve to address.*\"}"
+
+	stage.regex {
+		expression = "hostname (?P<hostname>[^\\s]+) does not resolve to address (?P<ip_address>[^\\s:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			warning_type = "dns_failure",
+			alert_level  = "low",
+		}
+	}
+}
+
+// TLS/SSL issues
+stage.match {
+	selector = "{service_type=\"mail\", raw_message=~\".*TLS library problem.*\"}"
+
+	stage.static_labels {
+		values = {
+			warning_type = "tls_failure",
+			alert_level  = "medium",
+		}
+	}
+}
+
+// ====================================================================
+// LMTP Operations (Dovecot)
+
+stage.match {
+	selector = "{service_type=\"mail\", service=\"lmtp\"}"
+
+	stage.static_labels {
+		values = {
+			service_component = "lmtp",
+		}
+	}
+}
+
+// Sieve filter actions
+stage.match {
+	selector = "{service_component=\"lmtp\", raw_message=~\".*sieve:.*stored mail into mailbox.*\"}"
+
+	stage.regex {
+		expression = "sieve: msgid=(?:<)?(?P<msgid>[^>]+)(?:>)?: .*stored mail into mailbox '(?P<mailbox>[^']+)'"
+	}
+
+	stage.static_labels {
+		values = {
+			event_type      = "mail_delivery",
+			delivery_method = "lmtp",
+		}
+	}
+}
+
+// ====================================================================
+// Cleanup and IP tracking
+
+// Keep source IPs only for security events
+stage.match {
+	selector = "{service_type=\"mail\", event_type=~\"mail_rejected|mail_auth_failure\"}"
+
+	stage.static_labels {
+		values = {
+			track_source = "true",
+		}
+	}
+}
+
+// Drop source IPs for non-security events to reduce cardinality
+stage.match {
+	selector = "{service_type=\"mail\", track_source!=\"true\"}"
+
+	stage.label_drop {
+		values = ["remote_ip", "reject_ip", "local_ip"]
+	}
+}
+
+// Final cleanup
+stage.match {
+	selector = "{service_type=\"mail\"}"
+
+	stage.label_drop {
+		values = ["track_source", "service_component"]
+	}
+}
+// <-- mail classifier

@@ -1,0 +1,18 @@
+---
+- name: Debug variable access
+  hosts: Your_Host_Here
+  tasks:
+    - name: Debug variable in different ways
+      debug:
+        msg:
+          - "Variable type: {{ telgraf2influxdb_configs | type_debug }}"
+          - "Raw vars keys: {{ vars.keys() | list }}"
+          - "Direct access: {{ telgraf2influxdb_configs | default('NOT FOUND') }}"
+          - "From vars dict: {{ vars['telgraf2influxdb_configs'] | default('NOT FOUND') }}"
+          - "From hostvars: {{ hostvars[inventory_hostname].telgraf2influxdb_configs | default('NOT FOUND') }}"
+
+    - name: Write full vars context
+      copy:
+        content: "{{ vars | to_nice_yaml }}"
+        dest: "./full_context_dump.yml"
+      delegate_to: localhost

@@ -5,98 +5,16 @@
 // =======================================================================================
 // Define common local file match patterns first
 
-local.file_match "ispconfig_site_access" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/ispconfig/httpd/*/access.log",
-    host        = "{{ ansible_hostname }}",
-    job         = "apache",
-    label       = "ispconfig_access",
-  }]
-}
-
 local.file_match "ispconfig_site_error" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/ispconfig/httpd/*/error.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "apache",
     label       = "ispconfig_error",
   }]
 }
 
-// =======================================================================================
-// Process pipeline for ISPConfig site access logs
-loki.process "ispconfig_site_access" {
-  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
-
-  // Extract site name from path
-  stage.regex {
-    expression = "/var/log/ispconfig/httpd/(?P<site>[^/]+)/access\\.log"
-    source = "__path__"
-  }
-
-  // Skip the 127.0.1.1 site
-  stage.match {
-    selector = "{site=\"127.0.1.1\"}"
-    action   = "drop"
-  }
-
-  stage.labels {
-    values = {
-       vhost = "site",
-    }
-  }
-
-  // ISPConfig site access log format (adjust regex as needed for your specific format)
-  stage.regex {
-    expression = "^(?P<ip>\\S+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[\\w:/]+\\s[+\\-]\\d{4})\\] \"(?P<action>\\S+)\\s?(?P<path>\\S+)?\\s?(?P<protocol>\\S+)?\" (?P<status_code>\\d{3}|-) (?P<size>\\d+|-)\\s?\"?(?P<referer>[^\"]*)\"?\\s?\"?(?P<useragent>[^\"]*)?\"?$"
-  }
-
-  stage.labels {
-    values = {
-      action      = null,
-      status_code = null,
-      path        = null,
-      site        = null,
-    }
-  }
-
-  // =====================================================================================
-  // Drop noisy monitoring requests
-  stage.match {
-    selector = "{action=\"GET\", path=\"/datalogstatus.php\"}"
-    action   = "drop"
-  }
-
-  // =====================================================================================
-  // Categorize status codes
-
-  stage.match {
-    selector = "{status_code=~\"4.*\"}"
-    stage.labels {
-      values = {
-        error_request = "client_error",
-      }
-    }
-  }
-
-  stage.match {
-    selector = "{status_code=~\"5.*\"}"
-    stage.labels {
-      values = {
-        error_request = "server_error",
-      }
-    }
-  }
-
-  // =====================================================================================
-  // Clean up excess labels to reduce cardinality
-
-  stage.label_drop {
-    values = ["ip", "useragent", "referer"]
-  }
-}
 
 // =======================================================================================
 // =======================================================================================
@@ -213,12 +131,6 @@ loki.process "ispconfig_site_error" {
 // =======================================================================================
 // =======================================================================================
 // Source definitions to read the ISPConfig site log files
-
-loki.source.file "ispconfig_site_access" {
-  targets               = local.file_match.ispconfig_site_access.targets
-  forward_to            = [loki.process.ispconfig_site_access.receiver]
-  legacy_positions_file = "/tmp/positions.yaml"
-}
 
 loki.source.file "ispconfig_site_error" {
   targets               = local.file_match.ispconfig_site_error.targets
