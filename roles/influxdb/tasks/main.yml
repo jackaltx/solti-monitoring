@@ -25,9 +25,9 @@
       block:
         - name: Package install
           ansible.builtin.include_tasks:
-            file: "../../shared/influxdb/tasks/{{ ansible_distribution }}-install.yml"
+            file: "../../shared/influxdb/tasks/{{ ansible_facts['distribution'] }}-install.yml"
           vars:
-            package: "{{ influx_pkgs[ansible_distribution] }}"
+            package: "{{ influx_pkgs[ansible_facts['distribution']] }}"
 
         - name: Debug package install results
           ansible.builtin.debug:

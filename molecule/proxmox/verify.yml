@@ -4,13 +4,21 @@
   become: true
 
   tasks:
+    - name: Initialize verify results dictionary
+      set_fact:
+        all_verify_results: {}
+
+    - name: Load capability role definitions
+      include_vars:
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
+
     - name: Debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
           - "Testing capability: {{ testing_capabilities }}"
 
     # .......................................................................

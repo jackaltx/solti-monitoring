@@ -65,6 +65,8 @@ provisioner:
       host_key_checking: false
       remote_tmp: /tmp/ansible-tmp
       local_tmp: /tmp/ansible-tmp
+      ansible_managed: "Ansible managed"
+      # deprecation_warnings: false
   playbooks:
     prepare: "../shared/podman/prepare.yml"
     converge: "../shared/podman/converge.yml"

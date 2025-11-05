@@ -6,7 +6,7 @@
       ansible.builtin.set_fact:
         container_diagnostics: |
           === Container Diagnostic Report ===
-          Timestamp: {{ ansible_date_time.iso8601 }}
+          Timestamp: {{ ansible_facts['date_time']['iso8601'] }}
 
           Container Health:
           ----------------
@@ -20,7 +20,7 @@
           --------------
           {{ service_health | default({}) | to_nice_yaml | indent(2) }}
 
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_date_time.epoch }}.yml"
+        dest: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_facts['date_time']['epoch'] }}.yml"
         mode: "0644"
       delegate_to: localhost
 
@@ -34,7 +34,7 @@
     - name: Create local data directory for diagnostic diagnostics
       become: false
       ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+        path: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -44,6 +44,6 @@
       become: false
       ansible.builtin.copy:
         content: "{{ container_diagnostics }}"
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_date_time.epoch }}.yml"
+        dest: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_facts['date_time']['epoch'] }}.yml"
         mode: "0644"
       delegate_to: localhost

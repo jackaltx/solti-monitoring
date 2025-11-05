@@ -6,7 +6,8 @@
 
   vars:
     molecule_nolog: true
-    verify_timestamp: "{{ ansible_date_time.iso8601 }}"
+    # verify_timestamp set in converge.yml, but provide fallback for standalone verify runs
+    verify_timestamp: "{{ verify_timestamp | default(ansible_facts['date_time']['iso8601']) }}"
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
@@ -29,7 +30,7 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
           - "Testing capability: {{ testing_capabilities }}"
 
     # ................................................................

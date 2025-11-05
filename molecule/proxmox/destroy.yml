@@ -27,7 +27,7 @@
       register: vm_info
 
     - name: Handle non-existent VM
-      when: not vm_info.proxmox_vms
+      when: vm_info.proxmox_vms | length == 0
       block:
         - debug:
             msg: "VM with ID '{{ proxmox_vmid }}' not found. Skipping removal."
@@ -36,11 +36,11 @@
     - name: Check VM status
       set_fact:
         vm_status: "{{ vm_info.proxmox_vms[0].status }}"
-      when: vm_info.proxmox_vms
+      when: vm_info.proxmox_vms | length > 0
 
     - name: Attempt graceful shutdown of VM
       when:
-        - vm_info.proxmox_vms
+        - vm_info.proxmox_vms | length > 0
         - vm_status == 'running'
       community.general.proxmox_kvm:
         api_host: "{{ proxmox_api_host }}"

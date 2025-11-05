@@ -5,14 +5,20 @@
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   tasks:
+    - name: Set test run timestamp (used across converge and verify)
+      set_fact:
+        verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
+        cacheable: yes
+
     - name: Debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
           - "Testing capability: {{ testing_capabilities }}"
+          - "Test timestamp: {{ verify_timestamp }}"
 
     - name: Load capability role definitions
       include_vars:
