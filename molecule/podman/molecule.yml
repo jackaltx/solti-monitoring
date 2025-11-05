@@ -19,7 +19,7 @@ driver:
 #
 platforms:
   - name: "uut-ct0"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/debian12-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/debian-ssh:12"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -32,7 +32,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky93-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky-ssh:9"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -45,7 +45,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct2"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu24-ssh:latest"
+    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu-ssh:24"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
