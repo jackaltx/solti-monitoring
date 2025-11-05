@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Source lab secrets if available (for LAB_DOMAIN, etc.)
+if [ -f ~/.secrets/LabProvision ]; then
+    source ~/.secrets/LabProvision
+fi
+
 # Default values
 CAPABILITIES="logs,metrics"
 TEST_NAME="integration"

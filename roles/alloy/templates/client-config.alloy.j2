@@ -1,0 +1,128 @@
+// =======================================================================================
+// Grafana Alloy Configuration - Unified Journal Processing
+// https://github.com/grafana/alloy/blob/main/example-config.alloy
+// https://github.com/grafana/intro-to-mltp/blob/main/alloy/config.alloy
+// https://nickb.dev/blog/introduction-to-journald-and-structured-logging/
+// journalctl _COMM=sshd -o verbose
+
+// =======================================================================================
+logging {
+  level = "info"
+}
+
+// =======================================================================================
+// Main journal relabeling rules - enhanced for service classification
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label = "hostname"
+  }
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label = "transport"
+  }
+  // Loki see "default labels"
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label = "service_name"
+  }
+  rule {
+    source_labels = ["__journal_message"]
+    target_label = "raw_message"
+  }
+}
+
+// =======================================================================================
+// Unified journal processing pipeline with modular service classifiers
+loki.process "journal_classifier" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Initialize service_type label for all entries
+  stage.static_labels {
+    values = {
+      service_type = "",  // SMELL This along with the host name are the main keys
+    }
+  }
+
+  // ...................................................................
+  // Include individual service classifiers based on configuration
+
+{% if alloy_monitor_mail | default(false) %}
+  // ====================================================================
+  // Mail service classification and processing
+  {% include 'classifiers/mail-journal-classifier.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_bind9 | default(false) %}
+  // ====================================================================
+  // Bind9 DNS service classification and processing  
+  {% include 'classifiers/bind9-journal-classifier.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_wg | default(false) %}
+  // ====================================================================
+  // WireGuard VPN service classification and processing
+  {% include 'classifiers/wireguard-journal-classifier.alloy.j2' %}
+{% endif %}
+
+  // ====================================================================
+  // SSH service classification (always included for security monitoring)
+  {% include 'classifiers/ssh-journal-classifier.alloy.j2' %}
+
+  // ====================================================================
+  // Cleanup labels to reduce cardinality
+  stage.label_drop {
+    values = ["raw_message"]
+  }
+}
+
+
+// =======================================================================================
+// Main journal source - the single source of truth for journald logs
+loki.source.journal "read" {
+  forward_to    = [loki.process.journal_classifier.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  max_age       = "12h"
+  labels        = {component = "loki.source.journal"}
+}
+
+
+// =======================================================================================
+// File-based log sources for services that don't use journald or need specific file parsing
+
+{% if alloy_monitor_apache | default(false) %}
+{% include 'apache.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_ispconfig | default(false) %}
+{% include 'apache-ispconfig.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_fail2ban | default(false) %}
+{% include 'fail2ban.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_gitea | default(false) %}
+{% include 'gitea.alloy.j2' %}
+{% endif %}
+
+
+// =======================================================================================
+// Loki write endpoints
+{% for endpoint in alloy_loki_endpoints %}
+loki.write "{{ endpoint.label }}" {
+  endpoint {
+    url = "http://{{ endpoint.endpoint }}:3100/loki/api/v1/push"
+  }
+}
+{% endfor %}

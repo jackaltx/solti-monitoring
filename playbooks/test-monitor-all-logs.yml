@@ -4,7 +4,7 @@
 #  Come back to this...fix the ip address and start hardening.
 
 - name: "Test all monitoring systems"
-  hosts: mylab
+  hosts: Your_system
 
   vars:
     influxdb_reload: true

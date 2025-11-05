@@ -1,0 +1,47 @@
+// --> sshd servie
+stage.match {
+	selector = "{service_name=\"sshd\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "ssh",
+		}
+	}
+}
+
+// SSH authentication events
+stage.match {
+	selector = "{service_type=\"ssh\", raw_message=~\".*authentication failure.*|.*Failed password.*|.*Accepted.*\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "authentication",
+		}
+	}
+}
+
+// ====================================================================
+// Generic system log classification for anything not specifically handled
+stage.match {
+	selector = "{service_type=\"\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "system",
+		}
+	}
+}
+
+// ====================================================================
+// Drop noisy system messages to reduce log volume
+stage.match {
+	selector = "{service_type=\"system\", level=\"debug\"}"
+	action   = "drop"
+}
+
+// Drop systemd user session noise
+stage.match {
+	selector = "{service_type=\"system\", raw_message=~\".*user@.*service.*\"}"
+	action   = "drop"
+}
+// <-- sshd classifier

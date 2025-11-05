@@ -1,9 +1,15 @@
 # Ansible Collection - jackaltx.solti_monitoring
 
-
 A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. It adds in fail2ban for stand-alone detection/response. There is preliminary work on a WAZUH client for cluster monitoring.
 
 This goal of this collection is to provided tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
+
+Developers Note:  I developed in this folder initially. I have left some of the development
+artifacts to help anyone interested.  A sanitized set of reference files: inventory.yml, group_vars, and playbooks.
+
+The github molecule testing is too slow to be useful. Proxmox is ok for thoroughness.
+Podman works ok.   This is an example of how to reuse your molecule code on multiple testing
+platforms.
 
 ## What is SOLTI?
 
@@ -20,7 +26,7 @@ solti/
 
 ## Architecture Overview
 
-The collection is built around parallel monitoring pipelines with comprehensive testing frameworks. 
+The collection is built around parallel monitoring pipelines with comprehensive testing frameworks.
 
 Recently the project started to focus on "active response" technologies.
 
@@ -55,14 +61,14 @@ Recently the project started to focus on "active response" technologies.
   - `svc-exec.sh`: Task-oriented service operations
   - Integration test runners and reporting tools
 
-### Active Response 
+### Active Response
 
 - ** Fail2Ban
   - xxx
-  - 
+  -
 
 - ** Wazuh Client
-  - xxx   
+  - xxx
 
 ## Getting Started
 

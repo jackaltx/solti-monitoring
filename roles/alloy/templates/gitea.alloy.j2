@@ -2,18 +2,18 @@ local.file_match "gitea" {
   path_targets = [{
     __address__ = "localhost",
     __path__    = "/var/log/gitea/gitea.log",
-    host        = "{{ ansible_hostname }}",
+    hostname    = "{{ ansible_fqdn }}",
     job         = "gitea",
     component   = "gitea_server",
   }]
 }
 
 loki.process "gitea" {
-  forward_to    =  [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
 
   // Extract timestamp and log level
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<source>[^ ]+) \\[(?P<level>\\w+)\\] (?P<message>.*)"
+    expression = "^(?P<timestamp>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<source>.*) \\[(?P<level>\\w+)\\] (?P<message>.*)"
   }
 
   // Convert timestamp to standard format
@@ -25,34 +25,10 @@ loki.process "gitea" {
   // Add basic labels
   stage.labels {
     values = {
-      level = null,
-      source = null,
+      level = "",
+      source = "",
     }
   }
-
-  // Parse router log entries specifically
-  stage.match {
-    selector = "{message=~\"router: completed.*\"}"
-    
-    stage.regex {
-      expression = "router: completed (?P<method>\\w+) (?P<path>[^ ]+) for \\[(?P<client_ip>[^\\]]+)\\]:\\d+, (?P<status_code>\\d+) (?P<status_text>[^\\s]+) in (?P<response_time>[\\d\\.]+)ms @ (?P<handler>[^ ]+)"
-    }
-    
-    stage.labels {
-      values = {
-        method = null,
-        path = null,
-        status_code = null,
-        response_time = null,
-        handler = null,
-      }
-    }
-  }
-  
-  // Drop the original message field if needed to save space
-  // stage.label_drop {
-  //   values = ["message"]
-  // }
 }
 
 loki.source.file "gitea" {

@@ -21,3 +21,14 @@ alloy_monitor_mail: false
 alloy_monitor_bind9: false
 alloy_monitor_wg: false
 alloy_monitor_gitea: false
+
+# User groups to add alloy user to for log file access
+# Add groups as needed based on which services you're monitoring
+#
+alloy_additional_groups: []
+#
+# Example configuration for common services:
+# alloy_additional_groups:
+#   - git        # For gitea logs
+#   - syslog     # For system logs
+#   - adm        # For additional log access
