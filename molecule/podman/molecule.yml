@@ -31,37 +31,38 @@ platforms:
     ssh_user: "jackaltx"
     connection: ssh
 
-  - name: "uut-ct1"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky-ssh:9"
-    network: "monitoring-net"
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2222
-    ssh_user: "jackaltx"
-    connection: ssh
+  # - name: "uut-ct1"
+  #   image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/rocky-ssh:9"
+  #   network: "monitoring-net"
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2222
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
-  - name: "uut-ct2"
-    image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu-ssh:24"
-    network: "monitoring-net"
-    command: "/sbin/init"
-    privileged: true
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    ssh_host: "127.0.0.1"
-    ssh_port: 2224
-    ssh_user: "jackaltx"
-    connection: ssh
+  # - name: "uut-ct2"
+  #   image: "gitea.{{ domain }}:3001/jackaltx/testing-containers/ubuntu-ssh:24"
+  #   network: "monitoring-net"
+  #   command: "/sbin/init"
+  #   privileged: true
+  #   volumes:
+  #     - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  #   cgroupns_mode: host
+  #   ssh_host: "127.0.0.1"
+  #   ssh_port: 2224
+  #   ssh_user: "jackaltx"
+  #   connection: ssh
 
 provisioner:
   name: ansible
   log: true
   env:
     ANSIBLE_SSH_ARGS: "-o IdentityFile=~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    ANSIBLE_DEPRECATION_WARNINGS: "False"
   config_options:
     defaults:
       roles_path: roles
@@ -72,10 +73,11 @@ provisioner:
     prepare: "../shared/podman/prepare.yml"
     converge: "../shared/podman/converge.yml"
     verify: "../shared/verify/main.yml"
-    destory: "../shared/podman/destroy.yml"
+    destroy: "../shared/podman/destroy.yml"
   inventory:
     group_vars:
       all:
+        ansible_managed: "Ansible managed"
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
         ansible_connection: ssh
