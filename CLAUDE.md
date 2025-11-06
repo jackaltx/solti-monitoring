@@ -2,6 +2,14 @@
 
 Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Provides metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki, with fail2ban and WAZUH support.
 
+## Repository Structure
+
+**Nested Git Repository:** This is a standalone git repository within the parent jackaltx/ coordination repo.
+- Parent: `/home/lavender/sandbox/ansible/jackaltx/` (multi-collection suite)
+- This repo: `/home/lavender/sandbox/ansible/jackaltx/solti-monitoring/` (independent git history)
+- Git operations here only affect solti-monitoring, not the parent coordination layer
+- See `../CLAUDE.md` for parent repo context and integration points between collections
+
 ## Quick Start Workflow
 
 ### 1. Environment Setup
