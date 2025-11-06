@@ -6,14 +6,18 @@
 
   vars:
     molecule_nolog: true
-    # verify_timestamp set in converge.yml, but provide fallback for standalone verify runs
-    verify_timestamp: "{{ verify_timestamp | default(ansible_facts['date_time']['iso8601']) }}"
+    # verify_timestamp set in converge.yml via cacheable fact, fallback provided in tasks
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
     #
     # .....................................................................
     #
+    - name: Set verify timestamp if not already set from converge
+      set_fact:
+        verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
+      when: verify_timestamp is not defined
+
     - name: Ensure verify_output directory exists
       ansible.builtin.file:
         path: "{{ report_root }}"

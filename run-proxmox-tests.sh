@@ -23,11 +23,35 @@ else
     exit 1
 fi
 
+# Source development secrets (development environment only)
+# Long-term: migrate to HashiCorp Vault when key env vars are not set
+source ~/.secrets/LabProvision 2>/dev/null || true
+source ~/.secrets/proxmox-exports 2>/dev/null || true
+source ~/.secrets/LabGiteaToken 2>/dev/null || true
+
 # Configuration
-DISTRIBUTIONS=(
+# Override with: PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh
+ALL_DISTRIBUTIONS=(
     "rocky:rocky9-template"
-#    "debian:debian-12-template"
+    "debian:debian-12-template"
 )
+
+# Use specific distro if PROXMOX_DISTRO is set, otherwise test all
+if [[ -n "${PROXMOX_DISTRO:-}" ]]; then
+    DISTRIBUTIONS=()
+    for dist in "${ALL_DISTRIBUTIONS[@]}"; do
+        if [[ "${dist}" == "${PROXMOX_DISTRO}:"* ]]; then
+            DISTRIBUTIONS+=("${dist}")
+        fi
+    done
+    if [[ ${#DISTRIBUTIONS[@]} -eq 0 ]]; then
+        echo "Error: Unknown distro '${PROXMOX_DISTRO}'. Valid: rocky, debian"
+        exit 1
+    fi
+else
+    DISTRIBUTIONS=("${ALL_DISTRIBUTIONS[@]}")
+fi
+
 INTEGRATIONS=(
     "proxmox"
 )

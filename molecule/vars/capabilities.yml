@@ -27,7 +27,7 @@ monitoring_capabilities:
       alloy:
         - verify.yml
     verify_tasks:
-      - verify-logs1.yml
+      - verify-logs.yml
     service_names:
       - loki
       - alloy
@@ -55,7 +55,7 @@ monitoring_capabilities:
       inflxudb:
         - verify.yml
     verify_tasks:
-      - verify-metrics1.yml
+      - verify-metrics.yml
     service_names:
       - influxdb
       - telegraf
