@@ -19,8 +19,13 @@ This is an Ansible collection for comprehensive monitoring infrastructure (jacka
   - Example: `./svc-exec.sh loki verify`
 
 ### Testing
-- `./run-podman-tests.sh` - Quick local container-based testing
-- `./run-proxmox-tests.sh` - Full VM-based integration testing
+- `./run-podman-tests.sh` - Quick local container-based testing (3 platforms: Debian, Rocky, Ubuntu)
+  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct0 ./run-podman-tests.sh` (Debian)
+  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct1 ./run-podman-tests.sh` (Rocky)
+  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct2 ./run-podman-tests.sh` (Ubuntu)
+- `./run-proxmox-tests.sh` - Full VM-based integration testing (2 distros: Rocky, Debian)
+  - Test single distro: `PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh` (Rocky only)
+  - Test single distro: `PROXMOX_DISTRO=debian ./run-proxmox-tests.sh` (Debian only)
 - `./run-integration-tests.sh` - Cross-component integration tests
 - `molecule test -s <scenario>` - Run specific molecule test scenarios
 

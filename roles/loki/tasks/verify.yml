@@ -83,38 +83,26 @@
     # ..........................................................................
 
     # ..........................................................................
-    # Create test results output
-    - name: Set logs_test_results fact
-      no_log: "{{ molecule_nolog | default(true) }}"
+    # Create test results output (build in parts to avoid template recursion)
+    - name: Build loki error summary
+      set_fact:
+        loki_error_summary: "{{ 'Errors detected' if (error_logs.results | default([]) | selectattr('stdout', 'defined') | selectattr('stdout', '!=', '-- No entries --') | list | length > 0) else 'No errors' }}"
+
+    - name: Set loki_test_results fact
       ansible.builtin.set_fact:
-        logs_test_results: |
-          === Monitor Stack Integration Test Results ===
+        loki_test_results: |
+          === Loki Verification Results ===
           Timestamp: {{ verify_timestamp }}
-
-          Service Versions:
-          - Loki: {{ loki_version.stdout }}
-
-          Service Status:
-          - Loki: {{ ansible_facts.services['loki.service'].state }}
-
-          Service Health:
-          - Metrics Available: {{ (api_check.status | default(0)) == 200 }}
-
-          Recent Service Logs:
-          {{ error_logs.results[0].stdout_lines | default([]) | to_nice_yaml | indent(8) }}
-
-          Log Error Check:
-          {% if error_logs.results | selectattr('stdout', 'defined') | list | length > 0 %}
-          !!! ERRORS DETECTED IN LOGS !!!
-          {% endif %}
-          Last error entries:
-          {{ error_logs.results | map(attribute='stdout_lines') | list | to_nice_yaml | indent(8) }}
+          Service: {{ ansible_facts.services['loki.service'].state | default('unknown') }}
+          Version: {{ loki_version.stdout | default('unknown') }}
+          API Check: {{ 'OK' if (api_check.status | default(0)) == 200 else 'FAILED' }}
+          Error Status: {{ loki_error_summary }}
 
     # .............................................................................................
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': logs_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': loki_test_results}) }}"
 
     # ..........................................................................
     # Set verification status

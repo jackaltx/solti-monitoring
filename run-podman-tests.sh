@@ -92,6 +92,18 @@ export MOLECULE_TEST_NAME="$TEST_NAME"
     echo
 } | tee "$LOG_FILE"
 
+# Activate virtual environment if it exists
+if [ -d "solti-venv" ]; then
+    source solti-venv/bin/activate
+elif [ -d "../solti-venv" ]; then
+    source ../solti-venv/bin/activate
+fi
+
+# Source development secrets (development environment only)
+# Long-term: migrate to HashiCorp Vault when key env vars are not set
+source ~/.secrets/LabProvision 2>/dev/null || true
+source ~/.secrets/LabGiteaToken 2>/dev/null || true
+
 # Run the tests and capture output
 # Using a temporary file to capture the exit code
 TEMP_OUTPUT=$(mktemp)
@@ -116,8 +128,8 @@ rm -f "$TEMP_OUTPUT"
     fi
 } | tee -a "$LOG_FILE"
 
-# Create a symlink to latest log
-ln -sf "${LOG_FILE}" "${OUTPUT_DIR}/latest_test.out"
+# Create a symlink to latest log (use basename to avoid nested paths)
+ln -sf "$(basename "${LOG_FILE}")" "${OUTPUT_DIR}/latest_test.out"
 
 # Exit with the correct status
 if [ "$TEST_EXIT_CODE" -eq 0 ]; then
