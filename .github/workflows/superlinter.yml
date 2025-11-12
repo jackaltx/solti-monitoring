@@ -3,17 +3,12 @@ name: Super-Linter
 
 on:
   push:
-    branches: 
-      - '*'
+    branches:
+      - test
   pull_request:
-    branches: 
-      - '*'
+    branches:
+      - test
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to run tests on'
-        required: true
-        default: '*'
 
 jobs:
   super-lint:
@@ -21,15 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Run Super-Linter
         uses: github/super-linter@v4
-        # uses: super-linter/super-linter@v7.2.1
         env:
-          DEFAULT_BRANCH: dev
+          DEFAULT_BRANCH: test
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: true
           # Enable only specific linters
