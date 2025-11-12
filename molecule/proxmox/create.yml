@@ -29,23 +29,44 @@
           - "VM IP: {{ molecule_ip }}"
         verbosity: 1
 
-    - name: Clone and configure VM via SSH on Proxmox host
+    - name: Add proxmox host to in-memory inventory
+      ansible.builtin.add_host:
+        name: proxmox_temp
+        groups: proxmox_clone_group
+        ansible_host: "{{ proxmox_host }}"
+        ansible_user: lavender
+        ansible_connection: ssh
+
+- name: Clone VM on Proxmox host
+  hosts: proxmox_clone_group
+  gather_facts: false
+
+  vars:
+    distribution_map:
+      "rocky9-template": "rocky9"
+      "debian-12-template": "debian12"
+    template_distribution: "{{ distribution_map[hostvars['localhost']['proxmox_template']] | default('debian12') }}"
+
+  tasks:
+    - name: Clone and configure VM
       ansible.builtin.include_role:
         name: jackaltx.solti_platforms.proxmox_template
         tasks_from: clone_latest_template
       vars:
-        ansible_host: "{{ proxmox_host }}"
-        ansible_connection: ssh
-        ansible_user: root
-        clone_vmid: "{{ proxmox_vmid }}"
-        clone_name: "{{ proxmox_vm_name }}"
-        clone_ip: "{{ molecule_ip }}"
+        clone_vmid: "{{ hostvars['localhost']['proxmox_vmid'] }}"
+        clone_name: "{{ hostvars['localhost']['proxmox_vm_name'] }}"
+        clone_ip: "{{ hostvars['localhost']['molecule_ip'] }}"
         clone_gateway: "192.168.101.254"
         clone_netmask: 24
         clone_disk_size: "20G"
         clone_full: 0  # Linked clone for fast molecule testing
-      delegate_to: "{{ proxmox_host }}"
 
+- name: Display summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
     - name: Display VM creation summary
       ansible.builtin.debug:
         msg:
@@ -53,4 +74,3 @@
           - "VMID: {{ proxmox_vmid }}"
           - "Name: {{ proxmox_vm_name }}"
           - "IP: {{ molecule_ip }}"
-          - "Distribution: {{ template_distribution }}"
