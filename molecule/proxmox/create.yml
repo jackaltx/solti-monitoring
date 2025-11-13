@@ -1,59 +1,76 @@
 ---
-- name: Create VM
+# Create VM by cloning latest template using solti-platforms tasks
+# This replaces direct API calls with SSH-based qm commands via solti-platforms role
+- name: Create VM using solti-platforms
   hosts: localhost
+  connection: local
   gather_facts: false
+
+  vars:
+    # Map template names to distribution identifiers
+    distribution_map:
+      "rocky9-template": "rocky9"
+      "debian-12-template": "debian12"
+
+    # Derive distribution from PROXMOX_TEMPLATE env var
+    template_distribution: "{{ distribution_map[proxmox_template] | default('debian12') }}"
+
+    # Proxmox host configuration
+    proxmox_host: "{{ lookup('env', 'PROXMOX_NODE') | default('magic', true) }}"
+
   tasks:
-    # - name: Debug platform info
-    #   debug:
-    #     msg:
-    #       - "Platform Name: {{ molecule_platform_name | default('undefined') }}"
-    #       - "Platform VMID: {{ molecule_platform_vmid | default('undefined') }}"
-    #       - "Platform Template: {{ molecule_platform_template | default('undefined') }}"
-
-    - name: Debug group_vars in prepare
-      debug:
+    - name: Debug molecule configuration
+      ansible.builtin.debug:
         msg:
-          - "Group Vars VMID: {{ proxmox_vmid }}"
-          - "Group Vars IP: {{ molecule_ip }}"
-          - "Group Vars Template: {{ proxmox_template }}"
+          - "Proxmox Host: {{ proxmox_host }}"
+          - "Template Distribution: {{ template_distribution }}"
+          - "Target VMID: {{ proxmox_vmid }}"
+          - "VM Name: {{ proxmox_vm_name }}"
+          - "VM IP: {{ molecule_ip }}"
         verbosity: 1
 
-    - name: Debug hostvars in prepare
-      debug:
-        msg: "{{ hostvars[inventory_hostname] }}"
-        verbosity: 1
+    - name: Add proxmox host to in-memory inventory
+      ansible.builtin.add_host:
+        name: proxmox_temp
+        groups: proxmox_clone_group
+        ansible_host: "{{ proxmox_host }}"
+        ansible_user: lavender
+        ansible_connection: ssh
 
-    - name: Create Proxmox VM
-      community.general.proxmox_kvm:
-        api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
-        api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
-        api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
-        api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
-        node: "{{ lookup('env', 'PROXMOX_NODE') }}"
-        name: "{{ proxmox_vm_name }}"
-        newid: "{{ proxmox_vmid }}"
-        clone: "{{ proxmox_template }}"
-        full: no
-        timeout: 300
-        state: present
-      register: vm_facts
+- name: Clone VM on Proxmox host
+  hosts: proxmox_clone_group
+  gather_facts: false
 
-    - name: Wait for clone to complete
-      pause:
-        seconds: 10
+  vars:
+    distribution_map:
+      "rocky9-template": "rocky9"
+      "debian-12-template": "debian12"
+    template_distribution: "{{ distribution_map[hostvars['localhost']['proxmox_template']] | default('debian12') }}"
 
-    - name: Update VM configuration
-      community.general.proxmox_kvm:
-        api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
-        api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
-        api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
-        api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
-        node: "{{ lookup('env', 'PROXMOX_NODE') }}"
-        vmid: "{{ proxmox_vmid }}"
-        ipconfig:
-          ipconfig0: "ip={{ molecule_ip }}/24,gw=192.168.101.254"
-        update: yes
+  tasks:
+    - name: Clone and configure VM
+      ansible.builtin.include_role:
+        name: jackaltx.solti_platforms.proxmox_template
+        tasks_from: clone_latest_template
+      vars:
+        clone_vmid: "{{ hostvars['localhost']['proxmox_vmid'] }}"
+        clone_name: "{{ hostvars['localhost']['proxmox_vm_name'] }}"
+        clone_ip: "{{ hostvars['localhost']['molecule_ip'] }}"
+        clone_gateway: "192.168.101.254"
+        clone_netmask: 24
+        clone_disk_size: "20G"
+        clone_full: 0  # Linked clone for fast molecule testing
 
-    - name: Print VM facts
-      debug:
-        var: vm_facts
+- name: Display summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Display VM creation summary
+      ansible.builtin.debug:
+        msg:
+          - "=== VM Created Successfully ==="
+          - "VMID: {{ proxmox_vmid }}"
+          - "Name: {{ proxmox_vm_name }}"
+          - "IP: {{ molecule_ip }}"

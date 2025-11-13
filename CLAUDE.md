@@ -1,188 +1,148 @@
-# CLAUDE.md
+# CLAUDE.md - solti-monitoring Collection
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Provides metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki, with fail2ban and WAZUH support.
 
-## Overview
+## Repository Structure
 
-This is an Ansible collection for comprehensive monitoring infrastructure (jackaltx.solti_monitoring). It provides a complete monitoring ecosystem integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki, with fail2ban for security response and WAZUH client support.
+**Nested Git Repository:** This is a standalone git repository within the parent jackaltx/ coordination repo.
+- Parent: `/home/lavender/sandbox/ansible/jackaltx/` (multi-collection suite)
+- This repo: `/home/lavender/sandbox/ansible/jackaltx/solti-monitoring/` (independent git history)
+- Git operations here only affect solti-monitoring, not the parent coordination layer
+- See `../CLAUDE.md` for parent repo context and integration points between collections
 
-## Common Commands
+## Quick Start Workflow
 
-### Service Management
-- `./manage-svc.sh <service> <action>` - Manage services with dynamic playbook generation
-  - Services: loki, alloy, influxdb, telegraf
-  - Actions: install, remove
-  - Example: `./manage-svc.sh -h monitor3 loki install`
-
-- `./svc-exec.sh [-K] [-h HOST] <service> [entry]` - Execute specific tasks
-  - Entry points: verify, verify1, configure, backup, restore
-  - Example: `./svc-exec.sh loki verify`
-
-### Testing
-- `./run-podman-tests.sh` - Quick local container-based testing (3 platforms: Debian, Rocky, Ubuntu)
-  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct0 ./run-podman-tests.sh` (Debian)
-  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct1 ./run-podman-tests.sh` (Rocky)
-  - Test single platform: `MOLECULE_PLATFORM_NAME=uut-ct2 ./run-podman-tests.sh` (Ubuntu)
-- `./run-proxmox-tests.sh` - Full VM-based integration testing (2 distros: Rocky, Debian)
-  - Test single distro: `PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh` (Rocky only)
-  - Test single distro: `PROXMOX_DISTRO=debian ./run-proxmox-tests.sh` (Debian only)
-- `./run-integration-tests.sh` - Cross-component integration tests
-- `molecule test -s <scenario>` - Run specific molecule test scenarios
-
-### Direct Ansible Usage
-- `ansible-playbook -i inventory.yml <playbook>` - Standard playbook execution
-- `ansible-playbook -K -i inventory.yml <playbook>` - With sudo prompt
-
-## Architecture
-
-### Core Components
-
-#### Server Components
-- **InfluxDB** (`roles/influxdb/`) - Time-series database for metrics storage with S3/NFS support
-- **Loki** (`roles/loki/`) - Log aggregation system with label-based indexing
-
-#### Client Components  
-- **Telegraf** (`roles/telegraf/`) - Metrics collection agent with multi-output support
-- **Alloy** (`roles/alloy/`) - Modern log collector (Grafana Alloy) with systemd journal support
-
-#### Security & Response
-- **Fail2Ban** (`roles/fail2ban_config/`) - Intrusion detection with Git-based config versioning
-- **Wazuh Agent** (`roles/wazuh_agent/`) - Security monitoring with deployment profiles
-
-### Key Directories
-- `roles/` - Ansible roles for each component
-- `molecule/` - Multi-environment testing scenarios (github, podman, proxmox)
-- `plugins/vars/` - Custom Ansible variables plugin for project_root
-- `verify_output/` - Test results and verification reports
-- `tmp/` - Generated playbooks from utility scripts
-
-### Configuration Files
-- `inventory.yml` - Infrastructure inventory with service groups
-- `ansible.cfg` - Ansible configuration with custom plugins and logging
-- `group_vars/all/` - Global configuration variables
-
-## State Management
-
-All roles use a consistent state pattern:
-- `<service>_state: present` - Install and configure
-- `<service>_state: absent` - Remove service
-- `<service>_delete_config: true/false` - Remove configuration on removal
-- `<service>_delete_data: true/false` - Remove data on removal
-
-## Key Variables
-
-### Storage Configuration
-- `influxdb_data_path` - InfluxDB data directory (supports NFS)
-- `loki_local_storage` - Enable local vs S3 storage for Loki
-- `mount_nfs_share` - Enable NFS mounting for shared storage
-
-### Multi-Output Support
-- `telegraf_outputs: []` - List of InfluxDB outputs for Telegraf
-- `telgraf2influxdb_configs` - Configuration for each output endpoint
-- `alloy_loki_endpoints` - Loki endpoints for log forwarding
-
-## Testing Framework
-
-### Environment Setup
-
-Before running tests, set up the Python virtual environment:
-
+### 1. Environment Setup
 ```bash
-# Create and configure virtual environment
-./prepare-solti-env.sh
-
-# Activate the environment
-source solti-venv/bin/activate
+# Create and activate Python virtual environment
+./prepare-solti-env.sh && source solti-venv/bin/activate
 ```
 
-### Environment Variables
-
-- `LAB_DOMAIN` - Domain for container registry (default: `example.com`)
-  - Set in `~/.secrets/LabProvision` or export before testing
-  - Used to resolve container images: `gitea.${LAB_DOMAIN}:3001/jackaltx/testing-containers/`
-
-- `MOLECULE_CAPABILITIES` - Comma-separated list of capabilities to test
-  - Valid options: `logs`, `metrics`
-  - Default: `logs,metrics`
-  - Examples:
-    - `MOLECULE_CAPABILITIES=logs` - Test only Loki/Alloy
-    - `MOLECULE_CAPABILITIES=metrics` - Test only InfluxDB/Telegraf
-    - `MOLECULE_CAPABILITIES=logs,metrics` - Test all components
-
-### Running Molecule Tests
-
-#### Quick Start (Recommended)
+### 2. Development Testing (Podman - Fast)
 ```bash
-# Run all tests with default capabilities (logs,metrics)
+# All platforms (Debian, Rocky, Ubuntu)
 ./run-podman-tests.sh
 
-# Test only log collection
-MOLECULE_CAPABILITIES=logs ./run-podman-tests.sh
+# Single platform testing
+MOLECULE_PLATFORM_NAME=uut-ct0 ./run-podman-tests.sh  # Debian
+MOLECULE_PLATFORM_NAME=uut-ct1 ./run-podman-tests.sh  # Rocky
+MOLECULE_PLATFORM_NAME=uut-ct2 ./run-podman-tests.sh  # Ubuntu
 
-# Test only metrics collection
-MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh
+# Test specific capabilities
+MOLECULE_CAPABILITIES=logs ./run-podman-tests.sh      # Loki/Alloy only
+MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 ```
 
-#### Direct Molecule Commands
+### 3. Integration Testing (Proxmox - Full VMs)
 ```bash
-# Activate virtual environment first
+# All distros (Rocky, Debian)
+./run-proxmox-tests.sh
+
+# Single distro testing
+PROXMOX_DISTRO=debian ./run-proxmox-tests.sh
+PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh
+```
+
+### 4. Iterative Development Cycle
+```bash
 source solti-venv/bin/activate
 
-# Full test cycle (destroy → create → prepare → converge → verify → destroy)
-molecule test -s podman
-
-# Individual test phases
-molecule create -s podman       # Create test containers
-molecule converge -s podman     # Apply roles
-molecule verify -s podman       # Run verification tasks
-molecule destroy -s podman      # Clean up containers
-
-# Other scenarios
-molecule test -s github         # GitHub CI scenario
-molecule test -s proxmox        # Proxmox VM testing (requires env vars)
+molecule create -s podman        # Create test containers once
+molecule converge -s podman      # Apply changes (repeat as needed)
+molecule verify -s podman        # Run verification
+molecule destroy -s podman       # Clean up when done
 ```
 
-### Molecule Scenarios
+## Git Checkpoint Workflow
+
+**Create checkpoint commits before every test run.** This creates an audit trail of your debugging process and allows easy rollback to any working state.
+
+### Recommended: Keep Checkpoints, Squash Before PR
+```bash
+# Development cycle - commit freely before each test
+git add -A && git commit -m "checkpoint: add telegraf output config"
+./run-podman-tests.sh  # Fails
+
+git add -A && git commit -m "checkpoint: fix telegraf systemd path"
+./run-podman-tests.sh  # Fails
+
+git add -A && git commit -m "checkpoint: add missing telegraf plugin dep"
+./run-podman-tests.sh  # Pass!
+
+# Before PR: squash all checkpoints into clean commit
+git rebase -i HEAD~3
+# Mark commits as 'squash', write final message: "feat: add telegraf multi-output support"
+```
+
+**Why this approach:**
+- Complete audit trail of what failed and why
+- Easy rollback to any checkpoint: `git checkout HEAD~2`
+- No pressure to get it right before committing
+- Claude Code can analyze failure patterns across checkpoints
+- Natural for complex molecule integration debugging
+
+**Alternative (cleanup as you go):**
+```bash
+git commit -m "checkpoint: change"
+./run-podman-tests.sh
+# Pass: git commit --amend -m "feat: proper message"
+# Fail: git reset --soft HEAD~1, continue fixing
+```
+
+## Components
+
+**Server Roles:**
+- `influxdb` - Time-series database for metrics (S3/NFS support)
+- `loki` - Log aggregation with label-based indexing
+
+**Client Roles:**
+- `telegraf` - Metrics collection agent (multi-output support)
+- `alloy` - Log collector with systemd journal integration
+
+**Security Roles:**
+- `fail2ban_config` - Intrusion detection (Git-based config)
+- `wazuh_agent` - Security monitoring
+
+## Key Environment Variables
+
+**Testing Control:**
+- `LAB_DOMAIN` - Container registry domain (set in `~/.secrets/LabProvision`)
+- `MOLECULE_CAPABILITIES` - Test scope: `logs`, `metrics`, or `logs,metrics` (default)
+- `MOLECULE_PLATFORM_NAME` - Single platform: `uut-ct0` (Debian), `uut-ct1` (Rocky), `uut-ct2` (Ubuntu)
+- `PROXMOX_DISTRO` - Single distro: `rocky` or `debian`
+
+**Proxmox Requirements:**
+- `PROXMOX_URL`, `PROXMOX_USER`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`, `PROXMOX_NODE`
+
+## Molecule Scenarios
+
+- `podman/` - Fast local container testing (development default)
 - `github/` - CI testing with Podman containers (automated)
-- `podman/` - Local container testing (default for development)
-- `proxmox/` - Full VM testing on Proxmox infrastructure (integration)
+- `proxmox/` - Full VM integration testing (requires Proxmox env vars)
 
-### Verification System
-Multi-level verification tasks in each role:
-- `verify` - Basic service functionality
-- `verify1` - Extended verification with integration tests
-- Verification results stored in `verify_output/<distribution>/`
+## State Management Pattern
 
-## Development Patterns
+All roles support consistent state control:
+- `<service>_state: present|absent` - Install/remove service
+- `<service>_delete_config: true|false` - Remove config on removal
+- `<service>_delete_data: true|false` - Remove data on removal
 
-### Role Structure
-Each role follows standard Ansible structure with additional verification tasks:
-- `tasks/main.yml` - Primary installation/removal logic
-- `tasks/verify.yml` - Basic verification tasks
-- `tasks/verify1.yml` - Extended verification (where applicable)
-- `templates/` - Jinja2 templates for configuration files
+## Verification System
 
-### Shared Components
-- `roles/shared/` - Common tasks for package installation across distributions
-- `roles/shared/grafana/tasks/` - Grafana package installation helpers
-- `roles/shared/influxdb/tasks/` - InfluxDB package installation helpers
+Each role includes verification tasks:
+- `verify` - Basic service functionality checks
+- `verify1` - Extended integration verification
+- Results stored in `verify_output/<distribution>/`
 
-### Inventory Groups
-- `<service>_svc` - Default host groups for each service
-- `metric_collectors` - Hosts running Telegraf
-- `clients` - Hosts running Alloy
-- `wazuh_agents` - Hosts running Wazuh agent
+## Key Directories
 
-## Environment Requirements
+- `roles/` - Service roles and shared components
+- `molecule/` - Test scenarios (github, podman, proxmox)
+- `verify_output/` - Test results and verification reports
+- `plugins/vars/` - Custom Ansible variables plugin
 
-### Required for Proxmox Testing
-- `PROXMOX_URL`
-- `PROXMOX_USER`
-- `PROXMOX_TOKEN_ID`
-- `PROXMOX_TOKEN_SECRET`
-- `PROXMOX_NODE`
+## Supported Platforms
 
-### Supported Platforms
 - Debian 11/12 (primary)
 - Rocky Linux 9 (experimental)
-- Ubuntu (via shared installation tasks)
+- Ubuntu 24.04 (via shared tasks)

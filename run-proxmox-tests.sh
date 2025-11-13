@@ -31,6 +31,10 @@ source ~/.secrets/LabGiteaToken 2>/dev/null || true
 
 # Configuration
 # Override with: PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh
+#
+# Template names are mapped to distributions in molecule/proxmox/create.yml
+# The actual template VMID is discovered dynamically via solti-platforms role
+# using the smart VMID numbering system (rocky9=7000-7999, debian12=8000-8999)
 ALL_DISTRIBUTIONS=(
     "rocky:rocky9-template"
     "debian:debian-12-template"
@@ -134,7 +138,9 @@ run_tests() {
     # ensure_clean_state "${integration_test}"
     sleep 10
 
-    # Export template variable for this test run       
+    # Export template variable for this test run
+    # This is mapped to distribution name in molecule/proxmox/create.yml
+    # which then uses solti-platforms to find the latest template VMID
     export PROXMOX_TEMPLATE="${template}"
 
     # Run molecule test
