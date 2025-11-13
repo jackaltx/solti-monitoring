@@ -91,7 +91,7 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
           - "Testing capability: {{ testing_capabilities }}"
 
     # ..................................................................................

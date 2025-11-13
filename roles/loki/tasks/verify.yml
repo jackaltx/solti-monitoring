@@ -88,9 +88,9 @@
       set_fact:
         loki_error_summary: "{{ 'Errors detected' if (error_logs.results | default([]) | selectattr('stdout', 'defined') | selectattr('stdout', '!=', '-- No entries --') | list | length > 0) else 'No errors' }}"
 
-    - name: Set loki_test_results fact
+    - name: Set logs_test_results fact
       ansible.builtin.set_fact:
-        loki_test_results: |
+        logs_test_results: |
           === Loki Verification Results ===
           Timestamp: {{ verify_timestamp }}
           Service: {{ ansible_facts.services['loki.service'].state | default('unknown') }}
@@ -102,17 +102,16 @@
     # Add to all_verify_results using task name as key
     - name: Add metrics results to dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': loki_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'loki-verify-level0': logs_test_results}) }}"
 
     # ..........................................................................
     # Set verification status
     - name: Set logs_verify_failed fact
       ansible.builtin.set_fact:
         logs_verify_failed: >-
-          {{ 
-            (port_check.failed | default(false)) or 
-            (loki_service_check.failed | default(false)) or 
-            (alloy_service_check.failed | default(false)) or
+          {{
+            (port_check.failed | default(false)) or
+            (loki_service_check.failed | default(false)) or
             (api_check.failed | default(false))
           }}
 
@@ -120,6 +119,10 @@
     - name: Add metrics results to dictionary
       set_fact:
         all_verify_failed: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
+
+    - name: set output location directory for test results (distro with major version)
+      ansible.builtin.set_fact:
+        distro_results_dir: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
 
     # .......................................................................
     # .......................................................................
@@ -132,7 +135,7 @@
           become: false
           delegate_to: localhost
           ansible.builtin.file:
-            path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+            path: "{{ distro_results_dir }}"
             state: directory
             mode: "0755"
 
@@ -142,7 +145,7 @@
           delegate_to: localhost
           ansible.builtin.copy:
             content: "{{ logs_test_results }}"
-            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
+            dest: "{{ distro_results_dir }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
             mode: "0644"
 
   # ......................................................................................................
@@ -161,5 +164,5 @@
           error: Unexpected failure during verification process
           timestamp: {{ verify_timestamp }}
           distribution: {{ ansible_distribution | lower }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ distro_results_dir }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"

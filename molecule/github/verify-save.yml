@@ -21,7 +21,7 @@
           - "Playbook dir: {{ playbook_dir }}"
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
-          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution: {{ ansible_facts['distribution'] }}"
 
     - name: Run container diagnostics
       ansible.builtin.include_tasks:
@@ -250,7 +250,7 @@
           {{ item.stdout }}
 
           {% endfor %}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/github_ci_results.txt"
+        dest: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}/github_ci_results.txt"
         mode: "0644"
       delegate_to: localhost
 
