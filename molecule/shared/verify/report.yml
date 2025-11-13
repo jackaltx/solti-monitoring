@@ -29,10 +29,14 @@
 
       Overall Status: {{ 'FAILED' if all_verify_failed.values() | select('true') | list | length > 0 else 'PASSED' }}
 
+- name: set output location directory for test results (distro with major version)
+  ansible.builtin.set_fact:
+    distro_results: "{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
+
 - name: Save consolidated report
   delegate_to: localhost
   become: false
   ansible.builtin.copy:
     content: "{{ final_report }}"
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/consolidated_test_report.md"
+    dest: "{{ report_root }}/{{ distro_results }}-consolidated-test-report.md"
     mode: "0644"

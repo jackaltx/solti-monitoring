@@ -89,6 +89,10 @@
       set_fact:
         all_verify_failed: "{{ all_verify_failed | combine({'logs': logs_verify_failed}) }}"
 
+    - name: set output location directory for test results (distro with major version)
+      ansible.builtin.set_fact:
+        distro_results_dir: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
+
     # .......................................................................
     # .......................................................................
     - name: Save Local block
@@ -100,7 +104,7 @@
           become: false
           delegate_to: localhost
           ansible.builtin.file:
-            path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+            path: "{{ distro_results_dir }}"
             state: directory
             mode: "0755"
 
@@ -110,7 +114,7 @@
           delegate_to: localhost
           ansible.builtin.copy:
             content: "{{ logs_test_results }}"
-            dest: "{{ report_root }}/{{ ansible_distribution | lower }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
+            dest: "{{ distro_results_dir }}/log-collection-{{ ansible_date_time.epoch }}-1.yml"
             mode: "0644"
 
   # ......................................................................................................
@@ -129,5 +133,5 @@
           error: Unexpected failure during verification process
           timestamp: {{ verify_timestamp }}
           distribution: {{ ansible_distribution | lower }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ distro_results_dir }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"

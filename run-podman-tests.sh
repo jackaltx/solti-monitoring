@@ -7,7 +7,7 @@ fi
 
 # Default values
 CAPABILITIES="logs,metrics"
-TEST_NAME="integration"
+TEST_NAME="podman"
 OUTPUT_DIR="./verify_output"
 DATE_STAMP=$(date +%Y%m%d-%H%M%S)
 
@@ -75,7 +75,7 @@ done
 mkdir -p "$OUTPUT_DIR"
 
 # Generate log filename
-LOG_FILE="${OUTPUT_DIR}/${TEST_NAME}_test_${DATE_STAMP}.out"
+LOG_FILE="${OUTPUT_DIR}/${TEST_NAME}-test-${DATE_STAMP}.out"
 
 # Export environment variables
 export MOLECULE_CAPABILITIES="$CAPABILITIES"
