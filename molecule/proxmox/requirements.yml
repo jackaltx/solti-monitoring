@@ -1,0 +1,8 @@
+---
+# Molecule dependency requirements for Proxmox scenario
+# This file is referenced in molecule.yml dependency section
+
+collections:
+  # solti-platforms collection for template discovery and cloning
+  - name: jackaltx.solti_platforms
+    source: ../../solti-platforms

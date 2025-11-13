@@ -1,32 +1,45 @@
-# Collection build artifacts
-*.tar.gz
-
-# Test and development artifacts
-verify_output/
-data/
-tmp/
-logs/
-
-# Python virtual environments
-solti-venv/
-.venv/
-venv/
-
-# Python
+# Python bytecode
 __pycache__/
-*.py[cod]
-*$py.class
 *.pyc
-.pytest_cache/
+*.pyo
+*.pyd
+.Python
 
-# Ansible
+# Ansible artifacts
 *.retry
-.ansible/
+verify_output/
+logs/*.log
 
-# IDEs and editors
-.vscode/
-.idea/
+# Temporary files
+tmp/
+*.tmp
 *.swp
 *.swo
 *~
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Secrets and credentials
+.vault_pass
+*.pem
+*.key
+!roles/*/files/*.key
+*.crt
+!roles/*/files/*.crt
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Local development
+.env
+.envrc
+local_*

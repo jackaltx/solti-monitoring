@@ -1,91 +1,79 @@
 ---
-- name: Destroy
+# Destroy VM using SSH-based qm commands
+# This replaces API calls with direct qm commands on Proxmox host
+- name: Destroy VM
   hosts: localhost
   connection: local
   gather_facts: false
+
   vars:
-    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('pve',true) }}"
-    proxmox_api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
-    proxmox_api_user: "{{ lookup('env', 'PROXMOX_USER') }}"
-    proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
-    proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+    proxmox_host: "{{ lookup('env', 'PROXMOX_NODE') | default('magic', true) }}"
 
   tasks:
-    - name: Proxmox vmid
+    - name: Debug VMID to destroy
       ansible.builtin.debug:
-        var: proxmox_vmid
+        msg: "Destroying VM {{ proxmox_vmid }} on {{ proxmox_host }}"
         verbosity: 1
 
-    - name: Get VM info
-      community.general.proxmox_vm_info:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id }}"
-        api_token_secret: "{{ proxmox_api_token_secret }}"
-        node: "{{ proxmox_node }}"
-        vmid: "{{ proxmox_vmid }}"
-      register: vm_info
+    - name: Check if VM exists
+      ansible.builtin.command:
+        cmd: "qm status {{ proxmox_vmid }}"
+      delegate_to: "{{ proxmox_host }}"
+      register: vm_status
+      failed_when: false
+      changed_when: false
 
     - name: Handle non-existent VM
-      when: vm_info.proxmox_vms | length == 0
+      when: vm_status.rc != 0
       block:
-        - debug:
+        - name: Display VM not found message
+          ansible.builtin.debug:
             msg: "VM with ID '{{ proxmox_vmid }}' not found. Skipping removal."
-        - meta: end_play
 
-    - name: Check VM status
-      set_fact:
-        vm_status: "{{ vm_info.proxmox_vms[0].status }}"
-      when: vm_info.proxmox_vms | length > 0
+        - name: End play for non-existent VM
+          ansible.builtin.meta: end_play
 
-    - name: Attempt graceful shutdown of VM
-      when:
-        - vm_info.proxmox_vms | length > 0
-        - vm_status == 'running'
-      community.general.proxmox_kvm:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id }}"
-        api_token_secret: "{{ proxmox_api_token_secret }}"
-        node: "{{ proxmox_node }}"
-        vmid: "{{ proxmox_vmid }}"
-        state: stopped
-        timeout: 180
-      ignore_errors: true
+    - name: Stop VM gracefully if running
+      ansible.builtin.command:
+        cmd: "qm stop {{ proxmox_vmid }} --timeout 180"
+      delegate_to: "{{ proxmox_host }}"
+      register: stop_result
+      failed_when: false
+      changed_when: stop_result.rc == 0
+      when: "'running' in vm_status.stdout"
 
-    - name: Wait for VM to fully stop
-      when: vm_status == 'running'
-      wait_for:
-        timeout: 10
+    - name: Wait for VM to stop
+      ansible.builtin.pause:
+        seconds: 10
+      when: "'running' in vm_status.stdout"
 
     - name: Force stop VM if still running
-      when: vm_status == 'running'
-      community.general.proxmox_kvm:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id }}"
-        api_token_secret: "{{ proxmox_api_token_secret }}"
-        node: "{{ proxmox_node }}"
-        vmid: "{{ proxmox_vmid }}"
-        state: stopped
-        force: yes
+      ansible.builtin.command:
+        cmd: "qm stop {{ proxmox_vmid }}"
+      delegate_to: "{{ proxmox_host }}"
+      register: force_stop
+      failed_when: false
+      changed_when: force_stop.rc == 0
+      when: stop_result.rc != 0
 
-    - name: Wait for VM to fully stop
-      when: vm_status == 'running'
-      wait_for:
-        timeout: 10
+    - name: Wait after force stop
+      ansible.builtin.pause:
+        seconds: 5
+      when: force_stop.changed | default(false)
 
-    - name: Remove VM
-      community.general.proxmox_kvm:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id }}"
-        api_token_secret: "{{ proxmox_api_token_secret }}"
-        node: "{{ proxmox_node }}"
-        vmid: "{{ proxmox_vmid }}"
-        state: absent
+    - name: Destroy VM
+      ansible.builtin.command:
+        cmd: "qm destroy {{ proxmox_vmid }} --purge"
+      delegate_to: "{{ proxmox_host }}"
+      register: destroy_result
+      changed_when: destroy_result.rc == 0
+
+    - name: Display destroy result
+      ansible.builtin.debug:
+        msg: "VM {{ proxmox_vmid }} destroyed successfully"
+      when: destroy_result.rc == 0
 
     - name: Remove any lingering VMID file
-      file:
+      ansible.builtin.file:
         path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/vmid"
         state: absent
