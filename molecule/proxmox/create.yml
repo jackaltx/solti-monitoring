@@ -10,6 +10,7 @@
     # Map template names to distribution identifiers
     distribution_map:
       "rocky9-template": "rocky9"
+      "rocky10-template": "rocky10"
       "debian-12-template": "debian12"
 
     # Derive distribution from PROXMOX_TEMPLATE env var
@@ -58,7 +59,8 @@
         clone_ip: "{{ hostvars['localhost']['molecule_ip'] }}"
         clone_gateway: "192.168.101.254"
         clone_netmask: 24
-        clone_disk_size: "20G"
+        clone_memory: 6144  # 6GB to avoid kernel memory deadlock
+        # clone_disk_size: "20G"  # Disabled - use template default size
         clone_full: 0  # Linked clone for fast molecule testing
 
 - name: Display summary

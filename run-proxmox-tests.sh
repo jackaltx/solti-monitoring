@@ -36,8 +36,9 @@ source ~/.secrets/LabGiteaToken 2>/dev/null || true
 # The actual template VMID is discovered dynamically via solti-platforms role
 # using the smart VMID numbering system (rocky9=7000-7999, debian12=8000-8999)
 ALL_DISTRIBUTIONS=(
-    "rocky:rocky9-template"
-    "debian:debian-12-template"
+    "rocky9:rocky9-template"
+    "rocky10:rocky10-template"
+    "debian12:debian-12-template"
 )
 
 # Use specific distro if PROXMOX_DISTRO is set, otherwise test all
@@ -49,13 +50,15 @@ if [[ -n "${PROXMOX_DISTRO:-}" ]]; then
         fi
     done
     if [[ ${#DISTRIBUTIONS[@]} -eq 0 ]]; then
-        echo "Error: Unknown distro '${PROXMOX_DISTRO}'. Valid: rocky, debian"
+        echo "Error: Unknown distro '${PROXMOX_DISTRO}'. Valid: rocky9, rocky10, debian12"
         exit 1
     fi
 else
     DISTRIBUTIONS=("${ALL_DISTRIBUTIONS[@]}")
 fi
 
+
+# SMELL:  there is only ONE integration here?
 INTEGRATIONS=(
     "proxmox"
 )
