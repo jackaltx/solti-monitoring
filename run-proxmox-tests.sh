@@ -36,8 +36,9 @@ source ~/.secrets/LabGiteaToken 2>/dev/null || true
 # The actual template VMID is discovered dynamically via solti-platforms role
 # using the smart VMID numbering system (rocky9=7000-7999, debian12=8000-8999)
 ALL_DISTRIBUTIONS=(
-    "rocky:rocky9-template"
-    "debian:debian-12-template"
+    "rocky9:rocky9-template"
+    "rocky10:rocky10-template"
+    "debian12:debian-12-template"
 )
 
 # Use specific distro if PROXMOX_DISTRO is set, otherwise test all
@@ -49,13 +50,15 @@ if [[ -n "${PROXMOX_DISTRO:-}" ]]; then
         fi
     done
     if [[ ${#DISTRIBUTIONS[@]} -eq 0 ]]; then
-        echo "Error: Unknown distro '${PROXMOX_DISTRO}'. Valid: rocky, debian"
+        echo "Error: Unknown distro '${PROXMOX_DISTRO}'. Valid: rocky9, rocky10, debian12"
         exit 1
     fi
 else
     DISTRIBUTIONS=("${ALL_DISTRIBUTIONS[@]}")
 fi
 
+
+# SMELL:  there is only ONE integration here?
 INTEGRATIONS=(
     "proxmox"
 )
@@ -80,7 +83,7 @@ REQUIRED_ENV_VARS=(
 
 
 log() {
-    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "${OUTPUT_DIR}/integration_tests_${TIMESTAMP}.log"
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "${OUTPUT_DIR}/proxmox-${distro_name}-${TIMESTAMP}.log"
 }
 
 error() {
@@ -130,9 +133,9 @@ run_tests() {
     local integration_test=$1
     local distro_name=$2
     local template=$3
-    local test_log="${OUTPUT_DIR}/${integration_test}_${distro_name}_${TIMESTAMP}.log"
+    local test_log="${OUTPUT_DIR}/${integration_test}-${distro_name}-${TIMESTAMP}.log"
 
-    log "${YELLOW}Testing ${integration_test} on ${distro_name}${NC}"
+    log "${YELLOW}Testing ${integration_test} on ${distro_name} with ${template}${NC}"
 
     # Ensure clean state before test
     # ensure_clean_state "${integration_test}"
@@ -179,7 +182,7 @@ main() {
         log "${GREEN}All tests passed successfully${NC}"
     else
         log "${RED}Failed tests:${NC}"
-        printf '%s\n' "${failed_tests[@]}" | tee -a "${OUTPUT_DIR}/integration_tests_${TIMESTAMP}.log"
+        printf '%s\n' "${failed_tests[@]}" | tee -a "${OUTPUT_DIR}/proxmox-${distro_name}-${TIMESTAMP}.log"
         exit 1
     fi
 }

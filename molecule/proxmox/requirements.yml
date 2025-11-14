@@ -4,5 +4,6 @@
 
 collections:
   # solti-platforms collection for template discovery and cloning
+  # Installed via symlink at ~/.ansible/collections/ansible_collections/jackaltx/solti_platforms
+  # For CI/CD environments, override with git source in a separate requirements-ci.yml
   - name: jackaltx.solti_platforms
-    source: ../../solti-platforms

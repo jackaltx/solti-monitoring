@@ -9,8 +9,8 @@ driver:
   name: default
 
 platforms:
-  - name: "uut-vm" # hardcode this as it is ugly to watch the lookup
-    template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+  - name: "uut-vm"
+    template: "MUST_BE_SET" # Intentionally no default - fail if PROXMOX_TEMPLATE unset
 
 provisioner:
   name: ansible
@@ -30,17 +30,20 @@ provisioner:
     group_vars:
       all:
         ansible_managed: "Ansible managed"
-        proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | default('9100', true) | int }}"
-        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
-        proxmox_vm_name: "uut-vm" # "{{ lookup('env', 'MOLECULE_NAME') | default('debian12-test',true) }}" # not used
-        molecule_ip: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        proxmox_vmid: 9100
+        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') }}"
+        proxmox_vm_name: "uut-vm"
+        molecule_ip: "192.168.101.90"
 
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
 
+        # Secure logging control (set to false for debugging credential issues)
+        secure_logging: "{{ lookup('env', 'MOLECULE_SECURE_LOGGING', default='true') | bool }}"
+
     host_vars:
       uut-vm:
-        ansible_host: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        ansible_host: "192.168.101.90"
         ansible_connection: ssh
         ansible_user: "${USER}"
 

@@ -10,6 +10,12 @@
     proxmox_host: "{{ lookup('env', 'PROXMOX_NODE') | default('magic', true) }}"
 
   tasks:
+    - name: Add proxmox host to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ proxmox_host }}"
+        ansible_user: lavender
+        ansible_connection: ssh
+      changed_when: false
     - name: Debug VMID to destroy
       ansible.builtin.debug:
         msg: "Destroying VM {{ proxmox_vmid }} on {{ proxmox_host }}"
@@ -17,25 +23,19 @@
 
     - name: Check if VM exists
       ansible.builtin.command:
-        cmd: "qm status {{ proxmox_vmid }}"
+        cmd: "sudo qm status {{ proxmox_vmid }}"
       delegate_to: "{{ proxmox_host }}"
       register: vm_status
       failed_when: false
       changed_when: false
 
-    - name: Handle non-existent VM
-      when: vm_status.rc != 0
-      block:
-        - name: Display VM not found message
-          ansible.builtin.debug:
-            msg: "VM with ID '{{ proxmox_vmid }}' not found. Skipping removal."
-
-        - name: End play for non-existent VM
-          ansible.builtin.meta: end_play
+    - name: Display VM status
+      ansible.builtin.debug:
+        msg: "VM {{ proxmox_vmid }} status check: {{ 'found' if vm_status.rc == 0 else 'not found (will attempt cleanup anyway)' }}"
 
     - name: Stop VM gracefully if running
       ansible.builtin.command:
-        cmd: "qm stop {{ proxmox_vmid }} --timeout 180"
+        cmd: "sudo qm stop {{ proxmox_vmid }} --timeout 180"
       delegate_to: "{{ proxmox_host }}"
       register: stop_result
       failed_when: false
@@ -49,23 +49,27 @@
 
     - name: Force stop VM if still running
       ansible.builtin.command:
-        cmd: "qm stop {{ proxmox_vmid }}"
+        cmd: "sudo qm stop {{ proxmox_vmid }}"
       delegate_to: "{{ proxmox_host }}"
       register: force_stop
       failed_when: false
       changed_when: force_stop.rc == 0
-      when: stop_result.rc != 0
+      when:
+        - stop_result is defined
+        - stop_result.rc is defined
+        - stop_result.rc != 0
 
     - name: Wait after force stop
       ansible.builtin.pause:
         seconds: 5
       when: force_stop.changed | default(false)
 
-    - name: Destroy VM
+    - name: Destroy VM and clean up config files
       ansible.builtin.command:
-        cmd: "qm destroy {{ proxmox_vmid }} --purge"
+        cmd: "sudo qm destroy {{ proxmox_vmid }} --purge"
       delegate_to: "{{ proxmox_host }}"
       register: destroy_result
+      failed_when: false
       changed_when: destroy_result.rc == 0
 
     - name: Display destroy result

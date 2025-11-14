@@ -10,8 +10,8 @@ driver:
 
 # Define test VM in platforms section
 platforms:
-  - name: "uut-vm" # hardcode this as it is ugly to watch the lookup
-    template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+  - name: "uut-vm"
+    template: "MUST_BE_SET" # Intentionally no default - fail if PROXMOX_TEMPLATE unset
 
 provisioner:
   name: ansible
@@ -31,16 +31,16 @@ provisioner:
   inventory:
     group_vars:
       all:
-        proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | default('9100', true) | int }}"
-        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') | default('debian-12-template',true) }}"
+        proxmox_vmid: "{{ lookup('env', 'PROXMOX_VMID') | int }}"
+        proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') }}"
         proxmox_vm_name: "uut-vm"
-        molecule_ip: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        molecule_ip: "{{ lookup('env', 'MOLECULE_IP') }}"
 
         project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
         report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | dirname | dirname }}/verify_output"
     host_vars:
       uut-vm:
-        ansible_host: "{{ lookup('env', 'MOLECULE_IP') | default('192.168.101.90',true) }}"
+        ansible_host: "{{ lookup('env', 'MOLECULE_IP') }}"
         ansible_connection: ssh
         ansible_user: "${USER}"
 

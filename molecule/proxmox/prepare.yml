@@ -1,4 +1,8 @@
 ---
+#
+#
+# ========================================================================
+
 - name: Prepare VM
   hosts: localhost
   tasks:
@@ -27,12 +31,16 @@
       debug:
         msg: "VM id: {{ proxmox_vmid }} named: {{ proxmox_vm_name }} at ip {{ molecule_ip }} is ready"
 
+#
+#
+# ========================================================================
+
 - name: Install prerequisites
-  hosts: all
+  hosts: all # all hosts?  should be the one that just started. why does this work?
   become: true
   tasks:
     - name: Wait for cloud-init to finish
-      shell: cloud-init status
+      shell: sudo cloud-init status
       register: cloud_init_status
       until: "'status: done' in cloud_init_status.stdout"
       retries: 30
