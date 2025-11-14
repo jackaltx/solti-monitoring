@@ -2,7 +2,7 @@
 all:
   vars:
     domain: example.com
-    mylab_nolog: "{{ cluster_secure_log | bool | default(true) }}"
+    secure_logging: "{{ cluster_secure_log | bool | default(true) }}"
 
     # Customiize to your configuration user
     ansible_user: da_configurator_account

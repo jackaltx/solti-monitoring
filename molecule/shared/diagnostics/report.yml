@@ -31,10 +31,14 @@
         all_verify_results: "{{ all_verify_results | combine({ report_suffix : container_diagnostics}) }}"
 
     # .........................................................................................................
+    - name: set output location directory for test results (distro with major version)
+      ansible.builtin.set_fact:
+        distro_results_dir: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
+
     - name: Create local data directory for diagnostic diagnostics
       become: false
       ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}"
+        path: "{{ distro_results_dir }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -44,6 +48,6 @@
       become: false
       ansible.builtin.copy:
         content: "{{ container_diagnostics }}"
-        dest: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_facts['date_time']['epoch'] }}.yml"
+        dest: "{{ distro_results_dir }}/container-diagnostics-{{ report_suffix }}-{{ ansible_facts['date_time']['epoch'] }}.yml"
         mode: "0644"
       delegate_to: localhost

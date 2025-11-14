@@ -21,6 +21,9 @@
           - "Roles path: {{ playbook_dir }}/../../roles"
           - "Project_root: {{ project_root }}"
           - "Distribution: {{ ansible_facts['distribution'] }}"
+          - "Distribution major version: {{ ansible_facts['distribution_major_version'] }}"
+          - "Distribution release: {{ ansible_facts['distribution_release'] }}"
+          - "Distribution version: {{ ansible_facts['distribution_version'] }}"
           - "Testing capability: {{ testing_capabilities }}"
           - "Test timestamp: {{ verify_timestamp }}"
 

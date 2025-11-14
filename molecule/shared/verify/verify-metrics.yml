@@ -135,7 +135,7 @@
     # ......................................................................
     #
     - name: Set metrics test results fact
-      no_log: "{{ molecule_nolog | default(true) }}"
+      no_log: "{{ secure_logging | default(true) }}"
       ansible.builtin.set_fact:
         metrics_test_results: |
           === Monitor Stack Integration Test Results ===
@@ -195,11 +195,15 @@
       set_fact:
         all_verify_results: "{{ all_verify_results | combine({'metrics-shared': metrics_test_results}) }}"
 
+    - name: set output location directory for test results (distro with major version)
+      ansible.builtin.set_fact:
+        distro_results_dir: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
+
     # Create output directory
     - name: Create local data directory for test results
       become: false
       ansible.builtin.file:
-        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+        path: "{{ distro_results_dir }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -209,7 +213,7 @@
       become: false
       ansible.builtin.copy:
         content: "{{ metrics_test_results }}"
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/metrics-collection-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ distro_results_dir }}/metrics-collection-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
       delegate_to: localhost
 
@@ -249,9 +253,9 @@
           error_logs:
             {{ error_logs.results | to_nice_yaml | indent(2) }}
           capability: metrics
-          distribution: {{ ansible_distribution | lower }}
+          distribution: {{ distro_results_dir }}
           timestamp: {{ verify_timestamp }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-metrics-status-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ report_root }}/{{ distro_results_dir }}/verify-metrics-status-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
 
   rescue:
@@ -266,6 +270,6 @@
           verify_result: failed
           error: Unexpected failure during verification process
           timestamp: {{ verify_timestamp }}
-          distribution: {{ ansible_distribution | lower }}
-        dest: "{{ report_root }}/{{ ansible_distribution | lower }}/verify-metrics-failure-{{ ansible_date_time.epoch }}-1.yml"
+          distribution: {{distro_results_dir }}
+        dest: "{{ distro_results_dir }}/verify-metrics-failure-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"

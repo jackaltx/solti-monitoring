@@ -21,6 +21,15 @@
         - item.network != ''
 
     # .....................................................................
+    - name: Login to Gitea registry
+      containers.podman.podman_login:
+        registry: "{{ lookup('env', 'GITEA_HOST') }}"
+        username: "{{ lookup('env', 'GITEA_USER') }}"
+        password: "{{ lookup('env', 'GITEA_PKG_TOKEN') }}"
+        # authfile: "/path/to/custom/auth.json" # Optional: specify a custom auth file path
+      no_log: "{{ secure_logging | default(true) }}"
+
+    # .....................................................................
     - name: Create a container
       containers.podman.podman_container:
         name: "{{ item.name }}" # from platform in molecule.yml
