@@ -282,13 +282,41 @@ Multiple test scenarios are available for comprehensive verification:
 
 ### Running Tests
 
+#### Podman Tests (Fast, Local)
+
 ```bash
-# Quick local tests with Podman
+# All platforms (Debian, Rocky, Ubuntu)
 ./run-podman-tests.sh
 
-# Complete environment tests with Proxmox
+# Single platform testing
+MOLECULE_PLATFORM_NAME=uut-ct0 ./run-podman-tests.sh  # Debian
+MOLECULE_PLATFORM_NAME=uut-ct1 ./run-podman-tests.sh  # Rocky
+MOLECULE_PLATFORM_NAME=uut-ct2 ./run-podman-tests.sh  # Ubuntu
+
+# Test specific capabilities
+MOLECULE_CAPABILITIES=logs ./run-podman-tests.sh      # Loki/Alloy only
+MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
+```
+
+#### Proxmox Tests (Full VMs)
+
+**VM Template Requirements:**
+- Minimum 8 CPU cores
+- Minimum 16GB RAM
+- Note: Cloning process does not modify template resource allocation
+
+```bash
+# All distros (Rocky9, Debian12)
 ./run-proxmox-tests.sh
 
+# Single distro testing
+PROXMOX_DISTRO=debian12 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=rocky9 ./run-proxmox-tests.sh
+```
+
+#### Integration Tests
+
+```bash
 # Integration tests across components
 ./run-integration-tests.sh
 ```
