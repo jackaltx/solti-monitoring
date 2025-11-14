@@ -83,7 +83,7 @@ REQUIRED_ENV_VARS=(
 
 
 log() {
-    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "${OUTPUT_DIR}/integration_tests_${TIMESTAMP}.log"
+    echo -e "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "${OUTPUT_DIR}/proxmox-${distro_name}-${TIMESTAMP}.log"
 }
 
 error() {
@@ -133,9 +133,9 @@ run_tests() {
     local integration_test=$1
     local distro_name=$2
     local template=$3
-    local test_log="${OUTPUT_DIR}/${integration_test}_${distro_name}_${TIMESTAMP}.log"
+    local test_log="${OUTPUT_DIR}/${integration_test}-${distro_name}-${TIMESTAMP}.log"
 
-    log "${YELLOW}Testing ${integration_test} on ${distro_name}${NC}"
+    log "${YELLOW}Testing ${integration_test} on ${distro_name} with ${template}${NC}"
 
     # Ensure clean state before test
     # ensure_clean_state "${integration_test}"
@@ -182,7 +182,7 @@ main() {
         log "${GREEN}All tests passed successfully${NC}"
     else
         log "${RED}Failed tests:${NC}"
-        printf '%s\n' "${failed_tests[@]}" | tee -a "${OUTPUT_DIR}/integration_tests_${TIMESTAMP}.log"
+        printf '%s\n' "${failed_tests[@]}" | tee -a "${OUTPUT_DIR}/proxmox-${distro_name}-${TIMESTAMP}.log"
         exit 1
     fi
 }
