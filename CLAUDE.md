@@ -34,13 +34,19 @@ MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 ```
 
 ### 3. Integration Testing (Proxmox - Full VMs)
+
+**VM Template Requirements:**
+- Minimum 8 CPU cores
+- Minimum 16GB RAM
+- Note: Cloning process does not modify template resource allocation
+
 ```bash
 # All distros (Rocky, Debian)
 ./run-proxmox-tests.sh
 
 # Single distro testing
-PROXMOX_DISTRO=debian ./run-proxmox-tests.sh
-PROXMOX_DISTRO=rocky ./run-proxmox-tests.sh
+PROXMOX_DISTRO=debian12 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=rocky9 ./run-proxmox-tests.sh
 ```
 
 ### 4. Iterative Development Cycle
