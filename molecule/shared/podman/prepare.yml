@@ -158,11 +158,20 @@
           until: pkg_install is success
           become: true
 
+    # ..................................................................................
+    # Test systemd functionality first
+    - name: Ensure systemd is available
+      command: systemctl --version
+      changed_when: false
+      register: systemd_check
+      ignore_errors: yes
+
     # ..................................................................
-    # TODO:  evaluate this as it seems overkill.
+    # Only needed for GitHub CI containers that don't boot with systemd
+    # Local test containers use /sbin/init so systemd is already running
     #
     - name: Configure container for systemd
-      when: on_github
+      when: on_github or (systemd_check.rc is defined and systemd_check.rc != 0)
       block:
         - name: Create systemd directories
           file:
@@ -195,12 +204,11 @@
             path: /var/run/dbus/system_bus_socket
             timeout: 30
 
-    # ..................................................................................
-    # Test systemd functionality
-    - name: Ensure systemd is available
-      command: systemctl --version
-      changed_when: false
-      register: systemd_check
+        # Re-check systemd after setup
+        - name: Verify systemd is now available
+          command: systemctl --version
+          changed_when: false
+          register: systemd_check
 
     - name: Show systemd version
       debug:
