@@ -27,7 +27,7 @@ alloy_monitor_wg: false
 alloy_monitor_gitea: false
 
 # Filtering options - reduce journald noise
-alloy_filter_cron_noise: true
+alloy_filter_cron_noise: false
 
 # User groups to add alloy user to for log file access
 # Add groups as needed based on which services you're monitoring

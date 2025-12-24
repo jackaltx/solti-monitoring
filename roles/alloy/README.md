@@ -82,7 +82,7 @@ alloy_monitor_wg: false               # WireGuard logs
 alloy_monitor_gitea: false            # Gitea logs
 
 # Filtering options (reduce log noise)
-alloy_filter_cron_noise: true         # Filter cron execution noise (default: true)
+alloy_filter_cron_noise: false        # Filter cron execution noise (default: false)
                                        # Drops: PAM sessions, routine CMD execution
                                        # Keeps: Errors, failures, auth issues
 ```

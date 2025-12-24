@@ -21,13 +21,13 @@ stage.match {
 
 // Drop ISPConfig cron.sh execution logs
 stage.match {
-	selector = "{service_type=\"cron\", raw_message=~\".*\\\\(root\\\\) CMD \\\\(/usr/local/ispconfig/server/cron\\.sh.*\"}"
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]root[)] CMD [(]/usr/local/ispconfig/server/cron.sh.*\"}"
 	action   = "drop"
 }
 
 // Drop ISPConfig server.sh execution logs
 stage.match {
-	selector = "{service_type=\"cron\", raw_message=~\".*\\\\(root\\\\) CMD \\\\(/usr/local/ispconfig/server/server\\.sh.*\"}"
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]root[)] CMD [(]/usr/local/ispconfig/server/server.sh.*\"}"
 	action   = "drop"
 }
 
@@ -37,7 +37,7 @@ stage.match {
 
 // Drop getmail cron execution
 stage.match {
-	selector = "{service_type=\"cron\", raw_message=~\".*\\\\(getmail\\\\) CMD.*\"}"
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]getmail[)] CMD.*\"}"
 	action   = "drop"
 }
 
@@ -49,7 +49,7 @@ stage.match {
 // Pattern: (username) CMD (command)
 // Errors don't match this pattern and will be preserved
 stage.match {
-	selector = "{service_type=\"cron\", raw_message=~\".*\\\\([a-z0-9_-]+\\\\) CMD \\\\(.*\"}"
+	selector = "{service_type=\"cron\", raw_message=~\".*[(][a-z0-9_-]+[)] CMD [(].*\"}"
 	action   = "drop"
 }
 
@@ -59,13 +59,13 @@ stage.match {
 
 // Drop PAM session opened messages for cron
 stage.match {
-	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix\\\\(cron:session\\\\): session opened for user.*\"}"
+	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix[(]cron:session[)]: session opened for user.*\"}"
 	action   = "drop"
 }
 
 // Drop PAM session closed messages for cron
 stage.match {
-	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix\\\\(cron:session\\\\): session closed for user.*\"}"
+	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix[(]cron:session[)]: session closed for user.*\"}"
 	action   = "drop"
 }
 
