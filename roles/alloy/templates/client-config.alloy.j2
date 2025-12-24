@@ -79,6 +79,12 @@ loki.process "journal_classifier" {
   // SSH service classification (always included for security monitoring)
   {% include 'classifiers/ssh-journal-classifier.alloy.j2' %}
 
+{% if alloy_filter_cron_noise | default(true) %}
+  // ====================================================================
+  // Cron noise filtering (ISPConfig, getmail, generic cron)
+  {% include 'classifiers/cron-journal-classifier.alloy.j2' %}
+{% endif %}
+
   // ====================================================================
   // Cleanup labels to reduce cardinality
   stage.label_drop {

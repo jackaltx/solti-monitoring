@@ -22,6 +22,10 @@ Alloy streamlines the collection of logs, metrics, and traces with consistent co
   - WireGuard VPN
   - Gitea
   - ISPConfig
+- Intelligent filtering to reduce journald noise:
+  - **Cron noise**: Filters routine cron execution (ISPConfig, getmail, system cron) while preserving errors
+  - **WireGuard**: Drops keepalives, preserves connection events
+  - **Bind9**: Drops cache cleaning, preserves zone operations
 
 ## Requirements
 
@@ -76,6 +80,11 @@ alloy_monitor_mail: false             # Mail server logs
 alloy_monitor_bind9: false            # Bind9 logs
 alloy_monitor_wg: false               # WireGuard logs
 alloy_monitor_gitea: false            # Gitea logs
+
+# Filtering options (reduce log noise)
+alloy_filter_cron_noise: true         # Filter cron execution noise (default: true)
+                                       # Drops: PAM sessions, routine CMD execution
+                                       # Keeps: Errors, failures, auth issues
 ```
 
 ## Installation
