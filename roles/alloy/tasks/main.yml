@@ -30,13 +30,12 @@
     - name: "Template config  in /etc/alloy/config.alloy "
       ansible.builtin.template:
         src: client-config.alloy.j2
-        dest: "{{ alloy_config }}"
+        dest: "{{ alloy_test_config_path if alloy_test_mode else alloy_config }}"
         owner: root
         group: root
         mode: "0644"
       become: true
-      notify:
-        - Restart alloy
+      notify: "{{ [] if alloy_test_mode else ['Restart alloy'] }}"
 
     # ....................................................................
     # Alloy used the /etc/default directory to keep environment variables
