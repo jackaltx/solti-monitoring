@@ -8,6 +8,10 @@ alloy_config: "/etc/alloy/config.alloy"
 alloy_delete_config: false
 alloy_delete_data: false
 
+# Test mode configuration
+alloy_test_mode: false
+alloy_test_config_path: "/tmp/alloy-test-config-{{ ansible_date_time.iso8601_basic_short }}.alloy"
+
 alloy_loki_endpoints:
   - label: localhost
     endpoint: "127.0.0.1"
