@@ -408,7 +408,7 @@ stage.match {
 // ====================================================================
 
 stage.match {
-  selector = '{event_type="query"}'
+  selector = "{event_type=\"query\"}"
 
   // Track all queries by record type (A, AAAA, TXT, etc.)
   stage.regex {
@@ -425,7 +425,7 @@ stage.match {
 
   // Drop localhost spam/blocklist queries with metric tracking
   stage.match {
-    selector = '{} |~ "client @\\w+ 127\\.0\\.0\\.1.*(?:rspamd|phishtank|blocklist|dnswl|spamhaus|surbl|senderscore)"'
+    selector = "{} |~ \"client @\\\\w+ 127\\\\.0\\\\.0\\\\.1.*(?:rspamd|phishtank|blocklist|dnswl|spamhaus|surbl|senderscore)\""
 
     stage.regex {
       expression = "(?P<spam_service>rspamd|phishtank|blocklist|dnswl|spamhaus|surbl|senderscore)"
@@ -445,7 +445,7 @@ stage.match {
 
 // Track security events (denied, refused queries)
 stage.match {
-  selector = '{} |~ "denied|refused"'
+  selector = "{} |~ \"denied|refused\""
 
   // Extract client IP for security tracking
   stage.regex {
@@ -463,7 +463,7 @@ stage.match {
 
 // Track zone transfers
 stage.match {
-  selector = '{event_type="transfer"}'
+  selector = "{event_type=\"transfer\"}"
 
   stage.regex {
     expression = "transfer of '(?P<zone>[^']+)'"
