@@ -8,3 +8,4 @@
     state: restarted
     enabled: true
   become: true
+  when: not (alloy_test_mode | default(false))
