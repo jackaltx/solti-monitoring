@@ -420,6 +420,7 @@ stage.match {
       name        = "alloy_bind9_queries_by_type_total"
       description = "DNS queries by record type"
       source      = "query_type"
+      action      = "inc"
     }
   }
 
@@ -436,6 +437,7 @@ stage.match {
         name        = "alloy_bind9_spam_queries_dropped_total"
         description = "Spam/blocklist DNS queries dropped to save storage"
         source      = "spam_service"
+        action      = "inc"
       }
     }
 
@@ -457,6 +459,7 @@ stage.match {
       name        = "alloy_bind9_security_events_total"
       description = "DNS queries denied or refused by ACL"
       source      = "denied_ip"
+      action      = "inc"
     }
   }
 }
@@ -474,6 +477,7 @@ stage.match {
       name        = "alloy_bind9_zone_transfers_total"
       description = "Zone transfers by zone name"
       source      = "zone"
+      action      = "inc"
     }
   }
 }
