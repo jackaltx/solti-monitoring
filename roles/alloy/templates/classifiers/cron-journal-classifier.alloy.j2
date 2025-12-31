@@ -1,0 +1,79 @@
+// ====================================================================
+// Cron service classification and noise reduction
+// Processes CRON and PAM session logs from journald
+// Filters routine execution noise while preserving errors
+// ====================================================================
+
+// Primary service identification - mark all CRON logs
+stage.match {
+	selector = "{service_name=\"CRON\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "cron",
+		}
+	}
+}
+
+// ====================================================================
+// ISPConfig-specific cron patterns
+// These run every minute and generate massive log noise
+
+// Drop ISPConfig cron.sh execution logs
+stage.match {
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]root[)] CMD [(]/usr/local/ispconfig/server/cron.sh.*\"}"
+	action   = "drop"
+}
+
+// Drop ISPConfig server.sh execution logs
+stage.match {
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]root[)] CMD [(]/usr/local/ispconfig/server/server.sh.*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Getmail-specific cron patterns
+// Runs frequently to fetch mail
+
+// Drop getmail cron execution
+stage.match {
+	selector = "{service_type=\"cron\", raw_message=~\".*[(]getmail[)] CMD.*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Generic cron noise reduction
+// Catches routine command executions from any user
+
+// Drop all routine cron command executions
+// Pattern: (username) CMD (command)
+// Errors don't match this pattern and will be preserved
+stage.match {
+	selector = "{service_type=\"cron\", raw_message=~\".*[(][a-z0-9_-]+[)] CMD [(].*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// PAM session noise for cron
+// Every cron job opens/closes a PAM session - provides no value
+
+// Drop PAM session opened messages for cron
+stage.match {
+	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix[(]cron:session[)]: session opened for user.*\"}"
+	action   = "drop"
+}
+
+// Drop PAM session closed messages for cron
+stage.match {
+	selector = "{service_name=\"CRON\", raw_message=~\".*pam_unix[(]cron:session[)]: session closed for user.*\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// What we preserve (implicit - not dropped):
+// - Cron errors and failures (different message patterns)
+// - Authentication failures
+// - Permission denied messages
+// - Abnormal cron behavior
+// - Non-zero exit codes
+// ====================================================================
