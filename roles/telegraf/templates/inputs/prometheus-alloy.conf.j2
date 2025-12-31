@@ -16,14 +16,11 @@
   ## Metric version (2 = use Prometheus data model)
   metric_version = 2
 
-  ## Only collect Alloy custom metrics (reduces noise)
-  ## This filters OUT built-in Alloy metrics we don't need
-  fieldpass = [
-    "alloy_bind9_queries_by_type_total",
-    "alloy_bind9_spam_queries_dropped_total",
-    "alloy_bind9_security_events_total",
-    "alloy_bind9_zone_transfers_total"
-  ]
+  ## Filter to only Alloy-specific metrics (adjust fieldpass as needed)
+  ## By default, collect all metrics. Add fieldpass filters for specific metrics.
+  # fieldpass = [
+  #   "alloy_*",
+  # ]
 
   ## Add tags to all metrics from this input
   [inputs.prometheus.tags]
@@ -34,3 +31,4 @@
 ## - Alloy exposes metrics at http://IP:12345/metrics (Prometheus format)
 ## - Telegraf converts Prometheus metrics to InfluxDB line protocol
 ## - Metrics are counters (always increasing), use derivative() in queries
+## - Customize fieldpass array above to filter specific metrics

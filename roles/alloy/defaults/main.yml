@@ -29,9 +29,6 @@ alloy_monitor_gitea: false
 # Filtering options - reduce journald noise
 alloy_filter_cron_noise: false
 
-# Metrics and advanced filtering
-alloy_bind9_metrics_enabled: false  # Enable metrics generation and spam query dropping (opt-in)
-
 # User groups to add alloy user to for log file access
 # Add groups as needed based on which services you're monitoring
 #
