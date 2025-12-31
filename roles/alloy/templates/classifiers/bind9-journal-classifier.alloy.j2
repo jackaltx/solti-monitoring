@@ -402,6 +402,83 @@ stage.match {
 	action   = "drop"
 }
 
+{% if alloy_bind9_metrics_enabled | default(false) %}
+// ====================================================================
+// Metrics tracking for DNS queries and dropped spam
+// ====================================================================
+
+stage.match {
+  selector = '{event_type="query"}'
+
+  // Track all queries by record type (A, AAAA, TXT, etc.)
+  stage.regex {
+    expression = "query: .* IN (?P<query_type>\\w+)"
+  }
+
+  stage.metrics {
+    metric.counter {
+      name        = "alloy_bind9_queries_by_type_total"
+      description = "DNS queries by record type"
+      source      = "query_type"
+    }
+  }
+
+  // Drop localhost spam/blocklist queries with metric tracking
+  stage.match {
+    selector = '{} |~ "client @\\w+ 127\\.0\\.0\\.1.*(?:rspamd|phishtank|blocklist|dnswl|spamhaus|surbl|senderscore)"'
+
+    stage.regex {
+      expression = "(?P<spam_service>rspamd|phishtank|blocklist|dnswl|spamhaus|surbl|senderscore)"
+    }
+
+    stage.metrics {
+      metric.counter {
+        name        = "alloy_bind9_spam_queries_dropped_total"
+        description = "Spam/blocklist DNS queries dropped to save storage"
+        source      = "spam_service"
+      }
+    }
+
+    stage.drop {}
+  }
+}
+
+// Track security events (denied, refused queries)
+stage.match {
+  selector = '{} |~ "denied|refused"'
+
+  // Extract client IP for security tracking
+  stage.regex {
+    expression = "client @\\w+ (?P<denied_ip>[\\d\\.]+)"
+  }
+
+  stage.metrics {
+    metric.counter {
+      name        = "alloy_bind9_security_events_total"
+      description = "DNS queries denied or refused by ACL"
+      source      = "denied_ip"
+    }
+  }
+}
+
+// Track zone transfers
+stage.match {
+  selector = '{event_type="transfer"}'
+
+  stage.regex {
+    expression = "transfer of '(?P<zone>[^']+)'"
+  }
+
+  stage.metrics {
+    metric.counter {
+      name        = "alloy_bind9_zone_transfers_total"
+      description = "Zone transfers by zone name"
+      source      = "zone"
+    }
+  }
+}
+{% endif %}
+
 // ====================================================================
 // Cleanup to reduce cardinality
 
