@@ -19,7 +19,7 @@ stage.match {
 
 // Identify specific mail services
 stage.match {
-	selector = "{service_type=\"mail\", service=~\"postfix.*\"}"
+	selector = "{service_type=\"mail\", service_name=~\"postfix.*\"}"
 
 	stage.static_labels {
 		values = {
@@ -29,7 +29,7 @@ stage.match {
 }
 
 stage.match {
-	selector = "{service_type=\"mail\", service=~\"dovecot.*\"}"
+	selector = "{service_type=\"mail\", service_name=~\"dovecot.*\"}"
 
 	stage.static_labels {
 		values = {
@@ -41,7 +41,7 @@ stage.match {
 // ====================================================================
 // Postfix service component identification
 stage.match {
-	selector = "{mail_service=\"postfix\", service=~\".*smtpd.*\"}"
+	selector = "{mail_service=\"postfix\", service_name=~\".*smtpd.*\"}"
 
 	stage.static_labels {
 		values = {
@@ -52,7 +52,7 @@ stage.match {
 }
 
 stage.match {
-	selector = "{mail_service=\"postfix\", service=~\".*smtps.*\"}"
+	selector = "{mail_service=\"postfix\", service_name=~\".*smtps.*\"}"
 
 	stage.static_labels {
 		values = {
@@ -299,7 +299,7 @@ stage.match {
 // LMTP Operations (Dovecot)
 
 stage.match {
-	selector = "{service_type=\"mail\", service=\"lmtp\"}"
+	selector = "{service_type=\"mail\", service_name=\"lmtp\"}"
 
 	stage.static_labels {
 		values = {
