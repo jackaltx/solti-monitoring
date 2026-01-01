@@ -168,9 +168,19 @@ stage.match {
 stage.match {
 	selector = "{service_type=\"dns\", raw_message=~\".*query:.*\"}"
 
-	// Claude we just changed this
+	// Skip optional memory address (@0x...) before IP
 	stage.regex {
-		expression = "client (?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: query: (?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?: (?P<query_flags>.*))?"
+		expression = "client (?:@\\S+ )?(?P<client_ip>[^#]+)#(?P<client_port>\\d+)[^:]*: query: (?P<query_domain>[a-zA-Z0-9.-]+) (?P<query_class>[^ ]+) (?P<query_type>[^ ]+)(?: (?P<query_flags>.*))?"
+	}
+
+	// Promote extracted fields to labels for filtering
+	stage.labels {
+		values = {
+			client_ip    = "",
+			client_port  = "",
+			query_domain = "",
+			query_type   = "",
+		}
 	}
 
 	stage.static_labels {
@@ -399,6 +409,14 @@ stage.match {
 // Drop routine cache cleaning messages
 stage.match {
 	selector = "{service_type=\"dns\", raw_message=~\".*cleaning cache.*\"}"
+	action   = "drop"
+}
+
+// Drop localhost DNS queries (mail service DNSBL/rspamd/spam filter checks)
+// These are routine operations from Postfix, Dovecot, rspamd, SpamAssassin
+// External queries and security events are preserved
+stage.match {
+	selector = "{service_type=\"dns\", event_type=\"query\", client_ip=\"127.0.0.1\"}"
 	action   = "drop"
 }
 
