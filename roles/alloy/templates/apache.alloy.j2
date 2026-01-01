@@ -83,8 +83,76 @@ loki.process "apache_vhost_access" {
   }
 
   // =====================================================================================
+  // Categorize paths to reduce cardinality
+  // Group by common patterns instead of keeping thousands of unique paths
+
+  stage.match {
+    selector = "{path=\"/\"}"
+    stage.static_labels {
+      values = {
+        path_category = "root",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/admin.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "admin",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/api.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "api",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/wp-.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "wordpress",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\".*\\\\.php.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "php",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\".*\\\\.(js|css|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot).*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "static",
+      }
+    }
+  }
+
+  // Default category for uncategorized paths
+  stage.match {
+    selector = "{path_category=\"\"}"
+    stage.static_labels {
+      values = {
+        path_category = "other",
+      }
+    }
+  }
+
+  // =====================================================================================
   // Categorize status codes
- 
+
   stage.match {
     selector = "{status_code=~\"4.*\"}"
     stage.labels {
@@ -103,9 +171,10 @@ loki.process "apache_vhost_access" {
     }
   }
 
+  // =====================================================================================
   // Clean up excess labels to reduce cardinality
   stage.label_drop {
-    values = ["ip", "useragent", "referer"]
+    values = ["ip", "useragent", "referer", "path"]
   }
 }
 
@@ -141,9 +210,76 @@ loki.process "apache_access" {
   }
 
   // =====================================================================================
-  // Categorization
+  // Categorize paths to reduce cardinality
+  // Group by common patterns instead of keeping thousands of unique paths
 
+  stage.match {
+    selector = "{path=\"/\"}"
+    stage.static_labels {
+      values = {
+        path_category = "root",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/admin.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "admin",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/api.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "api",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\"/wp-.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "wordpress",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\".*\\\\.php.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "php",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path=~\".*\\\\.(js|css|jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot).*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "static",
+      }
+    }
+  }
+
+  // Default category for uncategorized paths
+  stage.match {
+    selector = "{path_category=\"\"}"
+    stage.static_labels {
+      values = {
+        path_category = "other",
+      }
+    }
+  }
+
+  // =====================================================================================
   // Categorize status codes
+
   stage.match {
     selector = "{status_code=~\"4.*\"}"
     stage.labels {
@@ -164,9 +300,9 @@ loki.process "apache_access" {
 
   // =====================================================================================
   // Clean up excess labels to reduce cardinality
-  
+
   stage.label_drop {
-    values = ["ip", "useragent", "referer"]
+    values = ["ip", "useragent", "referer", "path"]
   }
 }
 
