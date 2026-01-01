@@ -294,7 +294,7 @@ If using ISPConfig to manage Bind9:
 - Make journald integration configurable (support file-based collection as alternative)
 - Investigate zone-transfer category compatibility across distros
 
-#### Verification
+#### Bind9 Verification
 
 After configuring Bind9 logging:
 
@@ -304,6 +304,184 @@ journalctl -u named --since '1 hour ago' --no-pager | wc -l
 
 # Verify Alloy is collecting them
 # Check Alloy component health at http://localhost:12345
+```
+
+### Fail2ban Journald Integration
+
+**IMPORTANT**: The fail2ban log collection has migrated from file-based monitoring to systemd journald integration (effective 2026-01-01). This provides better structured logging and integration with the monitoring stack.
+
+#### Current State
+
+- ✅ Role collects fail2ban logs from journald via `loki.source.journal`
+- ✅ Logs are automatically available when `alloy_monitor_fail2ban: true`
+- ✅ No additional fail2ban configuration required (journald is default on systemd systems)
+- ⚠️ Log structure differs from legacy file-based collection
+
+#### Label Structure
+
+Fail2ban logs in journald are identified by these Loki labels:
+
+```yaml
+{
+  service_type: "fail2ban"           # Primary identifier
+  hostname: "hostname"                # Source hostname
+  service_name: "fail2ban"           # Service name
+  unit: "fail2ban.service"           # Systemd unit
+  job: "loki.source.journal.read"    # Collection method
+  transport: "journal"                # Transport type
+  component: "loki.source.journal"   # Alloy component
+}
+```
+
+**Important**: Labels do NOT include `jail` or `action_type` - these must be extracted from the log message content using LogQL parsing.
+
+#### Log Message Format
+
+Fail2ban logs appear in journald with this format:
+
+```text
+[jail_name] Action IP_ADDRESS
+```
+
+Examples:
+
+```text
+[sshd] Ban 192.168.1.100
+[apache-4xx] Unban 10.0.0.50
+[recidive] Increase Ban 172.16.0.10 (3 # 4w 2d -> 2026-01-31 01:41:59)
+```
+
+#### Querying Fail2ban Logs in Loki/Grafana
+
+Since jail and action information is in the log message (not labels), you must use LogQL parsing:
+
+**Basic query:**
+
+```logql
+{hostname="yourhost", service_type="fail2ban"}
+```
+
+**Extract jail, action, and IP:**
+
+```logql
+{hostname="yourhost", service_type="fail2ban"}
+| regexp `\[(?P<jail>[^\]]+)\]\s+(?P<action>Ban|Unban)\s+(?P<banned_ip>\d+\.\d+\.\d+\.\d+)`
+```
+
+**Filter by action:**
+
+```logql
+{hostname="yourhost", service_type="fail2ban"}
+| regexp `\[(?P<jail>[^\]]+)\]\s+(?P<action>Ban|Unban)\s+(?P<banned_ip>\d+\.\d+\.\d+\.\d+)`
+| action="Ban"
+```
+
+**Count bans by jail (24h):**
+
+```logql
+sum by(jail) (
+  count_over_time(
+    {hostname="yourhost", service_type="fail2ban"}
+    | regexp `\[(?P<jail>[^\]]+)\]\s+(?P<action>Ban|Unban)\s+(?P<banned_ip>\d+\.\d+\.\d+\.\d+)`
+    | action="Ban"
+    [24h]
+  )
+)
+```
+
+**Top banned IPs:**
+
+```logql
+topk(20,
+  sum by(banned_ip) (
+    count_over_time(
+      {hostname="yourhost", service_type="fail2ban"}
+      | regexp `\[(?P<jail>[^\]]+)\]\s+(?P<action>Ban|Unban)\s+(?P<banned_ip>\d+\.\d+\.\d+\.\d+)`
+      | action="Ban"
+      [24h]
+    )
+  )
+)
+```
+
+#### Migration from Legacy File-Based Collection
+
+**OLD method (deprecated as of 2026-01-01 04:18 UTC):**
+
+- Direct file monitoring: `/var/log/fail2ban.log`
+- Pre-parsed labels: `{job="fail2ban", action_type="Ban", jail="sshd"}`
+- Structured labels for easy querying
+
+**NEW method (current as of 2026-01-01 04:41 UTC):**
+
+- Journald collection via `loki.source.journal`
+- Labels: `{service_type="fail2ban"}`
+- Log parsing required in queries
+
+**Query migration:**
+
+```logql
+# OLD (deprecated)
+{job="fail2ban", action_type="Ban", jail="sshd"}
+
+# NEW (current)
+{service_type="fail2ban"}
+| regexp `\[(?P<jail>[^\]]+)\]\s+(?P<action>Ban|Unban)\s+(?P<banned_ip>\d+\.\d+\.\d+\.\d+)`
+| action="Ban"
+| jail="sshd"
+```
+
+**Updating Grafana dashboards:**
+
+If you have existing fail2ban dashboards using the old label structure:
+
+1. Update datasource queries to use `{service_type="fail2ban"}`
+2. Add regexp parsing to extract jail/action/IP from messages
+3. Change instant/range query types as needed (tables use `instant`, graphs use `range`)
+4. Test queries against Loki API before deploying dashboard changes:
+
+   ```python
+   # Test query before deploying to dashboard
+   import subprocess, json, time
+
+   now_ns = int(time.time() * 1e9)
+   query = 'sum by(jail) (count_over_time({service_type="fail2ban"} | regexp `\\[(?P<jail>[^\\]]+)\\]` [24h]))'
+
+   cmd = f'curl -s -G "http://loki-server:3100/loki/api/v1/query" \
+     --data-urlencode \'query={query}\' \
+     --data-urlencode time={now_ns}'
+
+   result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+   data = json.loads(result.stdout)
+
+   if data['status'] == 'success' and data['data']['result']:
+       print(f"✅ Query works! {len(data['data']['result'])} results")
+   else:
+       print(f"❌ Query failed: {data.get('error', 'unknown')}")
+   ```
+
+5. Update dashboard JSON via Grafana HTTP API
+6. Verify changes in browser with hard refresh (Ctrl+Shift+R)
+
+#### Benefits of Journald Integration
+
+- **Unified collection**: Single journal source for all systemd services
+- **Better metadata**: Automatic hostname, unit, and transport labels
+- **Reliability**: No log rotation issues or file permission problems
+- **Filtering**: Alloy can filter/process before sending to Loki
+- **Scalability**: Journal compression and efficient storage
+
+#### Fail2ban Verification
+
+```bash
+# Verify fail2ban logs in journald
+journalctl -u fail2ban --since '1 hour ago' --no-pager | grep -E '\[(Ban|Unban)\]' | wc -l
+
+# Check Alloy is forwarding them to Loki
+# Query Loki directly:
+curl -G "http://loki-server:3100/loki/api/v1/query" \
+  --data-urlencode 'query={service_type="fail2ban"}' \
+  --data-urlencode 'limit=10'
 ```
 
 ## Directory Structure

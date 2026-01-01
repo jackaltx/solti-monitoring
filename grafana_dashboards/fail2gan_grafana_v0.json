@@ -1,0 +1,2022 @@
+{
+    "apiVersion": "dashboard.grafana.app/v2beta1",
+    "kind": "Dashboard",
+    "metadata": {
+        "name": "fail2ban",
+        "generation": 16,
+        "creationTimestamp": "2025-03-15T01:50:12Z",
+        "labels": {},
+        "annotations": {}
+    },
+    "spec": {
+        "annotations": [
+            {
+                "kind": "AnnotationQuery",
+                "spec": {
+                    "builtIn": true,
+                    "enable": true,
+                    "hide": true,
+                    "iconColor": "rgba(0, 211, 255, 1)",
+                    "name": "Annotations & Alerts",
+                    "query": {
+                        "group": "grafana",
+                        "kind": "DataQuery",
+                        "spec": {
+                            "limit": 100,
+                            "matchAny": false,
+                            "tags": [],
+                            "type": "dashboard"
+                        },
+                        "version": "v0"
+                    }
+                }
+            }
+        ],
+        "cursorSync": "Off",
+        "editable": true,
+        "elements": {
+            "panel-1": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "{job=\"fail2ban\", action_type=\"Ban\", hostname=~\"$hostname\"}",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 1,
+                    "links": [],
+                    "title": "Recent Unban Activity",
+                    "vizConfig": {
+                        "group": "logs",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {},
+                                "overrides": []
+                            },
+                            "options": {
+                                "dedupStrategy": "none",
+                                "enableInfiniteScrolling": false,
+                                "enableLogDetails": true,
+                                "prettifyLogMessage": false,
+                                "showCommonLabels": false,
+                                "showControls": false,
+                                "showLabels": false,
+                                "showTime": true,
+                                "sortOrder": "Descending",
+                                "wrapLogMessage": false
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-10": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "organize",
+                                    "spec": {
+                                        "id": "organize",
+                                        "options": {
+                                            "excludeByName": {},
+                                            "indexByName": {},
+                                            "renameByName": {
+                                                "source_ip": "IP Address",
+                                                "total_bans": "Total Bans",
+                                                "unique_jails": "Unique Jails"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "sortBy",
+                                    "spec": {
+                                        "id": "sortBy",
+                                        "options": {
+                                            "fields": {},
+                                            "sort": [
+                                                {
+                                                    "field": "Total Bans",
+                                                    "order": "desc"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "This panel tracks IPs that have been banned multiple times across different jails or hosts - potentially indicating more sophisticated attackers.",
+                    "id": 10,
+                    "links": [],
+                    "title": "Repeat Offenders (Last 7 days)",
+                    "vizConfig": {
+                        "group": "table",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "custom": {
+                                        "align": "auto",
+                                        "cellOptions": {
+                                            "type": "auto"
+                                        },
+                                        "footer": {
+                                            "reducers": []
+                                        },
+                                        "inspect": false
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": [
+                                    {
+                                        "matcher": {
+                                            "id": "byName",
+                                            "options": "unique_jails"
+                                        },
+                                        "properties": [
+                                            {
+                                                "id": "color",
+                                                "value": {
+                                                    "mode": "thresholds"
+                                                }
+                                            },
+                                            {
+                                                "id": "thresholds",
+                                                "value": {
+                                                    "mode": "absolute",
+                                                    "steps": [
+                                                        {
+                                                            "color": "green",
+                                                            "value": 0
+                                                        },
+                                                        {
+                                                            "color": "yellow",
+                                                            "value": 2
+                                                        },
+                                                        {
+                                                            "color": "orange",
+                                                            "value": 3
+                                                        },
+                                                        {
+                                                            "color": "red",
+                                                            "value": 4
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "id": "custom.align",
+                                                "value": "center"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "matcher": {
+                                            "id": "byName",
+                                            "options": "total_bans"
+                                        },
+                                        "properties": [
+                                            {
+                                                "id": "custom.align",
+                                                "value": "center"
+                                            },
+                                            {
+                                                "id": "color",
+                                                "value": {
+                                                    "mode": "thresholds"
+                                                }
+                                            },
+                                            {
+                                                "id": "thresholds",
+                                                "value": {
+                                                    "mode": "absolute",
+                                                    "steps": [
+                                                        {
+                                                            "color": "green",
+                                                            "value": 0
+                                                        },
+                                                        {
+                                                            "color": "yellow",
+                                                            "value": 3
+                                                        },
+                                                        {
+                                                            "color": "orange",
+                                                            "value": 5
+                                                        },
+                                                        {
+                                                            "color": "red",
+                                                            "value": 10
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "options": {
+                                "cellHeight": "sm",
+                                "showHeader": true
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-11": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 11,
+                    "links": [],
+                    "title": "Daily Ban Trends by Jail",
+                    "vizConfig": {
+                        "group": "timeseries",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "axisBorderShow": false,
+                                        "axisCenteredZero": false,
+                                        "axisColorMode": "text",
+                                        "axisLabel": "",
+                                        "axisPlacement": "auto",
+                                        "barAlignment": 0,
+                                        "barWidthFactor": 0.6,
+                                        "drawStyle": "bars",
+                                        "fillOpacity": 30,
+                                        "gradientMode": "none",
+                                        "hideFrom": {
+                                            "legend": false,
+                                            "tooltip": false,
+                                            "viz": false
+                                        },
+                                        "insertNulls": false,
+                                        "lineInterpolation": "linear",
+                                        "lineWidth": 1,
+                                        "pointSize": 5,
+                                        "scaleDistribution": {
+                                            "type": "linear"
+                                        },
+                                        "showPoints": "never",
+                                        "showValues": false,
+                                        "spanNulls": false,
+                                        "stacking": {
+                                            "group": "A",
+                                            "mode": "none"
+                                        },
+                                        "thresholdsStyle": {
+                                            "mode": "off"
+                                        }
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    },
+                                    "unit": "short"
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "legend": {
+                                    "calcs": [
+                                        "sum"
+                                    ],
+                                    "displayMode": "table",
+                                    "placement": "bottom",
+                                    "showLegend": true
+                                },
+                                "tooltip": {
+                                    "hideZeros": false,
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-12": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "sortBy",
+                                    "spec": {
+                                        "id": "sortBy",
+                                        "options": {
+                                            "fields": {},
+                                            "sort": [
+                                                {
+                                                    "field": "hour",
+                                                    "order": "asc"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "Tracks the time of day when ban events occur to identify attack patterns",
+                    "id": 12,
+                    "links": [],
+                    "title": "Ban Events by Hour of Day (Last 7 days)",
+                    "vizConfig": {
+                        "group": "piechart",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "hideFrom": {
+                                            "legend": false,
+                                            "tooltip": false,
+                                            "viz": false
+                                        }
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "displayLabels": [],
+                                "legend": {
+                                    "displayMode": "list",
+                                    "placement": "right",
+                                    "showLegend": true
+                                },
+                                "pieType": "donut",
+                                "reduceOptions": {
+                                    "calcs": [
+                                        "sum"
+                                    ],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "sort": "desc",
+                                "tooltip": {
+                                    "hideZeros": false,
+                                    "mode": "single",
+                                    "sort": "none"
+                                }
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-13": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "organize",
+                                    "spec": {
+                                        "id": "organize",
+                                        "options": {
+                                            "excludeByName": {},
+                                            "indexByName": {},
+                                            "renameByName": {
+                                                "host": "Host",
+                                                "jail": "Jail",
+                                                "source_ip": "IP Address"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "Displays currently active bans across all hosts and jails",
+                    "id": 13,
+                    "links": [],
+                    "title": "Currently Active Bans",
+                    "vizConfig": {
+                        "group": "table",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "custom": {
+                                        "align": "auto",
+                                        "cellOptions": {
+                                            "type": "auto"
+                                        },
+                                        "footer": {
+                                            "reducers": []
+                                        },
+                                        "inspect": false
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "cellHeight": "sm",
+                                "showHeader": true
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-15": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 15,
+                    "links": [],
+                    "title": "Ban Activity by Host (24h)",
+                    "vizConfig": {
+                        "group": "bargauge",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green"
+                                            },
+                                            {
+                                                "color": "orange",
+                                                "value": 5
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 10
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "displayMode": "gradient",
+                                "legend": {
+                                    "calcs": [],
+                                    "displayMode": "list",
+                                    "placement": "bottom",
+                                    "showLegend": false
+                                },
+                                "maxVizHeight": 300,
+                                "minVizHeight": 10,
+                                "minVizWidth": 0,
+                                "namePlacement": "auto",
+                                "orientation": "horizontal",
+                                "reduceOptions": {
+                                    "calcs": [
+                                        "lastNotNull"
+                                    ],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "showUnfilled": true,
+                                "sizing": "auto",
+                                "text": {},
+                                "valueMode": "color"
+                            }
+                        },
+                        "version": "12.0.2+security-01"
+                    }
+                }
+            },
+            "panel-16": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "organize",
+                                    "spec": {
+                                        "id": "organize",
+                                        "options": {
+                                            "excludeByName": {},
+                                            "indexByName": {},
+                                            "renameByName": {
+                                                "Value": "Ban Count",
+                                                "host": "Host",
+                                                "jail": "Jail"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "sortBy",
+                                    "spec": {
+                                        "id": "sortBy",
+                                        "options": {
+                                            "fields": {},
+                                            "sort": [
+                                                {
+                                                    "field": "Host",
+                                                    "order": "asc"
+                                                },
+                                                {
+                                                    "field": "Ban Count",
+                                                    "order": "desc"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "groupBy",
+                                    "spec": {
+                                        "id": "groupBy",
+                                        "options": {
+                                            "fields": {
+                                                "Ban Count": {
+                                                    "aggregations": [
+                                                        "sum"
+                                                    ],
+                                                    "operation": "aggregate"
+                                                },
+                                                "Host": {
+                                                    "aggregations": [],
+                                                    "operation": "groupby"
+                                                },
+                                                "Jail": {
+                                                    "aggregations": [],
+                                                    "operation": "groupby"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "Shows the number of banned IPs for each host-jail combination",
+                    "id": 16,
+                    "links": [],
+                    "title": "Detailed Ban Activity by Host and Jail (24h)",
+                    "vizConfig": {
+                        "group": "table",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "custom": {
+                                        "align": "auto",
+                                        "cellOptions": {
+                                            "type": "auto"
+                                        },
+                                        "inspect": false
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green"
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": [
+                                    {
+                                        "matcher": {
+                                            "id": "byRegexp",
+                                            "options": ".*Count"
+                                        },
+                                        "properties": [
+                                            {
+                                                "id": "custom.width",
+                                                "value": 100
+                                            },
+                                            {
+                                                "id": "color",
+                                                "value": {
+                                                    "mode": "thresholds"
+                                                }
+                                            },
+                                            {
+                                                "id": "thresholds",
+                                                "value": {
+                                                    "mode": "absolute",
+                                                    "steps": [
+                                                        {
+                                                            "color": "green"
+                                                        },
+                                                        {
+                                                            "color": "yellow",
+                                                            "value": 3
+                                                        },
+                                                        {
+                                                            "color": "orange",
+                                                            "value": 5
+                                                        },
+                                                        {
+                                                            "color": "red",
+                                                            "value": 10
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "id": "custom.align",
+                                                "value": "center"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "options": {
+                                "cellHeight": "sm",
+                                "footer": {
+                                    "countRows": false,
+                                    "fields": "",
+                                    "reducer": [
+                                        "sum"
+                                    ],
+                                    "show": false
+                                },
+                                "showHeader": true
+                            }
+                        },
+                        "version": "12.0.2+security-01"
+                    }
+                }
+            },
+            "panel-17": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "{job=\"fail2ban\", action_type=\"Unban\", hostname=~\"$hostname\"}",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 17,
+                    "links": [],
+                    "title": "Recent Unban Activity",
+                    "vizConfig": {
+                        "group": "logs",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {},
+                                "overrides": []
+                            },
+                            "options": {
+                                "dedupStrategy": "none",
+                                "enableInfiniteScrolling": false,
+                                "enableLogDetails": true,
+                                "prettifyLogMessage": false,
+                                "showCommonLabels": false,
+                                "showControls": false,
+                                "showLabels": false,
+                                "showTime": true,
+                                "sortOrder": "Descending",
+                                "wrapLogMessage": false
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-18": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum(count_over_time({job=\"fail2ban\", action_type=\"Unban\",  hostname=~\"$hostname\"} [1h]))",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 18,
+                    "links": [],
+                    "title": "Unbans in Last Hour",
+                    "vizConfig": {
+                        "group": "stat",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "orange",
+                                                "value": 5
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 10
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "colorMode": "value",
+                                "graphMode": "area",
+                                "justifyMode": "auto",
+                                "orientation": "auto",
+                                "percentChangeColorMode": "standard",
+                                "reduceOptions": {
+                                    "calcs": [
+                                        "sum"
+                                    ],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "showPercentChange": false,
+                                "textMode": "auto",
+                                "wideLayout": true
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-2": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum by(host, jail) (count_over_time({job=\"fail2ban\", action_type=\"Ban\", severity=\"NOTICE\", hostname=~\"$hostname\", jail=~\"$jail\"} [$timeRange]))",
+                                                "legendFormat": "{{jail}}",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 2,
+                    "links": [],
+                    "title": "Ban Activity by Host and Jail ($timeRange)",
+                    "vizConfig": {
+                        "group": "timeseries",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "axisBorderShow": false,
+                                        "axisCenteredZero": false,
+                                        "axisColorMode": "text",
+                                        "axisLabel": "",
+                                        "axisPlacement": "auto",
+                                        "barAlignment": 0,
+                                        "barWidthFactor": 0.6,
+                                        "drawStyle": "line",
+                                        "fillOpacity": 20,
+                                        "gradientMode": "none",
+                                        "hideFrom": {
+                                            "legend": false,
+                                            "tooltip": false,
+                                            "viz": false
+                                        },
+                                        "insertNulls": false,
+                                        "lineInterpolation": "smooth",
+                                        "lineWidth": 2,
+                                        "pointSize": 5,
+                                        "scaleDistribution": {
+                                            "type": "linear"
+                                        },
+                                        "showPoints": "never",
+                                        "showValues": false,
+                                        "spanNulls": false,
+                                        "stacking": {
+                                            "group": "A",
+                                            "mode": "none"
+                                        },
+                                        "thresholdsStyle": {
+                                            "mode": "off"
+                                        }
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    },
+                                    "unit": "short"
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "legend": {
+                                    "calcs": [
+                                        "sum",
+                                        "max"
+                                    ],
+                                    "displayMode": "table",
+                                    "placement": "bottom",
+                                    "showLegend": true
+                                },
+                                "tooltip": {
+                                    "hideZeros": false,
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-3": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum by(host, jail) (count_over_time({job=\"fail2ban\", action_type=\"Ban\", severity=\"NOTICE\", hostname=~\"$hostname\", jail=~\"$jail\"}  [24h]))",
+                                                "legendFormat": "{{jail}}",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 3,
+                    "links": [],
+                    "title": "Total Bans by Jail (24h)",
+                    "vizConfig": {
+                        "group": "timeseries",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "axisBorderShow": false,
+                                        "axisCenteredZero": false,
+                                        "axisColorMode": "text",
+                                        "axisLabel": "",
+                                        "axisPlacement": "auto",
+                                        "barAlignment": 0,
+                                        "barWidthFactor": 0.6,
+                                        "drawStyle": "line",
+                                        "fillOpacity": 20,
+                                        "gradientMode": "none",
+                                        "hideFrom": {
+                                            "legend": false,
+                                            "tooltip": false,
+                                            "viz": false
+                                        },
+                                        "insertNulls": false,
+                                        "lineInterpolation": "smooth",
+                                        "lineWidth": 2,
+                                        "pointSize": 5,
+                                        "scaleDistribution": {
+                                            "type": "linear"
+                                        },
+                                        "showPoints": "never",
+                                        "showValues": false,
+                                        "spanNulls": false,
+                                        "stacking": {
+                                            "group": "A",
+                                            "mode": "none"
+                                        },
+                                        "thresholdsStyle": {
+                                            "mode": "off"
+                                        }
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    },
+                                    "unit": "short"
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "legend": {
+                                    "calcs": [
+                                        "sum",
+                                        "max"
+                                    ],
+                                    "displayMode": "table",
+                                    "placement": "bottom",
+                                    "showLegend": true
+                                },
+                                "tooltip": {
+                                    "hideZeros": false,
+                                    "mode": "multi",
+                                    "sort": "desc"
+                                }
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-4": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum(count_over_time({job=\"fail2ban\", action_type=\"Ban\",  hostname=~\"$hostname\"} [1h]))",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 4,
+                    "links": [],
+                    "title": "Bans in Last Hour",
+                    "vizConfig": {
+                        "group": "stat",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "orange",
+                                                "value": 5
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 10
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "colorMode": "value",
+                                "graphMode": "area",
+                                "justifyMode": "auto",
+                                "orientation": "auto",
+                                "percentChangeColorMode": "standard",
+                                "reduceOptions": {
+                                    "calcs": [
+                                        "sum"
+                                    ],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "showPercentChange": false,
+                                "textMode": "auto",
+                                "wideLayout": true
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-6": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum by(host, jail) (count_over_time({job=\"fail2ban\", action_type=\"Ban\", hostname=~\"$hostname\", jail=~\"$jail\"} [1h]))",
+                                                "legendFormat": "{{jail}}",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": []
+                        }
+                    },
+                    "description": "",
+                    "id": 6,
+                    "links": [],
+                    "title": "Ban Distribution by jail (24h)",
+                    "vizConfig": {
+                        "group": "piechart",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "palette-classic"
+                                    },
+                                    "custom": {
+                                        "hideFrom": {
+                                            "legend": false,
+                                            "tooltip": false,
+                                            "viz": false
+                                        }
+                                    }
+                                },
+                                "overrides": []
+                            },
+                            "options": {
+                                "displayLabels": [
+                                    "name",
+                                    "percent"
+                                ],
+                                "legend": {
+                                    "displayMode": "list",
+                                    "placement": "bottom",
+                                    "showLegend": true
+                                },
+                                "pieType": "pie",
+                                "reduceOptions": {
+                                    "calcs": [
+                                        "sum"
+                                    ],
+                                    "fields": "",
+                                    "values": false
+                                },
+                                "sort": "desc",
+                                "tooltip": {
+                                    "hideZeros": false,
+                                    "mode": "single",
+                                    "sort": "none"
+                                }
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-7": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "sum by (banned_ip) (count_over_time({job=\"fail2ban\", action_type=\"Ban\", severity=\"NOTICE\", hostname=~\"$hostname\"} | regexp `Ban (?P<banned_ip>\\d+\\.\\d+\\.\\d+\\.\\d+)` [24h])) > 2",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "labelsToFields",
+                                    "spec": {
+                                        "id": "labelsToFields",
+                                        "options": {
+                                            "mode": "columns",
+                                            "valueLabel": "jail"
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "organize",
+                                    "spec": {
+                                        "id": "organize",
+                                        "options": {}
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "",
+                    "id": 7,
+                    "links": [],
+                    "title": "Top Ban Sources by Host and Jail (24h)",
+                    "vizConfig": {
+                        "group": "table",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "custom": {
+                                        "align": "auto",
+                                        "cellOptions": {
+                                            "type": "auto"
+                                        },
+                                        "footer": {
+                                            "reducers": []
+                                        },
+                                        "inspect": false
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": [
+                                    {
+                                        "matcher": {
+                                            "id": "byName",
+                                            "options": "Time"
+                                        },
+                                        "properties": []
+                                    }
+                                ]
+                            },
+                            "options": {
+                                "cellHeight": "sm",
+                                "frameIndex": 4,
+                                "showHeader": true,
+                                "sortBy": [
+                                    {
+                                        "desc": false,
+                                        "displayName": "count"
+                                    }
+                                ]
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            },
+            "panel-8": {
+                "kind": "Panel",
+                "spec": {
+                    "data": {
+                        "kind": "QueryGroup",
+                        "spec": {
+                            "queries": [
+                                {
+                                    "kind": "PanelQuery",
+                                    "spec": {
+                                        "hidden": false,
+                                        "query": {
+                                            "datasource": {
+                                                "name": "${datasource}"
+                                            },
+                                            "group": "loki",
+                                            "kind": "DataQuery",
+                                            "spec": {
+                                                "direction": "backward",
+                                                "editorMode": "code",
+                                                "expr": "",
+                                                "queryType": "range"
+                                            },
+                                            "version": "v0"
+                                        },
+                                        "refId": "A"
+                                    }
+                                }
+                            ],
+                            "queryOptions": {},
+                            "transformations": [
+                                {
+                                    "kind": "organize",
+                                    "spec": {
+                                        "id": "organize",
+                                        "options": {
+                                            "excludeByName": {},
+                                            "indexByName": {},
+                                            "renameByName": {
+                                                "Value": "ban_count",
+                                                "source_ip": "offender_ip"
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "sortBy",
+                                    "spec": {
+                                        "id": "sortBy",
+                                        "options": {
+                                            "fields": {},
+                                            "sort": [
+                                                {
+                                                    "field": "ban_count",
+                                                    "order": "desc"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "description": "",
+                    "id": 8,
+                    "links": [],
+                    "title": "Most Banned IP Addresses (24h)",
+                    "vizConfig": {
+                        "group": "table",
+                        "kind": "VizConfig",
+                        "spec": {
+                            "fieldConfig": {
+                                "defaults": {
+                                    "color": {
+                                        "mode": "thresholds"
+                                    },
+                                    "custom": {
+                                        "align": "auto",
+                                        "cellOptions": {
+                                            "type": "auto"
+                                        },
+                                        "footer": {
+                                            "reducers": []
+                                        },
+                                        "inspect": false
+                                    },
+                                    "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                            {
+                                                "color": "green",
+                                                "value": 0
+                                            },
+                                            {
+                                                "color": "red",
+                                                "value": 80
+                                            }
+                                        ]
+                                    }
+                                },
+                                "overrides": [
+                                    {
+                                        "matcher": {
+                                            "id": "byName",
+                                            "options": "offender_ip"
+                                        },
+                                        "properties": [
+                                            {
+                                                "id": "custom.width",
+                                                "value": 150
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "matcher": {
+                                            "id": "byName",
+                                            "options": "ban_count"
+                                        },
+                                        "properties": [
+                                            {
+                                                "id": "color",
+                                                "value": {
+                                                    "mode": "thresholds"
+                                                }
+                                            },
+                                            {
+                                                "id": "thresholds",
+                                                "value": {
+                                                    "mode": "absolute",
+                                                    "steps": [
+                                                        {
+                                                            "color": "green",
+                                                            "value": 0
+                                                        },
+                                                        {
+                                                            "color": "yellow",
+                                                            "value": 3
+                                                        },
+                                                        {
+                                                            "color": "orange",
+                                                            "value": 5
+                                                        },
+                                                        {
+                                                            "color": "red",
+                                                            "value": 10
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            {
+                                                "id": "custom.align",
+                                                "value": "center"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "options": {
+                                "cellHeight": "sm",
+                                "showHeader": true,
+                                "sortBy": [
+                                    {
+                                        "desc": true,
+                                        "displayName": "ban_count"
+                                    }
+                                ]
+                            }
+                        },
+                        "version": "12.3.0"
+                    }
+                }
+            }
+        },
+        "layout": {
+            "kind": "GridLayout",
+            "spec": {
+                "items": [
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-1"
+                            },
+                            "height": 8,
+                            "width": 24,
+                            "x": 0,
+                            "y": 0
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-17"
+                            },
+                            "height": 8,
+                            "width": 24,
+                            "x": 0,
+                            "y": 8
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-2"
+                            },
+                            "height": 11,
+                            "width": 12,
+                            "x": 0,
+                            "y": 16
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-3"
+                            },
+                            "height": 11,
+                            "width": 12,
+                            "x": 12,
+                            "y": 16
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-4"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 0,
+                            "y": 27
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-18"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 8,
+                            "y": 27
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-6"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 16,
+                            "y": 27
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-7"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 35
+                        }
+                    },
+                    {
+                        "kind": "GridLayoutItem",
+                        "spec": {
+                            "element": {
+                                "kind": "ElementReference",
+                                "name": "panel-8"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 35
+                        }
+                    }
+                ]
+            }
+        },
+        "links": [],
+        "liveNow": false,
+        "preload": false,
+        "tags": [
+            "fail2ban",
+            "security",
+            "monitoring"
+        ],
+        "timeSettings": {
+            "autoRefresh": "30s",
+            "autoRefreshIntervals": [
+                "5s",
+                "10s",
+                "30s",
+                "1m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "2h",
+                "1d"
+            ],
+            "fiscalYearStartMonth": 0,
+            "from": "now-24h",
+            "hideTimepicker": false,
+            "timezone": "",
+            "to": "now"
+        },
+        "title": "Fail2ban Monitoring",
+        "variables": [
+            {
+                "kind": "DatasourceVariable",
+                "spec": {
+                    "allowCustomValue": true,
+                    "current": {
+                        "text": "",
+                        "value": ""
+                    },
+                    "hide": "dontHide",
+                    "includeAll": false,
+                    "label": "datasource",
+                    "multi": false,
+                    "name": "datasource",
+                    "options": [],
+                    "pluginId": "loki",
+                    "refresh": "onDashboardLoad",
+                    "regex": "",
+                    "skipUrlSync": false
+                }
+            },
+            {
+                "kind": "QueryVariable",
+                "spec": {
+                    "allowCustomValue": true,
+                    "current": {
+                        "text": "",
+                        "value": ""
+                    },
+                    "definition": "",
+                    "hide": "dontHide",
+                    "includeAll": true,
+                    "label": "Hostname",
+                    "multi": true,
+                    "name": "hostname",
+                    "options": [],
+                    "query": {
+                        "group": "loki",
+                        "kind": "DataQuery",
+                        "spec": {
+                            "label": "hostname",
+                            "refId": "LokiVariableQueryEditor-VariableQuery",
+                            "stream": "",
+                            "type": 1
+                        },
+                        "version": "v0"
+                    },
+                    "refresh": "onDashboardLoad",
+                    "regex": "",
+                    "skipUrlSync": false,
+                    "sort": "alphabeticalAsc"
+                }
+            },
+            {
+                "kind": "QueryVariable",
+                "spec": {
+                    "allowCustomValue": true,
+                    "current": {
+                        "text": "",
+                        "value": ""
+                    },
+                    "definition": "label_values({job=\"fail2ban\"}, jail)",
+                    "hide": "dontHide",
+                    "includeAll": true,
+                    "label": "Jail",
+                    "multi": true,
+                    "name": "jail",
+                    "options": [],
+                    "query": {
+                        "group": "loki",
+                        "kind": "DataQuery",
+                        "spec": {
+                            "label": "jail",
+                            "refId": "LokiVariableQueryEditor-VariableQuery",
+                            "stream": "{job=\"fail2ban\"}",
+                            "type": 1
+                        },
+                        "version": "v0"
+                    },
+                    "refresh": "onDashboardLoad",
+                    "regex": "",
+                    "skipUrlSync": false,
+                    "sort": "alphabeticalAsc"
+                }
+            },
+            {
+                "kind": "CustomVariable",
+                "spec": {
+                    "allowCustomValue": true,
+                    "current": {
+                        "text": "1h",
+                        "value": "1h"
+                    },
+                    "hide": "dontHide",
+                    "includeAll": false,
+                    "label": "Time Range",
+                    "multi": false,
+                    "name": "timeRange",
+                    "options": [
+                        {
+                            "selected": true,
+                            "text": "1h",
+                            "value": "1h"
+                        },
+                        {
+                            "selected": false,
+                            "text": "24h",
+                            "value": "24h"
+                        },
+                        {
+                            "selected": false,
+                            "text": "7d",
+                            "value": "7d"
+                        },
+                        {
+                            "selected": false,
+                            "text": "30d",
+                            "value": "30d"
+                        }
+                    ],
+                    "query": "1h, 24h, 7d, 30d",
+                    "skipUrlSync": false
+                }
+            }
+        ]
+    },
+    "status": {}
+}
