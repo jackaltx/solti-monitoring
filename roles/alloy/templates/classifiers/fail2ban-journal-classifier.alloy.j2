@@ -1,0 +1,436 @@
+// ====================================================================
+// Fail2ban intrusion prevention service classification and processing
+// Processes fail2ban logs from journald
+// No sources or endpoints - just classification and parsing logic
+
+// ====================================================================
+// Primary service identification - entry gate
+// Matches fail2ban, fail2ban-server, and fail2ban-client
+stage.match {
+	selector = "{service_name=~\"fail2ban.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "fail2ban",
+		}
+	}
+}
+
+// ====================================================================
+// Extract core fail2ban fields from all messages
+//
+// Fail2ban uses two message formats:
+// 1. Detailed logs (fail2ban-server): "2026-01-01 04:45:28,443 fail2ban.jailreader [3026329]: WARNING ..."
+// 2. Simple actions (fail2ban): "[sshd] Restore Ban 106.246.224.218"
+//
+// This regex extracts fields from format 1; format 2 is handled by jail extraction below
+stage.match {
+	selector = "{service_type=\"fail2ban\"}"
+
+	// Extract component (server, actions, filter, observer, etc.)
+	// Format: fail2ban.component [PID]: SEVERITY message
+	stage.regex {
+		expression = "fail2ban\\.(?P<component>\\S+)\\s+\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+(?P<message>.*)"
+	}
+}
+
+// ====================================================================
+// Classify by fail2ban component
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"server\"}"
+
+	stage.static_labels {
+		values = {
+			component_type = "core",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"actions\"}"
+
+	stage.static_labels {
+		values = {
+			component_type = "enforcement",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"filter\"}"
+
+	stage.static_labels {
+		values = {
+			component_type = "detection",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"observer\"}"
+
+	stage.static_labels {
+		values = {
+			component_type = "monitoring",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"jail\"}"
+
+	stage.static_labels {
+		values = {
+			component_type = "management",
+		}
+	}
+}
+
+// ====================================================================
+// Extract jail name from messages
+// Jail operations typically have format: [jail_name] action details
+stage.match {
+	selector = "{service_type=\"fail2ban\", message=~\"\\\\[.*\\\\].*\"}"
+
+	stage.regex {
+		expression = "\\[(?P<jail>[^\\]]+)\\] (?P<jail_message>.*)"
+	}
+}
+
+// ====================================================================
+// Classify by action type
+
+// Ban actions
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Bb]an .*\"}"
+
+	stage.regex {
+		expression = "[Bb]an (?P<banned_ip>[0-9a-f.:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			action_type = "ban",
+			alert_level = "high",
+		}
+	}
+}
+
+// Unban actions
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Uu]nban .*\"}"
+
+	stage.regex {
+		expression = "[Uu]nban (?P<unbanned_ip>[0-9a-f.:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			action_type = "unban",
+			alert_level = "medium",
+		}
+	}
+}
+
+// Found/detected attempts
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Ff]ound .*\"}"
+
+	stage.regex {
+		expression = "[Ff]ound (?P<found_ip>[0-9a-f.:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			action_type = "found",
+			alert_level = "medium",
+		}
+	}
+}
+
+// Already banned
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*already banned.*\"}"
+
+	stage.static_labels {
+		values = {
+			action_type = "already_banned",
+			alert_level = "low",
+		}
+	}
+}
+
+// Jail started
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Jj]ail.*started.*\"}"
+
+	stage.static_labels {
+		values = {
+			action_type = "jail_started",
+			alert_level = "low",
+		}
+	}
+}
+
+// Jail stopped
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Jj]ail.*stopped.*\"}"
+
+	stage.static_labels {
+		values = {
+			action_type = "jail_stopped",
+			alert_level = "low",
+		}
+	}
+}
+
+// Restore ban (on startup)
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail_message=~\".*[Rr]estore.*[Bb]an.*\"}"
+
+	stage.regex {
+		expression = "[Rr]estore.*[Bb]an (?P<restored_ip>[0-9a-f.:]+)"
+	}
+
+	stage.static_labels {
+		values = {
+			action_type = "restore_ban",
+			alert_level = "medium",
+		}
+	}
+}
+
+// ====================================================================
+// Classify by jail type (service being protected)
+
+// SSH jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=~\"sshd.*\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "ssh",
+			service_priority  = "critical",
+		}
+	}
+}
+
+// Web service jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=~\"apache.*|nginx.*|http.*\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "web",
+			service_priority  = "high",
+		}
+	}
+}
+
+// Mail service jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=~\"postfix.*|dovecot.*|courier.*|sasl.*\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "mail",
+			service_priority  = "high",
+		}
+	}
+}
+
+// FTP jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=~\".*ftp.*|proftpd.*|vsftpd.*\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "ftp",
+			service_priority  = "medium",
+		}
+	}
+}
+
+// Database jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=~\"mysql.*|pgsql.*|mongodb.*\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "database",
+			service_priority  = "critical",
+		}
+	}
+}
+
+// Recidive (repeat offender tracking)
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail=\"recidive\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "all",
+			service_priority  = "critical",
+			special_jail      = "recidive",
+		}
+	}
+}
+
+// Unknown/other jails
+stage.match {
+	selector = "{service_type=\"fail2ban\", jail!=\"\", protected_service=\"\"}"
+
+	stage.static_labels {
+		values = {
+			protected_service = "other",
+			service_priority  = "medium",
+		}
+	}
+}
+
+// ====================================================================
+// Severity classification
+stage.match {
+	selector = "{service_type=\"fail2ban\", severity=\"CRITICAL\"}"
+
+	stage.static_labels {
+		values = {
+			severity_level = "critical",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", severity=\"ERROR\"}"
+
+	stage.static_labels {
+		values = {
+			severity_level = "error",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", severity=\"WARNING\"}"
+
+	stage.static_labels {
+		values = {
+			severity_level = "warning",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", severity=\"NOTICE\"}"
+
+	stage.static_labels {
+		values = {
+			severity_level = "notice",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", severity=\"INFO\"}"
+
+	stage.static_labels {
+		values = {
+			severity_level = "info",
+		}
+	}
+}
+
+// ====================================================================
+// Security Event Highlighting
+
+// Critical: Bans on SSH and database services
+stage.match {
+	selector = "{service_type=\"fail2ban\", action_type=\"ban\", protected_service=~\"ssh|database\"}"
+
+	stage.static_labels {
+		values = {
+			security_event = "critical_service_ban",
+		}
+	}
+}
+
+// High priority: Recidive bans (repeat offenders)
+stage.match {
+	selector = "{service_type=\"fail2ban\", action_type=\"ban\", special_jail=\"recidive\"}"
+
+	stage.static_labels {
+		values = {
+			security_event = "repeat_offender_ban",
+		}
+	}
+}
+
+// ====================================================================
+// Noise Reduction
+
+// Drop routine "already banned" messages
+stage.match {
+	selector = "{service_type=\"fail2ban\", action_type=\"already_banned\"}"
+	action   = "drop"
+}
+
+// Drop low-priority info messages from server component
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"server\", severity=\"INFO\"}"
+	action   = "drop"
+}
+
+// Drop observer routine checks (can be very noisy)
+stage.match {
+	selector = "{service_type=\"fail2ban\", component=\"observer\", severity=\"INFO\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Cardinality Reduction
+
+// Consolidate IP addresses into single label for high-priority events
+stage.match {
+	selector = "{service_type=\"fail2ban\", action_type=~\"ban|restore_ban\"}"
+
+	stage.static_labels {
+		values = {
+			track_ip = "true",
+		}
+	}
+}
+
+// Normalize IP address fields
+stage.match {
+	selector = "{service_type=\"fail2ban\", track_ip=\"true\", banned_ip!=\"\"}"
+
+	stage.label_keep {
+		values = ["hostname", "service_type", "component", "jail", "action_type", "banned_ip", "protected_service", "alert_level", "security_event"]
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"fail2ban\", track_ip=\"true\", restored_ip!=\"\"}"
+
+	stage.label_keep {
+		values = ["hostname", "service_type", "component", "jail", "action_type", "restored_ip", "protected_service", "alert_level", "security_event"]
+	}
+}
+
+// Drop IP addresses for lower-priority events
+stage.match {
+	selector = "{service_type=\"fail2ban\", track_ip!=\"true\"}"
+
+	stage.label_drop {
+		values = ["found_ip", "unbanned_ip", "banned_ip", "restored_ip"]
+	}
+}
+
+// Final cleanup
+stage.match {
+	selector = "{service_type=\"fail2ban\"}"
+
+	stage.label_drop {
+		values = ["track_ip", "jail_message", "message", "pid", "severity"]
+	}
+}

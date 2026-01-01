@@ -384,91 +384,111 @@ Common issues and solutions:
    - Check Loki service is running properly
    - Use `./svc-exec -K alloy verify` to run comprehensive checks
 
+## Testing Configuration Changes Safely
+
+The role supports test mode to validate configuration changes before deploying to production.
+
+### Test Mode Variables
+
+```yaml
+alloy_test_mode: false                # Default: production deployment
+alloy_test_config_path: "/tmp/alloy-test-config-{timestamp}.alloy"
+```
+
+When `alloy_test_mode: true`:
+- Configuration written to `/tmp` instead of `/etc/alloy/config.alloy`
+- Service NOT restarted
+- Safe to test potentially breaking changes
+- Validate before deploying to production
+
+### Example Test Playbook
+
+Create a test playbook in your orchestration layer:
+
+```yaml
+---
+- name: Test Alloy configuration changes
+  hosts: monitoring_servers
+  become: true
+  vars:
+    alloy_test_mode: true              # Enable test mode
+    alloy_monitor_apache: true
+    alloy_monitor_fail2ban: true
+    alloy_loki_endpoints:
+      - label: loki01
+        endpoint: "10.0.0.11"
+
+  roles:
+    - jackaltx.solti_monitoring.alloy
+
+  post_tasks:
+    - name: Validate test config
+      command: "alloy validate {{ alloy_test_config_path }}"
+      register: validation
+      failed_when: false
+
+    - name: Compare with production config
+      command: "diff -u /etc/alloy/config.alloy {{ alloy_test_config_path }}"
+      register: config_diff
+      failed_when: false
+      changed_when: false
+
+    - name: Display validation results
+      debug:
+        msg: |
+          Validation: {{ 'PASSED' if validation.rc == 0 else 'FAILED' }}
+          Config differs: {{ 'YES' if config_diff.rc != 0 else 'NO' }}
+
+          Next: Deploy with production playbook if validation passed
+```
+
+### Test Workflow
+
+1. **Generate test config** - Run playbook with `alloy_test_mode: true`
+2. **Validate syntax** - `alloy validate` checks for errors
+3. **Compare changes** - `diff` shows what will change in production
+4. **Review output** - Examine validation and diff results
+5. **Deploy if passed** - Run production playbook without test mode
+
+### Benefits
+
+- Catch configuration errors before production deployment
+- See exactly what will change in production
+- No service disruption during testing
+- Safe rollback (just delete test file)
+
+## Operational Verification
+
+The role includes verification tasks for post-deployment health checks.
+
+### Invoking Verification
+
+Create a verification playbook in your orchestration:
+
+```yaml
+# playbooks/verify-alloy.yml
+- hosts: monitoring_servers
+  tasks:
+    - include_role:
+        name: jackaltx.solti_monitoring.alloy
+        tasks_from: verify.yml
+```
+
+### What Verification Checks
+
+- Service status (running/enabled)
+- Network connectivity to Loki endpoints
+- Configuration file validity
+
 ## License
 
 MIT
 
-## Utility Scripts
+## Development Tools
 
-This role can be easily managed using the following utility scripts included in the project:
+**Note for collection developers:** Helper scripts (`manage-svc.sh`, `svc-exec.sh`) are available in the parent repository for rapid role testing during development. See `.claude/DEVELOPMENT.md` for details.
 
-### manage-svc.sh
-
-This script helps manage service deployment states using dynamically generated Ansible playbooks.
-
-```bash
-Usage: manage-svc [-h HOST] <service> <action>
-
-Options:
-  -h HOST    Target host from inventory (default: uses hosts defined in role)
-
-Services:
-  - loki
-  - alloy
-  - influxdb
-  - telegraf
-
-Actions:
-  - prepare
-  - deploy
-  - install  # Alias for deploy
-  - remove
-```
-
-**Examples:**
-
-```bash
-# Deploy Alloy to default hosts
-./manage-svc alloy deploy
-
-# Remove Alloy from a specific host
-./manage-svc -h monitoring01 alloy remove
-
-# Install Influxdb on a specific host
-./manage-svc -h dbserver01 influxdb install
-```
-
-### svc-exec.sh
-
-This script executes specific tasks within a role for targeted operations like verification, configuration, or testing.
-
-```bash
-Usage: svc-exec [-K] [-h HOST] <service> [entry]
-
-Options:
-  -K        - Prompt for sudo password (needed for some operations)
-  -h HOST   - Target specific host from inventory
-
-Parameters:
-  service   - The service to manage
-  entry     - The entry point task (default: verify)
-
-Services:
-  - loki
-  - alloy
-  - influxdb
-  - telegraf
-  
-Common Entry Points:
-  - verify     - Basic service verification
-  - configure  - Configure service
-  - verify1    - Additional verification tasks
-```
-
-**Examples:**
-
-```bash
-# Run verification tasks for Alloy on default hosts
-./svc-exec alloy verify
-
-# Run specific verification task on a particular host
-./svc-exec -h monitoring01 alloy verify1
-
-# Configure Alloy with sudo privileges
-./svc-exec -K alloy configure
-```
-
-These scripts provide a convenient way to manage the lifecycle and perform specific operations on the Alloy role and other related services without having to manually create playbooks.
+End users should create their own orchestration playbooks using standard Ansible patterns as shown in the examples above.
 
 ## Author Information
 

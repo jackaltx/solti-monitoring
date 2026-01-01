@@ -95,6 +95,73 @@ git commit -m "checkpoint: change"
 # Fail: git reset --soft HEAD~1, continue fixing
 ```
 
+## Test-Then-Deploy Workflow
+
+**For orchestrator deployments, always test before deploying to production.**
+
+This pattern uses test mode to validate configuration changes without disrupting the running service, then deploys only after successful validation.
+
+### Example: Deploying Alloy Config Changes
+
+From your orchestrator directory (e.g., `mylab/`):
+
+```bash
+# Step 1: Test configuration (writes to /tmp, no service restart)
+ansible-playbook --become-password-file ~/.secrets/lavender.pass \
+  ./playbooks/fleur/91-fleur-alloy-test.yml
+
+# Review validation output:
+# - ✓ VALIDATION: PASSED/FAILED
+# - Configuration diff shows changes
+# - Test config location displayed
+
+# Step 2: Deploy to production (only if test passed)
+ansible-playbook --become-password-file ~/.secrets/lavender.pass \
+  ./playbooks/fleur/22-fleur-alloy.yml
+
+# Service will restart with new configuration
+```
+
+### Creating Test Playbooks
+
+Test playbooks set `alloy_test_mode: true` and include validation post-tasks:
+
+```yaml
+# playbooks/91-service-test.yml
+- hosts: target_host
+  vars:
+    alloy_test_mode: true  # Config to /tmp, no restart
+  roles:
+    - jackaltx.solti_monitoring.alloy
+  post_tasks:
+    - name: Validate test config
+      command: "alloy validate {{ alloy_test_config_path }}"
+      register: validation
+      failed_when: false
+
+    - name: Compare with production
+      command: "diff -u /etc/alloy/config.alloy {{ alloy_test_config_path }}"
+      register: config_diff
+      failed_when: false
+
+    - name: Display results
+      debug:
+        msg: |
+          {% if validation.rc == 0 %}✓ VALIDATION: PASSED{% else %}✗ VALIDATION: FAILED{% endif %}
+
+          Config differs: {{ 'YES' if config_diff.rc != 0 else 'NO' }}
+
+          Next: Deploy with playbooks/22-service-deploy.yml
+```
+
+### Benefits
+
+- Catch syntax errors before production deployment
+- See exact config changes via diff
+- No service disruption during testing
+- Safe rollback (test file in /tmp)
+- Confidence before production changes
+
 ## Components
 
 **Server Roles:**
@@ -133,12 +200,43 @@ All roles support consistent state control:
 - `<service>_delete_config: true|false` - Remove config on removal
 - `<service>_delete_data: true|false` - Remove data on removal
 
-## Verification System
+## Verification Systems
 
-Each role includes verification tasks:
-- `verify` - Basic service functionality checks
-- `verify1` - Extended integration verification
-- Results stored in `verify_output/<distribution>/`
+This collection uses two distinct verification approaches:
+
+### Development Verification (Molecule)
+
+**Location:** `molecule/shared/verify/*.yml`
+**Purpose:** CI/CD testing during collection development
+**Usage:** `molecule verify -s podman`
+**Runs in:** Test containers/VMs during molecule test cycle
+
+This verification tests the collection itself during development.
+
+### Operational Verification (Role Tasks)
+
+**Location:** `roles/*/tasks/verify.yml`
+**Purpose:** Production health checks post-deployment
+**Usage:** Include in your orchestrator playbooks
+**Runs on:** Live production systems
+
+Example orchestrator playbook:
+```yaml
+- name: Verify alloy deployment
+  hosts: monitoring_servers
+  tasks:
+    - include_role:
+        name: jackaltx.solti_monitoring.alloy
+        tasks_from: verify.yml
+```
+
+**Roles with operational verification:**
+- `alloy`: verify.yml - Service status, Loki connectivity
+- `loki`: verify.yml, verify1.yml - API health, storage checks
+- `influxdb`: verify.yml - Database connectivity, bucket checks
+- `wazuh_agent`: verify.yml - Agent registration, manager connectivity
+
+**Verification results:** Molecule tests store results in `verify_output/<distribution>/`
 
 ## Key Directories
 
@@ -152,3 +250,72 @@ Each role includes verification tasks:
 - Debian 11/12 (primary)
 - Rocky Linux 9 (experimental)
 - Ubuntu 24.04 (via shared tasks)
+
+---
+
+## Production Usage
+
+This collection provides roles for integration into your site-specific orchestration.
+
+### Collection Installation
+
+```bash
+ansible-galaxy collection install jackaltx.solti_monitoring
+```
+
+### Basic Usage in Playbooks
+
+```yaml
+- hosts: monitoring_servers
+  roles:
+    - jackaltx.solti_monitoring.alloy
+  vars:
+    alloy_loki_endpoints:
+      - label: loki01
+        endpoint: "10.0.0.11"
+```
+
+### Recommended Orchestration Structure
+
+Create a separate directory for your lab orchestration:
+
+```text
+your-lab/
+├── inventory.yml           # Your hosts
+├── playbooks/
+│   ├── deploy-alloy.yml   # Deploy role
+│   ├── verify-alloy.yml   # Run verify.yml tasks
+│   └── test-alloy.yml     # Test mode playbook
+└── group_vars/
+    └── monitoring.yml      # Your variables
+```
+
+### Invoking Verification Tasks
+
+```yaml
+# playbooks/verify-alloy.yml
+- hosts: monitoring_servers
+  tasks:
+    - include_role:
+        name: jackaltx.solti_monitoring.alloy
+        tasks_from: verify.yml
+```
+
+### Test Mode Example
+
+Some roles support test mode for safe configuration validation:
+
+```yaml
+# playbooks/test-alloy.yml
+- hosts: monitoring_servers
+  become: true
+  vars:
+    alloy_test_mode: true  # Config to /tmp, no service restart
+  roles:
+    - jackaltx.solti_monitoring.alloy
+  post_tasks:
+    - name: Validate test config
+      command: "alloy validate {{ alloy_test_config_path }}"
+```
+
+See individual role READMEs for role-specific features and variables.

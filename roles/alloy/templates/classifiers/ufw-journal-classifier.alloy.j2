@@ -1,0 +1,292 @@
+// ====================================================================
+// UFW (Uncomplicated Firewall) classification and processing
+// Processes kernel messages containing UFW logs from journald
+// No sources or endpoints - just classification and parsing logic
+
+// ====================================================================
+// Primary service identification - entry gate
+// UFW logs come through kernel, so we need to filter by message content
+stage.match {
+	selector = "{service_name=\"kernel\", raw_message=~\".*UFW.*\"}"
+
+	stage.static_labels {
+		values = {
+			service_type = "firewall",
+		}
+	}
+}
+
+// ====================================================================
+// Extract core UFW fields from all messages
+stage.match {
+	selector = "{service_type=\"firewall\"}"
+
+	// Extract action (BLOCK/ALLOW/AUDIT)
+	stage.regex {
+		expression = "\\[UFW (?P<action>\\w+)\\]"
+	}
+
+	// Extract network fields - simplified regex for key fields
+	stage.regex {
+		expression = "SRC=(?P<src_ip>[\\d\\.]+)"
+	}
+
+	stage.regex {
+		expression = "DST=(?P<dst_ip>[\\d\\.]+)"
+	}
+
+	stage.regex {
+		expression = "PROTO=(?P<protocol>\\w+)"
+	}
+
+	stage.regex {
+		expression = "DPT=(?P<dst_port>\\d+)"
+	}
+
+	stage.regex {
+		expression = "SPT=(?P<src_port>\\d+)"
+	}
+
+	stage.regex {
+		expression = "IN=(?P<in_interface>\\w+)"
+	}
+}
+
+// ====================================================================
+// Classify by action type
+stage.match {
+	selector = "{service_type=\"firewall\", action=\"BLOCK\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "blocked",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"firewall\", action=\"ALLOW\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "allowed",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"firewall\", action=\"AUDIT\"}"
+
+	stage.static_labels {
+		values = {
+			event_type = "audit",
+		}
+	}
+}
+
+// ====================================================================
+// Classify by targeted service (common services)
+
+// SSH attempts
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=\"22\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "ssh",
+			alert_level    = "high",
+		}
+	}
+}
+
+// HTTP/HTTPS
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=~\"80|443\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "web",
+			alert_level    = "medium",
+		}
+	}
+}
+
+// Mail services
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=~\"25|587|465|993|995\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "mail",
+			alert_level    = "medium",
+		}
+	}
+}
+
+// Database services
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=~\"3306|5432|27017|6379\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "database",
+			alert_level    = "high",
+		}
+	}
+}
+
+// RDP
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=\"3389\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "rdp",
+			alert_level    = "high",
+		}
+	}
+}
+
+// DNS
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=\"53\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "dns",
+			alert_level    = "low",
+		}
+	}
+}
+
+// FTP
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=~\"20|21\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "ftp",
+			alert_level    = "medium",
+		}
+	}
+}
+
+// SMB/CIFS (often noisy from network scans)
+stage.match {
+	selector = "{service_type=\"firewall\", dst_port=~\"137|138|139|445\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "smb",
+			alert_level    = "low",
+		}
+	}
+}
+
+// Unknown/other services
+stage.match {
+	selector = "{service_type=\"firewall\", target_service=\"\"}"
+
+	stage.static_labels {
+		values = {
+			target_service = "other",
+			alert_level    = "low",
+		}
+	}
+}
+
+// ====================================================================
+// Protocol classification
+
+stage.match {
+	selector = "{service_type=\"firewall\", protocol=\"ICMP\"}"
+
+	stage.static_labels {
+		values = {
+			protocol_type = "icmp",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"firewall\", protocol=\"TCP\"}"
+
+	stage.static_labels {
+		values = {
+			protocol_type = "tcp",
+		}
+	}
+}
+
+stage.match {
+	selector = "{service_type=\"firewall\", protocol=\"UDP\"}"
+
+	stage.static_labels {
+		values = {
+			protocol_type = "udp",
+		}
+	}
+}
+
+// ====================================================================
+// Noise Reduction - Drop common noisy traffic
+
+// Drop NetBIOS/SMB broadcast noise (unless it's to a known service)
+stage.match {
+	selector = "{service_type=\"firewall\", event_type=\"blocked\", target_service=\"smb\"}"
+	action   = "drop"
+}
+
+// Drop blocked ICMP (often ping scans)
+stage.match {
+	selector = "{service_type=\"firewall\", event_type=\"blocked\", protocol=\"ICMP\"}"
+	action   = "drop"
+}
+
+// Drop high port scans to closed ports (random port > 10000 to closed service)
+stage.match {
+	selector = "{service_type=\"firewall\", event_type=\"blocked\", target_service=\"other\", dst_port=~\"[1-9][0-9]{4,}\"}"
+	action   = "drop"
+}
+
+// Drop broadcast traffic (destination ending in .255)
+stage.match {
+	selector = "{service_type=\"firewall\", event_type=\"blocked\", dst_ip=~\".*[.]255$\"}"
+	action   = "drop"
+}
+
+// ====================================================================
+// Security Event Highlighting
+
+// Multiple blocks from same source (potential scan/attack)
+// Note: This would need rate limiting in Loki queries, just marking here
+stage.match {
+	selector = "{service_type=\"firewall\", event_type=\"blocked\", alert_level=\"high\"}"
+
+	stage.static_labels {
+		values = {
+			security_event = "high_value_target",
+		}
+	}
+}
+
+// ====================================================================
+// Cardinality Reduction - Drop unnecessary labels
+
+// Keep source IP only for security events
+stage.match {
+	selector = "{service_type=\"firewall\", alert_level!~\"high|medium\"}"
+
+	stage.label_drop {
+		values = ["src_ip", "src_port"]
+	}
+}
+
+// Always drop destination IP (it's our host, already in hostname label)
+stage.match {
+	selector = "{service_type=\"firewall\"}"
+
+	stage.label_drop {
+		values = ["dst_ip", "action"]
+	}
+}
