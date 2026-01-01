@@ -99,6 +99,17 @@ loki.process "journal_classifier" {
 
   // ====================================================================
   // Cleanup labels to reduce cardinality
+
+  // Drop component label for non-fail2ban logs (it's always "loki.source.journal" - no value)
+  // Fail2ban reuses component for its own classification (server, actions, filter, etc.)
+  stage.match {
+    selector = "{service_type!=\"fail2ban\"}"
+
+    stage.label_drop {
+      values = ["component"]
+    }
+  }
+
   stage.label_drop {
     values = ["raw_message"]
   }
