@@ -75,6 +75,18 @@ loki.process "journal_classifier" {
   {% include 'classifiers/wireguard-journal-classifier.alloy.j2' %}
 {% endif %}
 
+{% if alloy_monitor_ufw | default(false) %}
+  // ====================================================================
+  // UFW firewall classification and processing
+  {% include 'classifiers/ufw-journal-classifier.alloy.j2' %}
+{% endif %}
+
+{% if alloy_monitor_fail2ban_journal | default(false) %}
+  // ====================================================================
+  // Fail2ban intrusion prevention classification and processing
+  {% include 'classifiers/fail2ban-journal-classifier.alloy.j2' %}
+{% endif %}
+
   // ====================================================================
   // SSH service classification (always included for security monitoring)
   {% include 'classifiers/ssh-journal-classifier.alloy.j2' %}

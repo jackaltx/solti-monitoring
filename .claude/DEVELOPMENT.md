@@ -570,3 +570,68 @@ MOLECULE_PLATFORM_NAME=uut-ct0 \
 - Squash before merge
 
 This keeps production code stable while giving you freedom to experiment and debug complex multi-step features.
+
+---
+
+## Development Helper Scripts
+
+For rapid iteration during collection development, helper scripts are available in the parent repository.
+
+### manage-svc.sh - Quick Role Deployment Testing
+
+```bash
+# Deploy a role to test host
+../mylab/manage-svc.sh alloy deploy
+
+# Remove role from test host
+../mylab/manage-svc.sh alloy remove
+
+# Target specific host
+../mylab/manage-svc.sh -h testhost alloy deploy
+```
+
+### svc-exec.sh - Execute Specific Role Tasks
+
+```bash
+# Run verification tasks
+../mylab/svc-exec.sh alloy verify
+
+# Run extended verification
+../mylab/svc-exec.sh alloy verify1
+
+# Target specific host
+../mylab/svc-exec.sh -h testhost alloy verify
+```
+
+### Purpose and Usage
+
+**Note:** These scripts are development tools for building/testing the collection, not for end users.
+
+**What these scripts do:**
+- Generate temporary playbooks dynamically
+- Invoke roles with specific `tasks_from` entries
+- Quick iteration without writing full playbooks
+- Useful during molecule development cycles
+- Rapid testing of verify.yml and other task files
+
+**When to use them:**
+- Testing a role change on a real host quickly
+- Invoking verify.yml tasks during development
+- Iterating on role features without full playbook structure
+
+**Production equivalent:**
+
+End users should create their own orchestration playbooks using standard Ansible patterns.
+
+Instead of `../mylab/svc-exec.sh alloy verify`, production users create:
+
+```yaml
+# your-lab/playbooks/verify-alloy.yml
+- hosts: monitoring_servers
+  tasks:
+    - include_role:
+        name: jackaltx.solti_monitoring.alloy
+        tasks_from: verify.yml
+```
+
+This gives users control over inventory, variables, and integration with their existing Ansible infrastructure.

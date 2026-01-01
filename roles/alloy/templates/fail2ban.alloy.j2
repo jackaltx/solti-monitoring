@@ -25,9 +25,9 @@ loki.process "fail2ban" {
     max_wait_time = "1s"
   }
 
-  // Basic fail2ban log parsing - more flexible regex
+  // Basic fail2ban log parsing - trim trailing whitespace from component
   stage.regex {
-    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>[^\\[]+)\\s*\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+(?P<message>.*)$"
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) fail2ban\\.(?P<component>\\S+)\\s+\\[(?P<pid>\\d+)\\]: (?P<severity>\\w+)\\s+(?P<message>.*)$"
   }
 
 
