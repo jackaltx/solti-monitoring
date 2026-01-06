@@ -20,6 +20,9 @@ telegraf_delete_data: false
 # use to clean out config data
 telegraf_clean_inputs: false
 
+# used to scrape metrics on localhost alloy service
+telegraf_scrape_alloy: false
+
 # a list of dashboards
 telegraf_outputs: [localhost]
 

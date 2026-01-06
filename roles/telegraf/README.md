@@ -14,6 +14,7 @@ This role installs and configures [Telegraf](https://www.influxdata.com/time-ser
   - MariaDB/MySQL
   - Memcached
   - Redis
+  - Grafana Alloy (Prometheus metrics scraping)
 - Configures InfluxDB output destinations with authentication
 - Supports flexible ping monitoring for network targets
 - Includes utility scripts for easy deployment and verification
@@ -58,6 +59,7 @@ influxdb_apache: false            # Apache metrics
 influxdb_mariadb: false           # MariaDB/MySQL metrics
 influxdb_memcache: false          # Memcached metrics
 influxdb_redis: false             # Redis metrics
+telegraf_scrape_alloy: false      # Scrape Alloy Prometheus metrics
 
 # Network monitoring targets
 telegraf_ping_loc:
@@ -190,16 +192,41 @@ The included utility scripts make deploying and managing Telegraf simpler:
         # Enable application monitoring
         influxdb_apache: true
         influxdb_mariadb: true
-        
+
         # Configure network monitoring
         telegraf_ping_loc:
           - db.example.com
           - api.example.com
           - 192.168.1.1
-        
+
         # Select which endpoints from group_vars to use
         telegraf_outputs: ['localhost', 'monitor2']
 ```
+
+### Monitoring Alloy Log Collection
+
+When deploying Telegraf on a host running Grafana Alloy, you can monitor the log collection pipeline:
+
+```yaml
+- hosts: log_collectors
+  roles:
+    - role: jackaltx.solti_monitoring.alloy
+      vars:
+        alloy_custom_args: "--server.http.listen-addr=127.0.0.1:12345"
+        alloy_loki_endpoints:
+          - label: loki01
+            endpoint: "10.0.0.11"
+    - role: jackaltx.solti_monitoring.telegraf
+      vars:
+        telegraf_scrape_alloy: true
+        telegraf_outputs: ['monitor']
+```
+
+This configuration:
+
+1. Deploys Alloy with metrics endpoint on `127.0.0.1:12345`
+2. Configures Telegraf to scrape Alloy metrics every 60 seconds
+3. Sends Alloy performance metrics to InfluxDB for monitoring
 
 ### Removal Configuration
 
@@ -256,6 +283,54 @@ Enable specific application monitoring:
 - Connection tracking
 - Keyspace statistics
 
+**Grafana Alloy Metrics:**
+
+When `telegraf_scrape_alloy: true` is set, Telegraf scrapes Prometheus-format metrics from the local Alloy instance. This provides observability for your log collection pipeline.
+
+- **Log Processing Statistics**: Metrics on log entries processed, forwarded, and dropped
+- **Component Health**: Status of Alloy components (loki.source.journal, loki.write, etc.)
+- **Performance Metrics**: Processing rates, queue depths, and throughput statistics
+- **Resource Usage**: Alloy's memory and CPU consumption
+
+**Configuration Requirements:**
+
+```yaml
+# Enable Alloy metrics scraping
+telegraf_scrape_alloy: true
+
+# Ensure Alloy is configured with accessible metrics endpoint
+# Default: http://127.0.0.1:12345/metrics
+alloy_custom_args: "--server.http.listen-addr=127.0.0.1:12345"
+```
+
+**Metrics Endpoint:**
+
+- Default URL: `http://127.0.0.1:12345/metrics`
+- Configurable via `alloy_server_listen_addr` variable
+- Scrape interval: 60 seconds
+- Timeout: 10 seconds
+- Metric format: Prometheus (converted to InfluxDB line protocol)
+- Tags added: `service=alloy`, `collector=telegraf`
+
+**Example Metrics:**
+
+```
+alloy_component_controller_evaluating{component_id="loki.source.journal.read"}
+alloy_component_controller_running_components
+loki_write_sent_entries_total{endpoint="http://monitor11:3100/loki/api/v1/push"}
+loki_write_sent_bytes_total{endpoint="http://monitor11:3100/loki/api/v1/push"}
+```
+
+**Note**: Alloy metrics are counters (always increasing values). Use InfluxDB's `derivative()` function in queries to calculate rates:
+
+```flux
+from(bucket: "telegraf")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["service"] == "alloy")
+  |> filter(fn: (r) => r["_measurement"] == "prometheus")
+  |> derivative(unit: 1s, nonNegative: true)
+```
+
 ## Directory Structure
 
 ```
@@ -280,6 +355,8 @@ telegraf/
 │   └── telegrafd-outputs-setup.yml
 ├── templates/
 │   ├── etc-default-telegraf-localhost.j2
+│   ├── inputs/
+│   │   └── prometheus-alloy.conf.j2  # Alloy metrics scraper
 │   ├── output.j2
 │   └── ping.j2
 └── README.md                    # This file
