@@ -1,6 +1,0 @@
----
-# Global vars that should apply to all systems
-wazuh_service_name: wazuh-agent
-common_packages:
-  - curl
-  - ca-certificates
