@@ -65,17 +65,21 @@
 # ..................................................................................
 # ..................................................................................
 # ..................................................................................
-- name: Debug package selection
-  debug:
-    msg:
-      - "Testing Capabilities: {{ testing_capabilities }}"
-      - "Required Packages: {{ combined_required_packages }}"
-    verbosity: 0
+- name: Package installation
+  hosts: all
+  tasks:
+    - name: Debug package selection
+      debug:
+        msg:
+          - "Testing Capabilities: {{ testing_capabilities }}"
+          - "Required Packages: {{ combined_required_packages }}"
+        verbosity: 0
 
 # ..................................................................................
 - name: Handle Debian/Ubuntu systems
+  hosts: all
   when: ansible_os_family == "Debian"
-  block:
+  tasks:
     - name: Install required Debian packages
       apt:
         name: "{{ combined_required_packages }}"
@@ -89,8 +93,9 @@
 
 # ..................................................................................
 - name: Handle RedHat systems
+  hosts: all
   when: ansible_os_family == "RedHat"
-  block:
+  tasks:
     - name: Install required RedHat packages
       dnf:
         name: "{{ combined_required_packages }}"

@@ -12,7 +12,10 @@ description: CI/CD Pipeline in Ansible to install metrics and log monitoring.
 license:
   - MIT
 license_file: ""
-tags: []
+tags:
+  - monitoring
+  - infrastructure
+  - linux
 dependencies:
   "community.general": ">=10.0.0"
 

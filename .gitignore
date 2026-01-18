@@ -43,3 +43,9 @@ Thumbs.db
 .env
 .envrc
 local_*
+
+# Special Claude Folders
+.claude/sprint-notes/*
+
+# Galaxy install version!
+.ansible

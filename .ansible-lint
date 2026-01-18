@@ -1,0 +1,32 @@
+# Ansible-lint configuration
+---
+# Exclude paths that don't need linting
+exclude_paths:
+  - .git/
+  - .ansible/
+  - verify_output/
+  - tmp/
+  - data/
+  - roles/*/tests/  # Old skeleton test files from ansible-galaxy init
+  - roles/loki/molecule/  # Old loki-specific molecule files (replaced by shared/)
+  - grafana_dashboards/  # Generated dashboard JSON/YAML files
+  - playbooks/test-monitor-all-logs.yml  # Old test playbook with missing role
+  - tasks/create-fail.yml  # Non-existent file reference
+
+# Skip specific rules that are acceptable in this project
+skip_list:
+  - role-name[path]  # Allow role names with underscores in shared/ directory
+  - yaml[line-length]  # Allow long lines in dashboard files
+
+# Warn only (don't fail) on these rules during development
+warn_list:
+  - no-changed-when  # Will fix systematically later
+  - command-instead-of-module  # Will review case-by-case
+  - risky-file-permissions  # Will add explicit modes systematically
+  - fqcn  # Will fix with ansible-lint --fix
+
+# Enable offline mode (don't download galaxy dependencies)
+offline: true
+
+# Use minimum profile as baseline
+profile: min
