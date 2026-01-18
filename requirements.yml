@@ -1,4 +1,7 @@
 ---
 collections:
   - name: community.general
-    version: ">=10.0.0"
+  - name: community.proxmox
+  - name: community.proxmox_kvm
+  - name: containers.podman
+  - name: ansible.posix

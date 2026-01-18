@@ -8,11 +8,14 @@ authors:
 
 ### OPTIONAL but strongly recommended
 # A short summary description of the collection
-description: CI/CD Pipeline to keep my Ansible collection working. This installs metrics and log collection pairs.
+description: CI/CD Pipeline in Ansible to install metrics and log monitoring.
 license:
   - MIT
 license_file: ""
-tags: []
+tags:
+  - monitoring
+  - infrastructure
+  - linux
 dependencies:
   "community.general": ">=10.0.0"
 

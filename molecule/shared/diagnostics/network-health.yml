@@ -13,6 +13,7 @@
 
     - debug:
         var: container_service_ports
+      when: container_service_ports is defined
 
     - name: Container Diagnostics -> Check service port bindings
       command: "ss -lptn sport = :{{ item }}"

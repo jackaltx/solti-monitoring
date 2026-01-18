@@ -1,17 +1,15 @@
 ---
-
 # ....................................................................................
 - name: Populate service facts
   ansible.builtin.service_facts:
 
 - name: "Check if service is running"
   set_fact:
-    service_running: "{{ 
-      service_name in ansible_facts.services.keys() and 
-      service_name in ansible_facts.services.keys() and (
-      ansible_facts.services[service_name].state == 'active' or
-      ansible_facts.services[service_name].state == 'running' )
-    }}"
+    service_running: >-
+      {{ 
+        service_name in ansible_facts.services and 
+        ansible_facts.services[service_name].state in ['active', 'running']
+      }}
   vars:
     service_name: "{{ service_name | default('') }}"
   failed_when: service_name | length == 0
@@ -21,7 +19,7 @@
     name: "{{ service_name }}"
     state: stopped
   register: cmd_results
-  when:  service_running
+  when: service_running
   become: true
 
 # ...............................................................

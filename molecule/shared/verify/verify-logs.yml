@@ -83,7 +83,7 @@
     # Simple query test
     - name: Test log query functionality
       ansible.builtin.uri:
-        url: "http://localhost:3100/loki/api/v1/query_range?query=%7Bjob%3D%22loki.source.journal.read%22%7D&start={{ (ansible_date_time.epoch | int - 300) }}000000000&end={{ ansible_date_time.epoch }}000000000&limit=5"
+        url: "http://localhost:3100/loki/api/v1/query_range?query=%7Bjob%3D%22loki.source.journal.read%22%7D&start={{ (ansible_facts['date_time']['epoch'] | int - 300) }}000000000&end={{ ansible_facts['date_time']['epoch'] }}000000000&limit=5"
         method: GET
         body_format: json
         return_content: yes

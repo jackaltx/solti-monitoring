@@ -4,6 +4,8 @@
 
 This role installs and configures [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/), InfluxData's plugin-driven server agent for collecting and reporting metrics. Telegraf integrates with the monitoring stack by collecting system and application metrics and sending them to InfluxDB for storage and analysis.
 
+**📋 For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
 ## Features
 
 - Installs and configures Telegraf from official InfluxData repositories
@@ -18,6 +20,26 @@ This role installs and configures [Telegraf](https://www.influxdata.com/time-ser
 - Configures InfluxDB output destinations with authentication
 - Supports flexible ping monitoring for network targets
 - Includes utility scripts for easy deployment and verification
+
+## Quick Verification
+
+After deployment, verify Telegraf is working:
+
+```bash
+# Check service status
+systemctl status telegraf
+
+# Verify configuration
+telegraf --config /etc/telegraf/telegraf.conf --test --input-filter cpu:mem:disk
+
+# Check for errors
+journalctl -u telegraf -n 50 | grep -i error
+
+# Verify metrics flowing to InfluxDB
+influx query 'from(bucket: "telegraf") |> range(start: -5m) |> limit(n: 5)' --org myorg
+```
+
+**For comprehensive testing and troubleshooting, see [TESTING.md](TESTING.md)**
 
 ## Requirements
 
