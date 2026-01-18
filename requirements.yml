@@ -2,5 +2,6 @@
 collections:
   - name: community.general
   - name: community.proxmox
+  - name: community.proxmox_kvm
   - name: containers.podman
   - name: ansible.posix

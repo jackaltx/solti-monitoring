@@ -61,6 +61,7 @@ jobs:
         run: |
           ansible-galaxy collection install community.general
           ansible-galaxy collection install containers.podman
+          ansible-galaxy collection install containers.proxmox
           ansible-galaxy collection install ansible.posix
 
       # - name: Run ansible-lint
