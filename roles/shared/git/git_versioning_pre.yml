@@ -20,7 +20,7 @@
     state: directory
     owner: root
     group: root
-    mode: 0755
+    mode: "0755"
   when: versioning.manage_repository | default(true) | bool
 
 # Check if Git repository exists
