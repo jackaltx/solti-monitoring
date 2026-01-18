@@ -107,7 +107,7 @@ jobs:
               podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
               ;;
             uut-ct1)
-              podman pull ghcr.io/jackaltx/testing-containers/rocky93-ssh:latest
+              podman pull ghcr.io/jackaltx/testing-containers/rocky9-ssh:latest
               ;;
             uut-ct1)
               podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
