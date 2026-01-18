@@ -4,6 +4,8 @@
 
 This role installs and configures [Grafana Loki](https://grafana.com/oss/loki/), a horizontally-scalable, highly-available log aggregation system inspired by Prometheus. Loki is designed to be cost-effective and easy to operate, as it does not index the contents of the logs, but rather a set of labels for each log stream.
 
+**📋 For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
 ## Features
 
 - Installs and configures Loki from official Grafana repositories
@@ -15,6 +17,36 @@ This role installs and configures [Grafana Loki](https://grafana.com/oss/loki/),
 - Configurable retention and compaction settings
 - Includes utility scripts for easy deployment and verification
 - Works seamlessly with Grafana Alloy as a log collector
+
+## Quick Verification
+
+After deployment, verify Loki is working:
+
+```bash
+# Check service status
+systemctl status loki
+
+# Check ready endpoint
+curl http://localhost:3100/ready
+
+# Check metrics endpoint
+curl http://localhost:3100/metrics | head -20
+
+# List available labels
+curl http://localhost:3100/loki/api/v1/labels
+
+# Push test log
+curl -XPOST "http://localhost:3100/loki/api/v1/push" \
+  -H "Content-Type: application/json" \
+  -d '{"streams":[{"stream":{"job":"test"},"values":[["'$(date +%s)'000000000","test message"]]}]}'
+
+# Query logs
+curl -G "http://localhost:3100/loki/api/v1/query" \
+  --data-urlencode 'query={job="test"}' \
+  --data-urlencode 'limit=10'
+```
+
+**For comprehensive testing and troubleshooting, see [TESTING.md](TESTING.md)**
 
 ## Requirements
 

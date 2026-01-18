@@ -40,11 +40,10 @@
   become: true
   tasks:
     - name: Wait for cloud-init to finish
-      shell: sudo cloud-init status
+      command: cloud-init status --wait
       register: cloud_init_status
-      until: "'status: done' in cloud_init_status.stdout"
-      retries: 30
-      delay: 10
+      changed_when: false
+      failed_when: false
 
     - name: Branch on Debian
       when: ansible_facts['distribution'] == "Debian"

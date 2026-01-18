@@ -39,6 +39,7 @@ ALL_DISTRIBUTIONS=(
     "rocky9:rocky9-template"
     "rocky10:rocky10-template"
     "debian12:debian-12-template"
+    "debian13:debian-13-template"
 )
 
 # Use specific distro if PROXMOX_DISTRO is set, otherwise test all

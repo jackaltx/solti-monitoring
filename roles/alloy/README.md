@@ -6,6 +6,8 @@ This Ansible role installs and configures [Grafana Alloy](https://grafana.com/do
 
 Alloy streamlines the collection of logs, metrics, and traces with consistent configuration across multiple observability signals. This role primarily focuses on log collection and forwarding to Loki, but is extensible for other use cases.
 
+**📋 For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
 ## Features
 
 - Installs and configures Alloy from official Grafana repositories
@@ -26,6 +28,38 @@ Alloy streamlines the collection of logs, metrics, and traces with consistent co
   - **Cron noise**: Filters routine cron execution (ISPConfig, getmail, system cron) while preserving errors
   - **WireGuard**: Drops keepalives, preserves connection events
   - **Bind9**: Drops cache cleaning, preserves zone operations
+
+## Quick Verification
+
+After deployment, verify Alloy is working:
+
+```bash
+# Check service status
+systemctl status alloy
+
+# Verify configuration
+alloy validate /etc/alloy/config.alloy
+
+# Check metrics endpoint
+curl http://127.0.0.1:12345/metrics | head -20
+
+# Check logs flowing to Loki
+curl -G "http://loki-endpoint:3100/loki/api/v1/query" \
+  --data-urlencode 'query={hostname="yourhost"}' \
+  --data-urlencode 'limit=10'
+```
+
+**⚠️ IMPORTANT: Always test config before deploying!**
+
+```bash
+# 1. TEST first (does NOT restart service)
+ansible-playbook playbooks/your-host/91-alloy-test.yml
+
+# 2. DEPLOY only after test passes
+ansible-playbook playbooks/your-host/22-alloy-deploy.yml
+```
+
+**For comprehensive testing and troubleshooting, see [TESTING.md](TESTING.md)**
 
 ## Requirements
 

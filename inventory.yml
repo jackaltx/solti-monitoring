@@ -4,7 +4,7 @@ all:
     domain: example.com
     secure_logging: "{{ cluster_secure_log | bool | default(true) }}"
 
-    # Customiize to your configuration user
+    # Customize to your configuration user
     ansible_user: da_configurator_account
 
     # Customnize this
