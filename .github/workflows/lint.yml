@@ -57,11 +57,12 @@ jobs:
       - name: Install ansible-lint
         run: pip install ansible-lint ansible-core
 
+      # SMELL  why does this not use the requirements.yml?
       - name: Install Ansible collections
         run: |
           ansible-galaxy collection install community.general
+          ansible-galaxy collection install community.proxmox
           ansible-galaxy collection install containers.podman
-          ansible-galaxy collection install containers.proxmox
           ansible-galaxy collection install ansible.posix
 
       # - name: Run ansible-lint
