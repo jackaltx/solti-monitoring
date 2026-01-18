@@ -28,5 +28,5 @@
     #     state: present
 
   roles:
-    - log-tests
-    - metrics-tests
+    - log_tests
+    - metrics_tests

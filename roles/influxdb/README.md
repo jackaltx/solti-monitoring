@@ -6,6 +6,8 @@ This role installs and configures [InfluxDB v2.x](https://www.influxdata.com/pro
 
 InfluxDB v2.x features a new storage engine and completely redesigned API compared to v1.x, with built-in authentication, bucket-based organization, and the powerful Flux query language.
 
+**📋 For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
 ## Features
 
 - Installs and configures InfluxDB v2.x from official InfluxData repositories
@@ -16,6 +18,31 @@ InfluxDB v2.x features a new storage engine and completely redesigned API compar
 - Supports both local disk and S3-compatible object storage
 - Includes utility scripts for easy deployment and verification
 - Prepares for future upgrade path to InfluxDB v3.x with tiered storage
+
+## Quick Verification
+
+After deployment, verify InfluxDB is working:
+
+```bash
+# Check service status
+systemctl status influxdb
+
+# Check HTTP API
+curl -I http://localhost:8086/health
+
+# List organizations and buckets
+influx org list
+influx bucket list -o myorg
+
+# Test write/query
+influx write -b telegraf -o myorg 'test,host=local value=1.0'
+influx query 'from(bucket:"telegraf") |> range(start: -1m)' -o myorg
+
+# View tokens
+sudo cat /root/.influxdbv2/credentials
+```
+
+**For comprehensive testing and troubleshooting, see [TESTING.md](TESTING.md)**
 
 ## Requirements
 

@@ -301,6 +301,7 @@ MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 #### Proxmox Tests (Full VMs)
 
 **VM Template Requirements:**
+
 - Minimum 8 CPU cores
 - Minimum 16GB RAM
 - Note: Cloning process does not modify template resource allocation

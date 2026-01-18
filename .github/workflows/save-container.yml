@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       container_name:
-        description: 'Name to save container as'
+        description: "Name to save container as"
         required: true
-        default: 'monitoring-test-state'
+        default: "monitoring-test-state"
       platform:
-        description: 'Platform to test'
+        description: "Platform to test"
         required: true
-        default: 'uut-ct1'
+        default: "uut-ct1"
         type: choice
         options:
-          - 'uut-ct0'
-          - 'uut-ct1'
-          - 'uut-ct2'
+          - "uut-ct0"
+          - "uut-ct1"
+          - "uut-ct2"
 
 env:
   DEBUG_MODE: save
@@ -87,7 +87,7 @@ jobs:
         run: |
           mkdir -p log verify_output
           chmod -R 755 verify_output
-          
+
       - name: Molecule help
         run: |
           molecule --version
@@ -105,7 +105,7 @@ jobs:
           IN_GITHUB_CI: true
           MOLECULE_PLATFORM_NAME: ${{ github.event.inputs.platform }}
 
-      - name: Run Molecule verify 
+      - name: Run Molecule verify
         if: always()
         run: molecule verify -s github
         continue-on-error: true
@@ -143,4 +143,3 @@ jobs:
           retention-days: 5
 
           if-no-files-found: warn
-

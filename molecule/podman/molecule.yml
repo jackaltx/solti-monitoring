@@ -19,7 +19,7 @@ driver:
 #
 platforms:
   - name: "uut-ct0"
-    image: "gitea.{{ domain }}:8080/jackaltx/testing-containers/debian-ssh:12"
+    image: "gitea.{{ domain }}/jackaltx/testing-containers/debian-ssh:12"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -32,7 +32,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct1"
-    image: "gitea.{{ domain }}:8080/jackaltx/testing-containers/rocky-ssh:9"
+    image: "gitea.{{ domain }}/jackaltx/testing-containers/rocky-ssh:9"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -45,7 +45,7 @@ platforms:
     connection: ssh
 
   - name: "uut-ct2"
-    image: "gitea.{{ domain }}:8080/jackaltx/testing-containers/ubuntu-ssh:24"
+    image: "gitea.{{ domain }}/jackaltx/testing-containers/ubuntu-ssh:24"
     network: "monitoring-net"
     command: "/sbin/init"
     privileged: true
@@ -54,6 +54,19 @@ platforms:
     cgroupns_mode: host
     ssh_host: "127.0.0.1"
     ssh_port: 2225
+    ssh_user: "jackaltx"
+    connection: ssh
+
+  - name: "uut-ct3"
+    image: "gitea.{{ domain }}/jackaltx/testing-containers/debian-ssh:13"
+    network: "monitoring-net"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2223
     ssh_user: "jackaltx"
     connection: ssh
 

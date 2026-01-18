@@ -113,18 +113,20 @@
               --description {{ item.description }}
               --json
           loop:
-            - { role: "admin", description: "admin" }
-            - {
-                role: "writer",
-                description: "telegraf-writer",
-                bucket: "telegraf",
-              }
-            - {
-                role: "reader",
-                description: "metrics-reader",
-                bucket: "metrics",
-              }
-            - { role: "operator", description: "system-operator" }
+            - role: admin
+              description: admin
+
+            - role: writer
+              description: telegraf-writer
+              bucket: telegraf
+
+            - role: reader
+              description: metrics-reader
+              bucket: metrics
+
+            - role: operator
+              description: system-operator
+
           when: "item.description not in existing_auths"
           register: token_results
           failed_when: token_results.rc != 0

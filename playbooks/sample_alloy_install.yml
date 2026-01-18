@@ -47,4 +47,4 @@
   #       tasks_from: generate-sample-config
 
   roles:
-    - jackaltx.solti_monitoring.alloy
+    - alloy

@@ -126,10 +126,11 @@
 
     - name: Initialize the new influxdb instance (note, must be running)
       block:
-        - name: Ensure influxd is started
+        - name: Ensure influxd is started and enabled
           ansible.builtin.systemd_service:
             name: influxdb
             state: started
+            enabled: true
           become: true
 
         - name: Wait for service to start (note, must be running)

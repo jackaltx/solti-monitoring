@@ -10,7 +10,7 @@ alloy_delete_data: false
 
 # Test mode configuration
 alloy_test_mode: false
-alloy_test_config_path: "/tmp/alloy-test-config-{{ ansible_date_time.iso8601_basic_short }}.alloy"
+alloy_test_config_path: "/tmp/alloy-test-config-{{ ansible_facts['date_time']['iso8601_basic_short'] }}.alloy"
 
 alloy_loki_endpoints:
   - label: localhost
@@ -27,9 +27,6 @@ alloy_monitor_bind9: false
 alloy_monitor_wg: false
 alloy_monitor_gitea: false
 alloy_monitor_ufw: false
-
-# Filtering options - reduce journald noise
-alloy_filter_cron_noise: false
 
 # Filtering options - reduce journald noise
 alloy_filter_cron_noise: false
