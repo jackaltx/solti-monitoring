@@ -7,22 +7,23 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master] # Only trigger when code is MERGED into main
     paths:
       - "roles/**"
       - "molecule/**"
       - ".github/**"
   pull_request:
-    branches: [main, master]
+    branches: [main, master] # Trigger when a PR is opened/updated targeting main
     paths:
       - "roles/**"
       - "molecule/**"
+      - ".github/**"
   workflow_dispatch:
     inputs:
       branch:
         description: "Branch to run tests on"
         required: true
-        default: "*"
+        default: "main"
 
 env:
   DEBUG_MODE: save
