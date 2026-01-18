@@ -131,7 +131,9 @@
 
     # ..................................................................................
     - name: Handle Debian/Ubuntu systems
-      when: ansible_os_family == "Debian"
+      when:
+        - ansible_os_family == "Debian"
+        - not on_github
       block:
         - name: Install required Debian packages
           apt:
@@ -146,7 +148,9 @@
 
     # ..................................................................................
     - name: Handle RedHat systems
-      when: ansible_os_family == "RedHat"
+      when:
+        - ansible_os_family == "RedHat"
+        - not on_github
       block:
         - name: Install required RedHat packages
           dnf:
