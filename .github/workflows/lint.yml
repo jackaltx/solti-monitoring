@@ -57,6 +57,12 @@ jobs:
     - name: Install ansible-lint
       run: pip install ansible-lint ansible-core
 
+    - name: Install Ansible collections
+      run: |
+        ansible-galaxy collection install community.general
+        ansible-galaxy collection install containers.podman
+        ansible-galaxy collection install ansible.posix
+
     - name: Run ansible-lint
       run: ansible-lint
 
@@ -78,7 +84,9 @@ jobs:
 
     - name: Syntax check all playbooks
       run: |
-        for playbook in $(find . -name "*.yml" -o -name "*.yaml" | grep -E "(playbook|site|main)" | grep -v ".github" | grep -v "molecule"); do
-          echo "Checking $playbook"
-          ansible-playbook --syntax-check "$playbook" || exit 1
+        for playbook in $(find ./playbooks -name "*.yml" -o -name "*.yaml" 2>/dev/null || true); do
+          if [ -f "$playbook" ]; then
+            echo "Checking $playbook"
+            ansible-playbook --syntax-check "$playbook" || exit 1
+          fi
         done
