@@ -105,7 +105,7 @@
       {{ item.stdout }}
 
       {% endfor %}
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/github_ci_results.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/github_ci_results.md"
     mode: "0644"
   delegate_to: localhost
 
@@ -134,7 +134,7 @@
       | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
       {% endfor %}
 
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/gist-content.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/gist-content.md"
     mode: "0644"
   delegate_to: localhost
 
@@ -183,6 +183,6 @@
       </details>
 
       {% endfor %}
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/wiki-content.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/wiki-content.md"
     mode: "0644"
   delegate_to: localhost
