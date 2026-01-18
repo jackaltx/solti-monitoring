@@ -25,6 +25,14 @@
       delegate_to: localhost
       become: false
 
+    - name: Ensure distribution-specific directory exists
+      ansible.builtin.file:
+        path: "{{ report_root }}/{{ ansible_distribution | lower }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
     # .....................................................................
     - name: Debug information
       debug:
