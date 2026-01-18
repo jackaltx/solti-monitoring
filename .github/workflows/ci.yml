@@ -99,13 +99,13 @@ jobs:
         run: |
           case ${{ matrix.platform }} in
             uut-ct0)
-              docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+              docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:12
               ;;
             uut-ct1)
-              docker pull ghcr.io/jackaltx/testing-containers/rocky9-ssh:latest
+              docker pull ghcr.io/jackaltx/testing-containers/rocky9-ssh:9
               ;;
             uut-ct2)
-              docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+              docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:24
               ;;
           esac
 
