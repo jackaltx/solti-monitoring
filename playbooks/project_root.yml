@@ -2,6 +2,5 @@
 - name: Print root
   hosts: localhost
   tasks:
-
-  - debug:
-      msg: "Project root is: {{ project_root }}"
+    - debug:
+        msg: "Project root is: {{ project_root }}"
