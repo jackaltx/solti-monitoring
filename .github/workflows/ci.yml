@@ -41,9 +41,9 @@ jobs:
       packages: read # Required to pull from GHCR
     strategy:
       matrix:
-        platform: ["uut-ct1"] # , 'uut-ct1', 'uut-ct2']
+        platform: ["uut-ct0", "uut-ct1"] # , 'uut-ct2']
       fail-fast: false
-      max-parallel: 1
+      # max-parallel: 1
     env:
       MOLECULE_PLATFORM_NAME: ${{ matrix.platform }}
       ANSIBLE_LOCALHOST_WARNING: false
