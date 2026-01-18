@@ -150,12 +150,10 @@ run_tests() {
     # Run molecule test
     if molecule test -s "${integration_test}" > "${test_log}" 2>&1; then
         log "${GREEN}✓ ${integration_test} tests passed on ${distro_name}${NC}"
-        cd - > /dev/null
         return 0
     else
         log "${RED}✗ ${integration_test} tests failed on ${distro_name}${NC}"
         log "See detailed log: ${test_log}"
-        cd - > /dev/null
         return 1
     fi
 }
