@@ -78,6 +78,8 @@ provisioner:
     group_vars:
       all:
         # ansible_user: ansible
+        # GitHub CI runs as root, no become needed
+        ansible_become: false
         proxmox_vmid: 9100
         project_root: ${MOLECULE_PROJECT_DIRECTORY}
         report_root: ${MOLECULE_PROJECT_DIRECTORY}/verify_output
