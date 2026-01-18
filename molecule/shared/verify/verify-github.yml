@@ -9,6 +9,7 @@
     - loki
     - alloy
   changed_when: false
+  failed_when: false  # lsof/pidof may not be installed in minimal containers
 
 # ..................................................................................
 - name: Filter lsof output
@@ -71,7 +72,7 @@
         influxdb: "{{ metrics_test_results | default('No data') }}"
         loki: "{{ logs_test_results | default('No data') }}"
       logs: "{{ service_logs.results }}"
-      processes: "{{ process_info.results }}"
+      processes: "{{ process_info.results | default([]) }}"
 
 # ..................................................................................
 #  Save as text file
@@ -91,9 +92,9 @@
 
       Process Information:
 
-      {% for item in process_info.results %}
+      {% for item in process_info.results | default([]) %}
       === {{ item.item }} Processes ===
-      {{ item.stdout }}
+      {{ item.stdout | default('Process information not available') }}
 
       {% endfor %}
 
@@ -172,12 +173,12 @@
 
       ## Process Information
 
-      {% for proc in status_data.processes %}
+      {% for proc in status_data.processes | default([]) %}
       <details>
       <summary><b>{{ proc.item | upper }} Processes</b></summary>
 
       ```
-      {{ proc.stdout | trim }}
+      {{ proc.stdout | default('Process information not available') | trim }}
       ```
       </details>
 
