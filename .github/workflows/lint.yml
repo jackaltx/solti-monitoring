@@ -82,8 +82,18 @@ jobs:
       - name: Install Ansible
         run: pip install ansible-core
 
+      # - name: Syntax check all playbooks
+      #   run: |
+      #     for playbook in $(find ./playbooks -name "*.yml" -o -name "*.yaml" 2>/dev/null || true); do
+      #       if [ -f "$playbook" ]; then
+      #         echo "Checking $playbook"
+      #         ansible-playbook --syntax-check "$playbook" || exit 1
+      #       fi
+      #     done
+
       - name: Syntax check all playbooks
         run: |
+          export ANSIBLE_ROLES_PATH=./roles:./playbooks/roles
           for playbook in $(find ./playbooks -name "*.yml" -o -name "*.yaml" 2>/dev/null || true); do
             if [ -f "$playbook" ]; then
               echo "Checking $playbook"
