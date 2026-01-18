@@ -27,7 +27,7 @@ platforms:
     cgroupns_mode: host
     ssh_host: "127.0.0.1"
     ssh_port: 2223
-    ssh_user: "jackaltx"
+    ssh_user: "root"
     connection: ssh
 
   - name: "uut-ct1"
@@ -39,7 +39,7 @@ platforms:
     cgroupns_mode: host
     ssh_host: "127.0.0.1"
     ssh_port: 2222
-    ssh_user: "jackaltx"
+    ssh_user: "root"
     connection: ssh
 
   - name: "uut-ct2"
@@ -51,7 +51,7 @@ platforms:
     cgroupns_mode: host
     ssh_host: "127.0.0.1"
     ssh_port: 2224
-    ssh_user: "jackaltx"
+    ssh_user: "root"
     connection: ssh
 
 provisioner:
