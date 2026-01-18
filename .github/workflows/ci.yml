@@ -80,15 +80,10 @@ jobs:
       # ------------------------------------------------------
       # ------------------------------------------------------
       # ------------------------------------------------------
-      - name: Install Podman
+      - name: Docker Info
         run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-
-      - name: Podman Info
-        run: |
-          podman version
-          podman info
+          docker version
+          docker info
 
       # ------------------------------------------------------
       # ------------------------------------------------------
@@ -104,13 +99,13 @@ jobs:
         run: |
           case ${{ matrix.platform }} in
             uut-ct0)
-              podman pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
+              docker pull ghcr.io/jackaltx/testing-containers/debian12-ssh:latest
               ;;
             uut-ct1)
-              podman pull ghcr.io/jackaltx/testing-containers/rocky9-ssh:latest
+              docker pull ghcr.io/jackaltx/testing-containers/rocky9-ssh:latest
               ;;
-            uut-ct1)
-              podman pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
+            uut-ct2)
+              docker pull ghcr.io/jackaltx/testing-containers/ubuntu24-ssh:latest
               ;;
           esac
 
