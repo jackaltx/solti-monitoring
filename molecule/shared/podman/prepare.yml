@@ -47,6 +47,7 @@
         owner: root
         group: root
         mode: "0777"
+      when: not on_github
 
     # ..................................................................
     - name: Get basic system info
