@@ -130,8 +130,11 @@ jobs:
           mkdir -p verify_output
           chmod -R 755 verify_output
 
+      # - name: Install Ansible collections
+      #   run: ansible-galaxy collection install -r requirements.yml community.general
+
       - name: Install Ansible collections
-        run: ansible-galaxy collection install community.general
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
       # ------------------------------------------------------
       # ------------------------------------------------------
