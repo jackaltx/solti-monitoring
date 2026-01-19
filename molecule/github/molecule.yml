@@ -54,6 +54,30 @@ platforms:
     ssh_user: "root"
     connection: ssh
 
+  - name: "uut-ct3"
+    image: "ghcr.io/jackaltx/testing-containers/debian-ssh:13"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2225
+    ssh_user: "root"
+    connection: ssh
+
+  - name: "uut-ct4"
+    image: "ghcr.io/jackaltx/testing-containers/rocky-ssh:10"
+    command: "/sbin/init"
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    ssh_host: "127.0.0.1"
+    ssh_port: 2226
+    ssh_user: "root"
+    connection: ssh
+
 provisioner:
   name: ansible
   env:
