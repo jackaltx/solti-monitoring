@@ -41,7 +41,7 @@ jobs:
       packages: read # Required to pull from GHCR
     strategy:
       matrix:
-        platform: ["uut-ct0", "uut-ct1", "uut-ct2"]
+        platform: ["uut-ct0", "uut-ct1", "uut-ct2", "uut-ct3", "uut-ct4"]
       fail-fast: false
       # max-parallel: 1
     env:
