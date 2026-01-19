@@ -41,9 +41,9 @@ jobs:
       packages: read # Required to pull from GHCR
     strategy:
       matrix:
-        platform: ["uut-ct1"] # , 'uut-ct1', 'uut-ct2']
+        platform: ["uut-ct0", "uut-ct1", "uut-ct2"] # uut-ct3, uut-ct4 disabled - see testing-containers issues #2, #3, #4
       fail-fast: false
-      max-parallel: 1
+      # max-parallel: 1
     env:
       MOLECULE_PLATFORM_NAME: ${{ matrix.platform }}
       ANSIBLE_LOCALHOST_WARNING: false
@@ -83,9 +83,7 @@ jobs:
             molecule-plugins==23.5.3 \
             ansible-lint==24.12.1 \
             yamllint==1.35.1 \
-            podman \
-            jmespath \
-            molecule[podman]
+            jmespath
 
       # ------------------------------------------------------
       # ------------------------------------------------------
@@ -117,6 +115,12 @@ jobs:
               ;;
             uut-ct2)
               docker pull ghcr.io/jackaltx/testing-containers/ubuntu-ssh:24
+              ;;
+            uut-ct3)
+              docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:13
+              ;;
+            uut-ct4)
+              docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:10
               ;;
           esac
 
@@ -157,7 +161,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: monitoring-test-results
+          name: monitoring-test-results-${{ matrix.platform }}
           path: verify_output
           retention-days: 5
           if-no-files-found: warn

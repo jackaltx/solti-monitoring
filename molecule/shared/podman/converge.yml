@@ -1,7 +1,7 @@
 ---
 - name: Converge
   hosts: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME', default='all') }}"
-  become: true
+  become: "{{ not (lookup('env', 'IN_GITHUB_CI', default=false) | bool) }}"
   serial: "{{ lookup('env', 'MOLECULE_SERIAL', default='0') }}"
 
   vars:

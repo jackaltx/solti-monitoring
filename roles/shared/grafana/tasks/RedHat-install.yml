@@ -8,6 +8,10 @@
         key: https://rpm.grafana.com/gpg.key
       become: true
 
+    - name: Wait for GPG key to be fully imported
+      ansible.builtin.pause:
+        seconds: 5
+
     - name: put a grafana repo config file into the dnf repo
       ansible.builtin.copy:
         src: grafana.repo
