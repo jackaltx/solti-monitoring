@@ -116,6 +116,12 @@ jobs:
             uut-ct2)
               docker pull ghcr.io/jackaltx/testing-containers/ubuntu-ssh:24
               ;;
+            uut-ct3)
+              docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:13
+              ;;
+            uut-ct4)
+              docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:10
+              ;;
           esac
 
       # ------------------------------------------------------
