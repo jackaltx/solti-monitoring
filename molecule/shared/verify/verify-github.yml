@@ -9,6 +9,7 @@
     - loki
     - alloy
   changed_when: false
+  failed_when: false  # lsof/pidof may not be installed in minimal containers
 
 # ..................................................................................
 - name: Filter lsof output
@@ -71,7 +72,7 @@
         influxdb: "{{ metrics_test_results | default('No data') }}"
         loki: "{{ logs_test_results | default('No data') }}"
       logs: "{{ service_logs.results }}"
-      processes: "{{ process_info.results }}"
+      processes: "{{ process_info.results | default([]) }}"
 
 # ..................................................................................
 #  Save as text file
@@ -91,9 +92,9 @@
 
       Process Information:
 
-      {% for item in process_info.results %}
+      {% for item in process_info.results | default([]) %}
       === {{ item.item }} Processes ===
-      {{ item.stdout }}
+      {{ item.stdout | default('Process information not available') }}
 
       {% endfor %}
 
@@ -104,7 +105,7 @@
       {{ item.stdout }}
 
       {% endfor %}
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/github_ci_results.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/github_ci_results.md"
     mode: "0644"
   delegate_to: localhost
 
@@ -133,7 +134,7 @@
       | {{ name | capitalize }} | {{ svc.state }} | {{ svc.port | default('-') }} | {{ 'Yes' if svc.state == 'running' and svc.port else 'N/A' }} |
       {% endfor %}
 
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/gist-content.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/gist-content.md"
     mode: "0644"
   delegate_to: localhost
 
@@ -172,16 +173,16 @@
 
       ## Process Information
 
-      {% for proc in status_data.processes %}
+      {% for proc in status_data.processes | default([]) %}
       <details>
       <summary><b>{{ proc.item | upper }} Processes</b></summary>
 
       ```
-      {{ proc.stdout | trim }}
+      {{ proc.stdout | default('Process information not available') | trim }}
       ```
       </details>
 
       {% endfor %}
-    dest: "{{ report_root }}/{{ ansible_distribution | lower }}/wiki-content.md"
+    dest: "{{ report_root }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/wiki-content.md"
     mode: "0644"
   delegate_to: localhost

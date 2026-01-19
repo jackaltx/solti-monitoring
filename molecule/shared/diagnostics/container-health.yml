@@ -22,6 +22,7 @@
       command: ps aux
       register: process_list
       changed_when: false
+      failed_when: false  # ps may not be installed in minimal containers
 
     - name: Check failed container units
       command: systemctl --failed
@@ -39,6 +40,6 @@
           init_system: "{{ init_status.stdout }}"
           systemd_version: "{{ systemd_version.stdout_lines[0] }}"
           cgroups_mounted: "{{ cgroup_mounts.stdout_lines | length > 0 }}"
-          process_supervisor: "{{ 'systemd' in process_list.stdout }}"
+          process_supervisor: "{{ 'systemd' in (process_list.stdout | default('')) }}"
           failed_units: "{{ failed_units.stdout_lines | default([]) }}"
           systemd_status: "{{ systemd_status.stdout_lines | default([]) }}"
