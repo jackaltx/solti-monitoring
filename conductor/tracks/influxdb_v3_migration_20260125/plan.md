@@ -2,7 +2,7 @@
 
 This plan outlines the steps to migrate the existing Ansible role for InfluxDB from V2 to V3.
 
-## Phase 1: Analysis and Design
+## Phase 1: Analysis and Design [checkpoint: 6821467]
 
 - [x] Task: Research InfluxDB V3 architecture, features, and breaking changes from V2.
   - [x] Sub-task: Identify key differences in installation, configuration, and API.
