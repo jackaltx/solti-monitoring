@@ -1,0 +1,60 @@
+---
+# Initialize InfluxDB v3 database and admin token
+
+- name: Check if admin token file exists
+  ansible.builtin.stat:
+    path: /root/.influxdb3-credentials
+  register: token_file
+  become: true
+
+- name: Initialize database block
+  when: not token_file.stat.exists or influxdb3_force_configure
+  block:
+    - name: Generate admin token
+      ansible.builtin.command: influxdb3 create token --admin
+      register: admin_token_output
+      become: true
+      changed_when: true
+
+    - name: Extract admin token
+      ansible.builtin.set_fact:
+        influxdb3_generated_token: "{{ admin_token_output.stdout | trim }}"
+
+    - name: Save admin token to file
+      ansible.builtin.copy:
+        content: "{{ influxdb3_generated_token }}"
+        dest: /root/.influxdb3-credentials
+        owner: root
+        group: root
+        mode: "0600"
+      become: true
+
+    - name: Create default database
+      ansible.builtin.command: >
+        influxdb3 create database
+        --token {{ influxdb3_generated_token }}
+        {{ influxdb3_database }}
+      register: db_create
+      become: true
+      changed_when: "'created' in db_create.stdout or db_create.rc == 0"
+      failed_when: db_create.rc != 0 and 'already exists' not in db_create.stderr
+
+    - name: Display initialization results
+      ansible.builtin.debug:
+        msg: |
+          InfluxDB v3 initialized successfully
+          Database: {{ influxdb3_database }}
+          Admin token saved to: /root/.influxdb3-credentials
+          Port: {{ influxdb3_port }}
+
+- name: Read existing admin token
+  when: token_file.stat.exists and not influxdb3_force_configure
+  ansible.builtin.slurp:
+    path: /root/.influxdb3-credentials
+  become: true
+  register: existing_token
+
+- name: Set token fact from existing file
+  when: token_file.stat.exists and not influxdb3_force_configure
+  ansible.builtin.set_fact:
+    influxdb3_generated_token: "{{ existing_token.content | b64decode | trim }}"

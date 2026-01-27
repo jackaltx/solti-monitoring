@@ -1,0 +1,46 @@
+---
+# Shared install tasks for InfluxDB v3 Core on Debian-based systems
+# Called with: package variable (e.g., "influxdb3-core")
+#
+- name: Debian Linux install block for InfluxDB v3 Core
+  become: true
+  block:
+    - name: Ensure apt keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        mode: "0755"
+        state: directory
+
+    - name: Download InfluxData GPG key
+      ansible.builtin.get_url:
+        url: https://repos.influxdata.com/influxdata-archive.key
+        dest: /tmp/influxdata-archive.key
+        mode: "0644"
+
+    - name: Convert and install GPG key
+      ansible.builtin.shell:
+        cmd: "gpg --dearmor --yes -o /etc/apt/keyrings/influxdata-archive.gpg /tmp/influxdata-archive.key"
+      args:
+        creates: /etc/apt/keyrings/influxdata-archive.gpg
+
+    - name: Set correct permissions on GPG key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings/influxdata-archive.gpg
+        mode: "0644"
+
+    - name: Add InfluxData repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main"
+        state: present
+        filename: influxdata
+        update_cache: no
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: "Get {{ package }} package"
+      ansible.builtin.apt:
+        update_cache: true
+        name: "{{ package }}"
+      register: pkg_install_result

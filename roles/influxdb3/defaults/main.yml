@@ -1,3 +1,37 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # defaults file for influxdb3
+
+influxdb3_state: "present"
+
+# Configuration
+influxdb3_node_id: "node0"
+influxdb3_data_dir: "/var/lib/influxdb3/data"
+influxdb3_plugin_dir: "/var/lib/influxdb3/plugins"
+influxdb3_object_store: "file"  # file, s3, or azure
+
+# Service configuration
+influxdb3_port: 8181
+influxdb3_bind_address: "0.0.0.0"
+
+# Database initialization
+influxdb3_database: "telegraf"
+influxdb3_admin_token: ""  # Will be generated if empty
+
+# Removal options
+influxdb3_delete_config: false
+influxdb3_delete_data: false
+
+# Force operations
+influxdb3_force_reload: false
+influxdb3_force_configure: false
+
+# S3 configuration (optional - not used in Phase 1)
+influxdb3_s3_bucket: ""
+influxdb3_s3_access_key_id: ""
+influxdb3_s3_secret_access_key: ""
+influxdb3_s3_endpoint: ""
+influxdb3_s3_allow_http: false
+
+# Azure configuration (optional - not used in Phase 1)
+influxdb3_azure_endpoint: ""

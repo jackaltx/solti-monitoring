@@ -1,0 +1,35 @@
+# InfluxDB v3 Core Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# Node identifier
+node-id = "{{ influxdb3_node_id }}"
+
+# Object store type (file, s3, or azure)
+object-store = "{{ influxdb3_object_store }}"
+
+# Data directory (for file-based object store)
+data-dir = "{{ influxdb3_data_dir }}"
+
+# Plugin directory
+plugin-dir = "{{ influxdb3_plugin_dir }}"
+
+# HTTP bind address and port
+http-bind = "{{ influxdb3_bind_address }}:{{ influxdb3_port }}"
+
+{% if influxdb3_object_store == 's3' and influxdb3_s3_bucket %}
+# S3 Configuration
+bucket = "{{ influxdb3_s3_bucket }}"
+aws-access-key-id = "{{ influxdb3_s3_access_key_id }}"
+aws-secret-access-key = "{{ influxdb3_s3_secret_access_key }}"
+{% if influxdb3_s3_endpoint %}
+aws-endpoint = "{{ influxdb3_s3_endpoint }}"
+{% endif %}
+{% if influxdb3_s3_allow_http %}
+aws-allow-http = true
+{% endif %}
+{% endif %}
+
+{% if influxdb3_object_store == 'azure' and influxdb3_azure_endpoint %}
+# Azure Configuration
+azure-endpoint = "{{ influxdb3_azure_endpoint }}"
+{% endif %}
