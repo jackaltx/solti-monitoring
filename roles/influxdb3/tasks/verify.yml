@@ -1,192 +1,130 @@
 ---
-# Verify InfluxDB v3 Core functionality
+# Verification tasks for InfluxDB v3 Core
 #
-# Facts set by this task:
-# - influxdb3_verify_failed: boolean indicating if any verification check failed
-# - influxdb3_test_results: formatted string containing full test results
-#
-# Required vars:
-# - verify_timestamp (from orchestrator)
-# - report_root (from orchestrator)
-#
-- name: Verify InfluxDB v3 Core components
+# Usage:
+#   ansible-playbook playbook.yml -e verify_timestamp="$(date -Iseconds)"
+
+- name: InfluxDB v3 Verification Block
+  become: true
   block:
-    # Service status checks
-    - name: Wait for InfluxDB v3 port
-      ansible.builtin.wait_for:
-        port: "{{ influxdb3_port }}"
-        timeout: 30
-        state: started
-      register: service_ports_check
-      ignore_errors: true
+    - name: Check influxdb3-core service status
+      ansible.builtin.systemd_service:
+        name: influxdb3-core
+      register: influxdb3_service_status
 
-    - name: Verify influxdb3-core service is running
-      ansible.builtin.service_facts:
-
-    - name: Assert influxdb3-core service status
+    - name: Verify service is running
       ansible.builtin.assert:
         that:
-          - "'influxdb3-core.service' in ansible_facts.services"
-          - "ansible_facts.services['influxdb3-core.service'].state == 'running'"
-          - "ansible_facts.services['influxdb3-core.service'].status == 'enabled'"
-      register: influxdb3_service_check
-      ignore_errors: true
+          - influxdb3_service_status.status.ActiveState == "active"
+          - influxdb3_service_status.status.SubState == "running"
+        fail_msg: "InfluxDB v3 Core service is not running"
+        success_msg: "InfluxDB v3 Core service is running"
 
-    # Read admin token
+    - name: Check if admin token exists
+      ansible.builtin.stat:
+        path: /root/.influxdb3-credentials
+      register: token_file_stat
+
+    - name: Verify token file exists
+      ansible.builtin.assert:
+        that:
+          - token_file_stat.stat.exists
+        fail_msg: "Admin token file not found"
+        success_msg: "Admin token file exists"
+
     - name: Read admin token
       ansible.builtin.slurp:
         path: /root/.influxdb3-credentials
-      become: true
-      register: token_file
-      ignore_errors: true
+      register: admin_token_content
 
     - name: Set token fact
-      when: not token_file.failed
       ansible.builtin.set_fact:
-        admin_token: "{{ token_file.content | b64decode | trim }}"
+        influxdb3_verify_token: "{{ admin_token_content.content | b64decode | trim }}"
 
-    # API health checks
-    - name: Check InfluxDB v3 health endpoint
+    - name: Check InfluxDB v3 API health
       ansible.builtin.uri:
         url: "http://localhost:{{ influxdb3_port }}/health"
         method: GET
+        headers:
+          Authorization: "Bearer {{ influxdb3_verify_token }}"
         status_code: 200
       register: health_check
-      ignore_errors: true
+      retries: 3
+      delay: 5
 
-    # Write test
-    - name: Test write to database
-      ansible.builtin.command: >
-        influxdb3 write
-        --token {{ admin_token }}
-        --database {{ influxdb3_database }}
-        "test,tag=verify value=1"
-      register: write_test
-      changed_when: false
-      ignore_errors: true
-      when: not token_file.failed
+    - name: Verify health check
+      ansible.builtin.assert:
+        that:
+          - health_check.status == 200
+        fail_msg: "InfluxDB v3 API health check failed"
+        success_msg: "InfluxDB v3 API is healthy"
 
-    # Query test
-    - name: Test query from database
-      ansible.builtin.command: >
-        influxdb3 query
-        --token {{ admin_token }}
-        --database {{ influxdb3_database }}
-        "SELECT * FROM test WHERE time > now() - INTERVAL '1 minute'"
-      register: query_test
-      changed_when: false
-      ignore_errors: true
-      when: not token_file.failed
-
-    # Get version
-    - name: Get InfluxDB v3 version
-      ansible.builtin.command: influxdb3 --version
-      register: influxdb3_version
-      changed_when: false
-
-    # Check logs for errors
-    - name: Check recent logs for errors
-      ansible.builtin.shell: |
-        journalctl -u influxdb3-core --since "5 minutes ago" -p err
-      register: error_logs
-      changed_when: false
-      failed_when: false
-
-    # Set test results fact
-    - name: Set InfluxDB v3 test results fact
-      ansible.builtin.set_fact:
-        influxdb3_test_results: |
-          === InfluxDB v3 Core Verification Results ===
-          Timestamp: {{ verify_timestamp | default(ansible_date_time.iso8601) }}
-
-          Service Version:
-            - InfluxDB v3: {{ influxdb3_version.stdout }}
-
-          Service Status:
-            - Service: {{ ansible_facts.services['influxdb3-core.service'].state }}
-            - Enabled: {{ ansible_facts.services['influxdb3-core.service'].status }}
-            - Port {{ influxdb3_port }}: {{ 'LISTENING' if not service_ports_check.failed else 'NOT ACCESSIBLE' }}
-
-          Health Checks:
-            - Health endpoint: {{ 'PASS' if health_check.status == 200 else 'FAIL' }}
-            - Admin token exists: {{ 'YES' if not token_file.failed else 'NO' }}
-            - Write test: {{ 'PASS' if write_test.rc == 0 else 'FAIL' }}
-            - Query test: {{ 'PASS' if query_test.rc == 0 else 'FAIL' }}
-
-          Configuration:
-            - Database: {{ influxdb3_database }}
-            - Object store: {{ influxdb3_object_store }}
-            - Data directory: {{ influxdb3_data_dir }}
-            - Plugin directory: {{ influxdb3_plugin_dir }}
-
-          Recent Errors:
-          {% if error_logs.stdout == "-- No entries --" or error_logs.stdout == "" %}
-             No errors found in logs
-          {% else %}
-            !!! ERRORS DETECTED !!!
-          {{ error_logs.stdout | indent(4) }}
-          {% endif %}
-
-    # Add to all_verify_results
-    - name: Add InfluxDB v3 results to dictionary
-      ansible.builtin.set_fact:
-        all_verify_results: "{{ all_verify_results | default({}) | combine({'influxdb3-verify': influxdb3_test_results}) }}"
-
-    # Set verify result fact
-    - name: Set verify failed fact
-      ansible.builtin.set_fact:
-        influxdb3_verify_failed: >-
-          {{
-            (service_ports_check.failed | default(false)) or
-            (influxdb3_service_check.failed | default(false)) or
-            (health_check.failed | default(false)) or
-            (write_test.failed | default(false)) or
-            (query_test.failed | default(false))
-          }}
-
-    - name: Add verify failed to dictionary
-      ansible.builtin.set_fact:
-        all_verify_failed: "{{ all_verify_failed | default({}) | combine({'influxdb3': influxdb3_verify_failed}) }}"
-
-    # Save results locally
-    - name: Set output directory for test results
-      ansible.builtin.set_fact:
-        distro_results_dir: "{{ report_root | default('.') }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
-
-    - name: Save verification results locally
-      when: verify_test_print | default(true)
+    - name: Write test verification block
+      when: influxdb3_verify_write_test | default(true)
       block:
-        - name: Create local results directory
-          become: false
-          ansible.builtin.file:
-            path: "{{ distro_results_dir }}"
-            state: directory
-            mode: "0755"
-          delegate_to: localhost
+        - name: Write test data point
+          ansible.builtin.command: >
+            influxdb3 write
+            --database {{ influxdb3_database }}
+            --token {{ influxdb3_verify_token }}
+            "verify_test,host={{ ansible_hostname }} value=1.0"
+          register: write_test
+          changed_when: false
 
-        - name: Save verification results
-          become: false
-          ansible.builtin.copy:
-            content: "{{ influxdb3_test_results }}"
-            dest: "{{ distro_results_dir }}/unit-influxdb3-{{ ansible_date_time.epoch }}.yml"
-            mode: "0644"
-          delegate_to: localhost
+        - name: Query test data
+          ansible.builtin.command: >
+            influxdb3 query
+            --database {{ influxdb3_database }}
+            --token {{ influxdb3_verify_token }}
+            "SELECT * FROM verify_test WHERE time > now() - INTERVAL '1 minute'"
+          register: query_test
+          changed_when: false
 
-        - name: Record verification status
-          become: false
-          when: influxdb3_verify_failed | bool
-          ansible.builtin.copy:
-            content: |
-              verify_result: {{ 'failed' if influxdb3_verify_failed else 'passed' }}
-              failed_checks:
-                service_ports: {{ service_ports_check.failed | default(false) }}
-                service_status: {{ influxdb3_service_check.failed | default(false) }}
-                health_check: {{ health_check.failed | default(false) }}
-                write_test: {{ write_test.failed | default(false) }}
-                query_test: {{ query_test.failed | default(false) }}
-              component: influxdb3
-              distribution: {{ ansible_distribution | lower }}
-              timestamp: {{ verify_timestamp | default(ansible_date_time.iso8601) }}
-            dest: "{{ distro_results_dir }}/verify-influxdb3-status-{{ ansible_date_time.epoch }}.yml"
-            mode: "0644"
-          delegate_to: localhost
+        - name: Verify query returned data
+          ansible.builtin.assert:
+            that:
+              - query_test.rc == 0
+              - "'value' in query_test.stdout"
+            fail_msg: "Write/query test failed"
+            success_msg: "Write/query test passed"
+
+    - name: Gather verification results
+      ansible.builtin.set_fact:
+        verify_results:
+          timestamp: "{{ verify_timestamp | default(ansible_date_time.iso8601) }}"
+          hostname: "{{ ansible_hostname }}"
+          distribution: "{{ ansible_distribution }}"
+          service_status: "{{ influxdb3_service_status.status.ActiveState }}"
+          service_enabled: "{{ influxdb3_service_status.status.UnitFileState }}"
+          api_health: "{{ health_check.status }}"
+          token_exists: "{{ token_file_stat.stat.exists }}"
+          databases: "{{ influxdb3_databases }}"
+          write_test: "{{ write_test.rc | default('skipped') }}"
+          query_test: "{{ query_test.rc | default('skipped') }}"
+          port: "{{ influxdb3_port }}"
+          data_dir: "{{ influxdb3_data_dir }}"
+
+    - name: Display verification summary
+      ansible.builtin.debug:
+        msg:
+          - "=== InfluxDB v3 Core Verification ==="
+          - "Timestamp: {{ verify_results.timestamp }}"
+          - "Host: {{ verify_results.hostname }}"
+          - "Distribution: {{ verify_results.distribution }}"
+          - "Service Status: {{ verify_results.service_status }}"
+          - "Service Enabled: {{ verify_results.service_enabled }}"
+          - "API Health: {{ verify_results.api_health }}"
+          - "Token File: {{ 'exists' if verify_results.token_exists else 'missing' }}"
+          - "Databases: {{ verify_results.databases | join(', ') }}"
+          - "Write Test: {{ 'passed' if verify_results.write_test == 0 else 'skipped' }}"
+          - "Query Test: {{ 'passed' if verify_results.query_test == 0 else 'skipped' }}"
+          - "Port: {{ verify_results.port }}"
+          - "Data Directory: {{ verify_results.data_dir }}"
+
+    - name: Save verification report
+      ansible.builtin.copy:
+        content: "{{ verify_results | to_nice_yaml }}"
+        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}/influxdb3-verify-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
+        mode: "0644"
+      delegate_to: localhost
+      become: false

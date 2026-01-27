@@ -3,6 +3,18 @@
 # tasks file for influxdb3
 
 # =============================================================================================================
+# Ensure ansible temp directory exists (required for Proxmox VMs)
+#
+- name: Ensure ansible temp directory exists with proper permissions
+  become: true
+  ansible.builtin.file:
+    path: /tmp/ansible-tmp
+    state: directory
+    owner: root
+    group: root
+    mode: "01777"
+
+# =============================================================================================================
 # Install block
 #
 - name: InfluxDB v3 Present Block
@@ -67,6 +79,17 @@
 - name: Remove InfluxDB v3 service, configuration, data
   when: influxdb3_state == 'absent'
   block:
+    - name: Display removal notice
+      ansible.builtin.debug:
+        msg:
+          - "=== InfluxDB v3 Removal ==="
+          - "Package: WILL BE REMOVED"
+          - "Service: WILL BE STOPPED AND DISABLED"
+          - "Config files (/etc/influxdb3, /root/.influxdb3-credentials): {{ 'WILL BE DELETED' if influxdb3_delete_config else 'WILL BE PRESERVED' }}"
+          - "Data files ({{ influxdb3_data_dir }}, {{ influxdb3_plugin_dir }}): {{ 'WILL BE DELETED' if influxdb3_delete_data else 'WILL BE PRESERVED' }}"
+          - ""
+          - "To remove everything: -e 'influxdb3_delete_config=true influxdb3_delete_data=true'"
+
     - name: Package remove
       ansible.builtin.include_tasks:
         file: "../../shared/any/tasks/{{ ansible_distribution }}-rm.yml"

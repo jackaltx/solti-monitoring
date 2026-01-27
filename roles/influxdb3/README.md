@@ -31,35 +31,66 @@ This role installs and configures [InfluxDB v3 Core](https://docs.influxdata.com
 
 ## Role Variables
 
-### Main Control Variables
+### State Management
+
+The role uses a **safe-by-default** approach - removing the service preserves configuration and data unless explicitly requested.
 
 ```yaml
 # Installation state
-influxdb3_state: "present"  # Use 'absent' to remove
+influxdb3_state: "present"  # present (install) or absent (remove)
 
+# Removal behavior (only applies when influxdb3_state: "absent")
+influxdb3_delete_config: false  # Remove /etc/influxdb3, /root/.influxdb3-credentials
+influxdb3_delete_data: false    # Remove /var/lib/influxdb3/data and plugins
+
+# Force operations
+influxdb3_force_reload: false     # Force reinstall even if service running
+influxdb3_force_configure: false  # Force reconfiguration (regenerate token)
+```
+
+**Removal Examples:**
+
+```bash
+# Safe removal - uninstalls package, preserves config and data
+./manage-svc.sh -h myhost influxdb3 remove
+
+# Remove service and config, keep data (useful for testing)
+ansible-playbook playbook.yml -e "influxdb3_state=absent influxdb3_delete_config=true"
+
+# Complete purge - remove everything including data
+ansible-playbook playbook.yml \
+  -e "influxdb3_state=absent" \
+  -e "influxdb3_delete_config=true" \
+  -e "influxdb3_delete_data=true"
+```
+
+**What gets removed:**
+
+| Removal Level | Package | Service | Config Files | Data Files | Admin Token |
+|---------------|---------|---------|--------------|------------|-------------|
+| Default (`absent` only) | ✓ | ✓ | ✗ | ✗ | ✗ |
+| + `delete_config` | ✓ | ✓ | ✓ | ✗ | ✓ |
+| + `delete_data` | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+**Security Note:** Admin tokens are stored in `/root/.influxdb3-credentials` with mode 0600. When `influxdb3_delete_config=true`, this file is removed. Local copies in the orchestrator's `data/` directory are NOT automatically removed.
+
+### Service Configuration
+
+```yaml
 # Node configuration
 influxdb3_node_id: "node0"  # Unique node identifier
+influxdb3_http_bind: "0.0.0.0:8181"
+influxdb3_port: 8181  # HTTP API port
 
 # Storage configuration
 influxdb3_data_dir: "/var/lib/influxdb3/data"
 influxdb3_plugin_dir: "/var/lib/influxdb3/plugins"
 influxdb3_object_store: "file"  # file, s3, or azure (Phase 1: file only)
 
-# Service configuration
-influxdb3_port: 8181
-influxdb3_bind_address: "0.0.0.0"
-
 # Database initialization
-influxdb3_database: "telegraf"
+influxdb3_database: "telegraf"  # Primary database
+influxdb3_databases: ["telegraf", "metrics"]  # All databases to create
 influxdb3_admin_token: ""  # Auto-generated if empty
-
-# Removal options
-influxdb3_delete_config: false  # Remove config on uninstall
-influxdb3_delete_data: false    # Remove data on uninstall
-
-# Force operations
-influxdb3_force_reload: false     # Force reinstall
-influxdb3_force_configure: false  # Force reconfiguration
 ```
 
 ### Future Variables (Phase 2+)

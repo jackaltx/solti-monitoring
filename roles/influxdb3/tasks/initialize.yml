@@ -18,7 +18,7 @@
 
     - name: Extract admin token
       ansible.builtin.set_fact:
-        influxdb3_generated_token: "{{ admin_token_output.stdout | trim }}"
+        influxdb3_generated_token: "{{ admin_token_output.stdout | regex_search('apiv3_[A-Za-z0-9_-]+') }}"
 
     - name: Save admin token to file
       ansible.builtin.copy:
