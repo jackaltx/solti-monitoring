@@ -34,7 +34,7 @@
       block:
         - name: Package install
           ansible.builtin.include_tasks:
-            file: "../../shared/influxdb3/tasks/{{ ansible_facts['distribution'] }}-install.yml"
+            file: "../../shared/influxdb/tasks/{{ ansible_facts['distribution'] }}-install.yml"
           vars:
             package: influxdb3-core
 
