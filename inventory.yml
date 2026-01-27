@@ -1,11 +1,14 @@
 ---
+# .........................................
+# This will need changes for local testing
+#
 all:
   vars:
-    domain: a0a0.org
+    domain: example.com
     secure_logging: "{{ cluster_secure_log | bool | default(true) }}"
 
     # Customize to your configuration user
-    ansible_user: lavender
+    ansible_user: da_configurator_account
 
     # Customnize this
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
@@ -28,9 +31,6 @@ all:
         # linode script testing
         linode_test:
           ansible_host: "linode.example.com"
-
-        influxdb3_test:
-          ansible_host: 192.168.101.74
 
       # .........................................
       # mylab vars
