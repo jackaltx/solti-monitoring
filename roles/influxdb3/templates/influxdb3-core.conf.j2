@@ -14,7 +14,7 @@ data-dir = "{{ influxdb3_data_dir }}"
 plugin-dir = "{{ influxdb3_plugin_dir }}"
 
 # HTTP bind address and port
-http-bind = "{{ influxdb3_bind_address }}:{{ influxdb3_port }}"
+http-bind = "{{ influxdb3_http_bind }}"
 
 {% if influxdb3_object_store == 's3' and influxdb3_s3_bucket %}
 # S3 Configuration

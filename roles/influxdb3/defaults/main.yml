@@ -2,29 +2,39 @@
 ---
 # defaults file for influxdb3
 
-influxdb3_state: "present"
+# State Management
+influxdb3_state: "present"  # present, absent
+influxdb3_delete_config: false  # Remove config on absent
+influxdb3_delete_data: false  # Remove data on absent
+influxdb3_force_reload: false  # Force reinstall even if running
+influxdb3_force_configure: false  # Force reconfiguration
 
-# Configuration
+# Package Installation
+influxdb3_package_name: "influxdb3-core"
+influxdb3_user: "influxdb3"  # Created by package
+influxdb3_group: "influxdb3"  # Created by package
+influxdb3_config_path: "/etc/influxdb3/influxdb3-core.conf"
+influxdb3_service_name: "influxdb3-core"
+
+# Service Configuration
 influxdb3_node_id: "node0"
+influxdb3_http_bind: "0.0.0.0:8181"
+influxdb3_port: 8181  # For backward compatibility
+influxdb3_bind_address: "0.0.0.0"  # For backward compatibility
+influxdb3_object_store: "file"  # file, s3, azure, google
 influxdb3_data_dir: "/var/lib/influxdb3/data"
 influxdb3_plugin_dir: "/var/lib/influxdb3/plugins"
-influxdb3_object_store: "file"  # file, s3, or azure
 
-# Service configuration
-influxdb3_port: 8181
-influxdb3_bind_address: "0.0.0.0"
+# Database Configuration
+influxdb3_database: "telegraf"  # Default database
+influxdb3_databases: ["telegraf", "metrics"]  # All databases to create
+influxdb3_admin_token: ""  # Auto-generated if empty
+influxdb3_retention_period: ""  # Optional retention (e.g., "30d")
 
-# Database initialization
-influxdb3_database: "telegraf"
-influxdb3_admin_token: ""  # Will be generated if empty
-
-# Removal options
-influxdb3_delete_config: false
-influxdb3_delete_data: false
-
-# Force operations
-influxdb3_force_reload: false
-influxdb3_force_configure: false
+# Testing mode
+influxdb3_test: false  # Skip credential saves in test mode
+influxdb3_verify_write_test: true  # Run write/query test in verify
+influxdb3_verify_timeout: 300  # Port check timeout
 
 # S3 configuration (optional - not used in Phase 1)
 influxdb3_s3_bucket: ""

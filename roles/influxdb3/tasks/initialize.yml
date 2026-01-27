@@ -29,22 +29,58 @@
         mode: "0600"
       become: true
 
-    - name: Create default database
+    - name: Create databases
       ansible.builtin.command: >
         influxdb3 create database
         --token {{ influxdb3_generated_token }}
-        {{ influxdb3_database }}
+        {{ item }}
+      loop: "{{ influxdb3_databases }}"
       register: db_create
       become: true
       changed_when: "'created' in db_create.stdout or db_create.rc == 0"
       failed_when: db_create.rc != 0 and 'already exists' not in db_create.stderr
 
+    # Save credentials locally (unless in test mode)
+    - name: Save credentials locally
+      when: not influxdb3_test
+      block:
+        - name: Create local data directory
+          become: false
+          ansible.builtin.file:
+            path: "{{ project_root | default(playbook_dir) }}/data"
+            state: directory
+            mode: "0755"
+          delegate_to: localhost
+
+        - name: Save token credentials file
+          become: false
+          ansible.builtin.copy:
+            content: |
+              influxdb3_admin_token: "{{ influxdb3_generated_token }}"
+              influxdb3_database: "{{ influxdb3_database }}"
+              influxdb3_endpoint: "http://{{ inventory_hostname }}:{{ influxdb3_port }}"
+              influxdb3_databases: {{ influxdb3_databases | to_json }}
+            dest: "{{ project_root | default(playbook_dir) }}/data/influxdb3-tokens-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.yml"
+            mode: "0600"
+          delegate_to: localhost
+
+        - name: Save admin access file (token only)
+          become: false
+          ansible.builtin.copy:
+            content: "{{ influxdb3_generated_token }}"
+            dest: "{{ project_root | default(playbook_dir) }}/data/influxdb3-admin-access-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.txt"
+            mode: "0600"
+          delegate_to: localhost
+
     - name: Display initialization results
       ansible.builtin.debug:
         msg: |
           InfluxDB v3 initialized successfully
-          Database: {{ influxdb3_database }}
+          Databases: {{ influxdb3_databases | join(', ') }}
           Admin token saved to: /root/.influxdb3-credentials
+          {% if not influxdb3_test %}
+          Local credentials saved to: {{ project_root | default(playbook_dir) }}/data/influxdb3-tokens-{{ inventory_hostname }}-{{ ansible_date_time.epoch }}.yml
+          {% endif %}
           Port: {{ influxdb3_port }}
 
 - name: Read existing admin token
