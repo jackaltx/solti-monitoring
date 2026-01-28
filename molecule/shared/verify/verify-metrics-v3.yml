@@ -42,14 +42,28 @@
       failed_when: false
 
     # ...............................................................................
-    # API Health checks
+    # API Health check (requires auth token)
+    - name: Read admin token for health check
+      ansible.builtin.slurp:
+        path: "/root/.influxdb3-credentials"
+      register: admin_token_file_v3
+      no_log: "{{ secure_logging | default(true) }}"
+
+    - name: Extract admin token
+      ansible.builtin.set_fact:
+        influxdb3_admin_token_verify: "{{ (admin_token_file_v3.content | b64decode).strip() }}"
+      no_log: "{{ secure_logging | default(true) }}"
+
     - name: Check InfluxDB v3 API health
       ansible.builtin.uri:
         url: "http://localhost:8181/health"
         method: GET
+        headers:
+          Authorization: "Bearer {{ influxdb3_admin_token_verify }}"
         status_code: 200
       register: health_check_v3
       ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
 
     # ...............................................................................
     # Data write and query tests
