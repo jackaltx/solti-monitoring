@@ -1,0 +1,122 @@
+---
+- name: Check InfluxDB v3 binary and create collector token
+  block:
+    - name: Check if influxdb3 binary exists
+      ansible.builtin.stat:
+        path: "/usr/bin/influxdb3"
+      register: influxdb3_bin
+
+    - name: Check if InfluxDB v3 is running locally
+      when: influxdb3_bin.stat.exists
+      block:
+        - name: Check InfluxDB v3 service status
+          ansible.builtin.service_facts:
+
+        - name: Set v3 service status fact
+          ansible.builtin.set_fact:
+            influxdb3_running: "{{ ansible_facts.services['influxdb3-core.service'] is defined and
+                                   ansible_facts.services['influxdb3-core.service'].state == 'running' }}"
+
+        # This block is for testing only!
+        - name: Create collector token when needed
+          when:
+            - influxdb3_running
+            - telegraf_testing | default(false)
+            - telgraf2influxdb_configs.localhost_v3.token | default('') | length == 0
+          block:
+            - name: Check if collector token already exists
+              ansible.builtin.stat:
+                path: "/root/.influxdb3-collector"
+              register: collector_token_file
+
+            - name: Read existing collector token
+              when: collector_token_file.stat.exists
+              ansible.builtin.slurp:
+                path: "/root/.influxdb3-collector"
+              register: existing_collector_token
+              no_log: "{{ mylab_nolog | default(true) }}"
+
+            - name: Create new collector token with admin permissions
+              when: not collector_token_file.stat.exists
+              block:
+                - name: Read admin token from credentials file
+                  ansible.builtin.slurp:
+                    path: "/root/.influxdb3-credentials"
+                  register: admin_token_file
+                  no_log: "{{ mylab_nolog | default(true) }}"
+
+                - name: Extract admin token
+                  ansible.builtin.set_fact:
+                    influxdb3_admin_token: "{{ (admin_token_file.content | b64decode).strip() }}"
+                  no_log: "{{ mylab_nolog | default(true) }}"
+
+                - name: Delete existing telegraf-collector token if it exists
+                  ansible.builtin.shell: |
+                    export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_admin_token }}"
+                    echo "yes" | influxdb3 delete token --token-name "telegraf-collector" 2>&1 || true
+                  no_log: "{{ mylab_nolog | default(true) }}"
+                  changed_when: false
+
+                - name: Create telegraf collector token
+                  ansible.builtin.shell: |
+                    influxdb3 create token \
+                      --admin \
+                      --token "{{ influxdb3_admin_token }}" \
+                      --name "telegraf-collector" \
+                      --format json
+                  register: collector_token_output
+                  no_log: "{{ mylab_nolog | default(true) }}"
+                  changed_when: true
+
+                - name: Parse collector token from JSON
+                  ansible.builtin.set_fact:
+                    influxdb3_collector_token: "{{ (collector_token_output.stdout | from_json).token }}"
+                  no_log: "{{ mylab_nolog | default(true) }}"
+
+                - name: Save collector token to /root/.influxdb3-collector
+                  ansible.builtin.copy:
+                    content: "{{ influxdb3_collector_token }}"
+                    dest: "/root/.influxdb3-collector"
+                    mode: "0600"
+                    owner: root
+                    group: root
+                  no_log: "{{ mylab_nolog | default(true) }}"
+
+                - name: Save collector token to orchestrator data directory
+                  when:
+                    - project_root is defined
+                    - not (telegraf_test | default(false))
+                  ansible.builtin.copy:
+                    content: |
+                      # InfluxDB v3 Telegraf Collector Token
+                      # Generated: {{ ansible_date_time.iso8601 }}
+                      # Host: {{ ansible_hostname }}
+                      influxdb3_collector_token: "{{ influxdb3_collector_token }}"
+                      influxdb3_endpoint: "http://127.0.0.1:{{ telgraf2influxdb_configs.localhost_v3.port | default('8181') }}"
+                      influxdb3_database: "{{ telgraf2influxdb_configs.localhost_v3.bucket | default('telegraf') }}"
+                      influxdb3_token_name: "telegraf-collector"
+                      influxdb3_permissions: "*:*:* (admin)"
+                    dest: "{{ project_root }}/data/influxdb3-collector-{{ ansible_hostname }}.yml"
+                    mode: "0600"
+                  delegate_to: localhost
+                  no_log: "{{ mylab_nolog | default(true) }}"
+
+            - name: Set collector token fact (from existing or newly created)
+              ansible.builtin.set_fact:
+                final_collector_token: "{{ (existing_collector_token.content | b64decode).strip() if collector_token_file.stat.exists else influxdb3_collector_token }}"
+              no_log: "{{ mylab_nolog | default(true) }}"
+
+            - name: Update telegraf config with collector token
+              ansible.builtin.set_fact:
+                telgraf2influxdb_configs: "{{ telgraf2influxdb_configs |
+                  combine({
+                  'localhost_v3': {
+                  'token': final_collector_token
+                  }
+                  }, recursive=True) }}"
+              no_log: "{{ mylab_nolog | default(true) }}"
+
+  rescue:
+    - name: Handle any failures
+      ansible.builtin.fail:
+        msg: "Failed to create InfluxDB v3 collector token: {{ collector_token_output.stderr if collector_token_output is defined else 'InfluxDB v3 service not running or binary not found' }}"

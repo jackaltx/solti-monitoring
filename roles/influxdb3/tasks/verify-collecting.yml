@@ -1,0 +1,146 @@
+---
+# Verification tasks for InfluxDB v3 Core - Data Collection
+#
+# Verifies that InfluxDB v3 is actively collecting metrics from Telegraf
+#
+# Usage:
+#   ansible-playbook playbook.yml --tags verify-collecting
+
+- name: InfluxDB v3 Data Collection Verification Block
+  become: true
+  block:
+    - name: Check if admin token exists
+      ansible.builtin.stat:
+        path: /root/.influxdb3-credentials
+      register: token_file_stat
+
+    - name: Fail if token doesn't exist
+      ansible.builtin.fail:
+        msg: "Admin token file not found at /root/.influxdb3-credentials"
+      when: not token_file_stat.stat.exists
+
+    - name: Read admin token
+      ansible.builtin.slurp:
+        path: /root/.influxdb3-credentials
+      register: admin_token_content
+      no_log: true
+
+    - name: Set token fact
+      ansible.builtin.set_fact:
+        influxdb3_verify_token: "{{ admin_token_content.content | b64decode | trim }}"
+      no_log: true
+
+    - name: List all tables in telegraf database
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_verify_token }}"
+        influxdb3 query "SHOW TABLES" --database telegraf --format json
+      register: tables_output
+      changed_when: false
+      no_log: true
+
+    - name: Parse tables JSON
+      ansible.builtin.set_fact:
+        tables_list: "{{ (tables_output.stdout | from_json) | map(attribute='table_name') | list }}"
+
+    - name: Count recent CPU metrics (last 5 minutes)
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_verify_token }}"
+        influxdb3 query "SELECT COUNT(*) FROM cpu WHERE time > now() - interval '5 minutes'" \
+          --database telegraf --format json
+      register: cpu_count_output
+      changed_when: false
+      no_log: true
+      when: "'cpu' in tables_list"
+
+    - name: Parse CPU count
+      ansible.builtin.set_fact:
+        cpu_metric_count: "{{ (cpu_count_output.stdout | from_json)[0]['count(*)'] | int }}"
+      when: "'cpu' in tables_list"
+
+    - name: Query latest memory metric
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_verify_token }}"
+        influxdb3 query "SELECT time, host, used_percent FROM mem ORDER BY time DESC LIMIT 1" \
+          --database telegraf --format json
+      register: mem_output
+      changed_when: false
+      no_log: true
+      when: "'mem' in tables_list"
+
+    - name: Parse latest memory data
+      ansible.builtin.set_fact:
+        latest_mem_metric: "{{ (mem_output.stdout | from_json)[0] }}"
+      when: "'mem' in tables_list and mem_output.stdout != ''"
+
+    - name: Query latest disk metric
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_verify_token }}"
+        influxdb3 query "SELECT time, host, path, used_percent FROM disk ORDER BY time DESC LIMIT 1" \
+          --database telegraf --format json
+      register: disk_output
+      changed_when: false
+      no_log: true
+      when: "'disk' in tables_list"
+
+    - name: Parse latest disk data
+      ansible.builtin.set_fact:
+        latest_disk_metric: "{{ (disk_output.stdout | from_json)[0] }}"
+      when: "'disk' in tables_list and disk_output.stdout != ''"
+
+    - name: Verify data is being collected
+      ansible.builtin.assert:
+        that:
+          - tables_list | length > 0
+          - cpu_metric_count | default(0) | int > 0
+        fail_msg: "No data is being collected! Tables: {{ tables_list | length }}, CPU metrics: {{ cpu_metric_count | default(0) }}"
+        success_msg: "Data collection verified: {{ tables_list | length }} tables, {{ cpu_metric_count }} CPU metrics in last 5 minutes"
+
+    - name: Gather collection verification results
+      ansible.builtin.set_fact:
+        collection_verify_results:
+          timestamp: "{{ verify_timestamp | default(ansible_date_time.iso8601) }}"
+          hostname: "{{ ansible_hostname }}"
+          distribution: "{{ ansible_distribution }}"
+          database: "telegraf"
+          tables_count: "{{ tables_list | length }}"
+          tables: "{{ tables_list }}"
+          cpu_metrics_5min: "{{ cpu_metric_count | default(0) }}"
+          latest_memory:
+            time: "{{ latest_mem_metric.time | default('N/A') }}"
+            host: "{{ latest_mem_metric.host | default('N/A') }}"
+            used_percent: "{{ latest_mem_metric.used_percent | default('N/A') }}"
+          latest_disk:
+            time: "{{ latest_disk_metric.time | default('N/A') }}"
+            host: "{{ latest_disk_metric.host | default('N/A') }}"
+            path: "{{ latest_disk_metric.path | default('N/A') }}"
+            used_percent: "{{ latest_disk_metric.used_percent | default('N/A') }}"
+
+    - name: Display collection verification summary
+      ansible.builtin.debug:
+        msg:
+          - "=== InfluxDB v3 Data Collection Verification ==="
+          - "Timestamp: {{ collection_verify_results.timestamp }}"
+          - "Host: {{ collection_verify_results.hostname }}"
+          - "Distribution: {{ collection_verify_results.distribution }}"
+          - "Database: {{ collection_verify_results.database }}"
+          - "Tables Found: {{ collection_verify_results.tables_count }}"
+          - "Tables: {{ collection_verify_results.tables | join(', ') }}"
+          - "CPU Metrics (5min): {{ collection_verify_results.cpu_metrics_5min }}"
+          - "Latest Memory: {{ collection_verify_results.latest_memory.used_percent }}% at {{ collection_verify_results.latest_memory.time }}"
+          - "Latest Disk: {{ collection_verify_results.latest_disk.path }} @ {{ collection_verify_results.latest_disk.used_percent }}% at {{ collection_verify_results.latest_disk.time }}"
+
+    - name: Ensure verify output directory exists
+      ansible.builtin.file:
+        path: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Save collection verification report
+      ansible.builtin.copy:
+        content: "{{ collection_verify_results | to_nice_yaml }}"
+        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}/influxdb3-collecting-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
