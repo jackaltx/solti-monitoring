@@ -14,8 +14,9 @@
 
         - name: Set v3 service status fact
           ansible.builtin.set_fact:
-            influxdb3_running: "{{ ansible_facts.services['influxdb3-core.service'] is defined and
-                                   ansible_facts.services['influxdb3-core.service'].state == 'running' }}"
+            influxdb3_running:
+              "{{ ansible_facts.services['influxdb3-core.service'] is defined and
+              ansible_facts.services['influxdb3-core.service'].state == 'running' }}"
 
         # This block is for testing only!
         - name: Create collector token when needed
@@ -83,6 +84,7 @@
                   no_log: "{{ mylab_nolog | default(true) }}"
 
                 - name: Save collector token to orchestrator data directory
+                  become: false
                   when:
                     - project_root is defined
                     - not (telegraf_test | default(false))

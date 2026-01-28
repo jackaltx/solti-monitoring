@@ -1,6 +1,30 @@
 ---
-# Used by the container diagnostics
-# I envision this data being assembles from the parts.
+# Used by the molecule integration convergence and verification
+#
+#  I envision this data being assembled from the parts
+#  instead of this "top down build"
+#
+#  This is used by both the Podman CT and Proxmox VM molecule testing
+#  for Debian and RHEL distros.
+#
+#  I can see this being used to for different subsets, but
+#  currently the configuraiton variables used for convergence
+#  are defined in the molecule.yml.
+#
+#  This mechanism allows a single script to test interactions.
+#  Which for this is  send and recieve logs/metrics.
+#
+#  verify_role is a list of tasks which basically dispacthed call into the role
+#  itself, this allows a task access to all the variables.  The purpose is to
+#  test the service working.
+#
+#  verify_tasks is a list tasks that address interacts betwen the sender/reciever.
+#
+#  Note: we are inbetween times for Influxdb. V3 is radically different
+#  from V2.  No built in gui. allows S3 buckets. Python based plugins for alerting.
+#
+#  So for now, I will test both versions influxd.
+#
 # ..............................................................
 # Version 2
 monitoring_capabilities:
