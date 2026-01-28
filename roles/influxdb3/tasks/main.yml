@@ -1,3 +1,118 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for influxdb3
+
+# =============================================================================================================
+# Ensure ansible temp directory exists (required for Proxmox VMs)
+#
+- name: Ensure ansible temp directory exists with proper permissions
+  become: true
+  ansible.builtin.file:
+    path: /tmp/ansible-tmp
+    state: directory
+    owner: root
+    group: root
+    mode: "01777"
+
+# =============================================================================================================
+# Install block
+#
+- name: InfluxDB v3 Present Block
+  when: influxdb3_state == 'present'
+  block:
+    # Check if service is already running
+    - name: Check if influxdb3-core is running
+      ansible.builtin.service_facts:
+
+    - name: Set service running fact
+      ansible.builtin.set_fact:
+        influxdb3_running: "{{ 'influxdb3-core.service' in ansible_facts.services and ansible_facts.services['influxdb3-core.service'].state == 'running' }}"
+
+    # Install only if not running or forced
+    - name: Install package and configure block
+      when: not influxdb3_running or influxdb3_force_reload
+      block:
+        - name: Package install
+          ansible.builtin.include_tasks:
+            file: "../../shared/influxdb/tasks/{{ ansible_facts['distribution'] }}-install.yml"
+          vars:
+            package: influxdb3-core
+
+        - name: Debug package install results
+          ansible.builtin.debug:
+            var: pkg_install_result
+            verbosity: 1
+
+        # Configuration
+        - name: Template InfluxDB v3 configuration
+          ansible.builtin.template:
+            src: influxdb3-core.conf.j2
+            dest: /etc/influxdb3/influxdb3-core.conf
+            owner: root
+            group: root
+            mode: "0644"
+          become: true
+          notify: Restart influxdb3-core
+
+    # Start and enable service
+    - name: Ensure influxdb3-core is started and enabled
+      ansible.builtin.systemd_service:
+        name: influxdb3-core
+        state: started
+        enabled: true
+      become: true
+
+    - name: Wait for InfluxDB v3 API to be available
+      ansible.builtin.wait_for:
+        port: "{{ influxdb3_port }}"
+        state: started
+        timeout: 60
+        delay: 5
+
+    # Initialize database and token
+    - name: Initialize InfluxDB v3
+      ansible.builtin.include_tasks: initialize.yml
+
+###################################################################################
+# Remove Block
+#
+- name: Remove InfluxDB v3 service, configuration, data
+  when: influxdb3_state == 'absent'
+  block:
+    - name: Display removal notice
+      ansible.builtin.debug:
+        msg:
+          - "=== InfluxDB v3 Removal ==="
+          - "Package: WILL BE REMOVED"
+          - "Service: WILL BE STOPPED AND DISABLED"
+          - "Config files (/etc/influxdb3, /root/.influxdb3-credentials): {{ 'WILL BE DELETED' if influxdb3_delete_config else 'WILL BE PRESERVED' }}"
+          - "Data files ({{ influxdb3_data_dir }}, {{ influxdb3_plugin_dir }}): {{ 'WILL BE DELETED' if influxdb3_delete_data else 'WILL BE PRESERVED' }}"
+          - ""
+          - "To remove everything: -e 'influxdb3_delete_config=true influxdb3_delete_data=true'"
+
+    - name: Package remove
+      ansible.builtin.include_tasks:
+        file: "../../shared/any/tasks/{{ ansible_distribution }}-rm.yml"
+      vars:
+        package: influxdb3-core
+        service_name: influxdb3-core.service
+
+    - name: Remove configuration files
+      when: influxdb3_delete_config
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      become: true
+      loop:
+        - /etc/influxdb3
+        - /root/.influxdb3-credentials
+
+    - name: Remove data files
+      when: influxdb3_delete_data
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      become: true
+      loop:
+        - "{{ influxdb3_data_dir }}"
+        - "{{ influxdb3_plugin_dir }}"

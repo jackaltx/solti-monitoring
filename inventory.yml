@@ -1,4 +1,7 @@
 ---
+# .........................................
+# This will need changes for local testing
+#
 all:
   vars:
     domain: example.com

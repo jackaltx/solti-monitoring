@@ -18,6 +18,7 @@
               "{{ ansible_facts.services['influxdb.service'] is defined and
               ansible_facts.services['influxdb.service'].state == 'running' }}"
 
+        # This block is for testing only!
         - name: Get system-operator token when needed
           when:
             - influxdb_running
@@ -50,23 +51,6 @@
                   'token': operator_token[0].token
                   }
                   }, recursive=True) }}"
-
-    - name: Influx is not running on localhost. If we are testing, set a default
-      when: not influxdb_bin.stat.exists
-      block:
-        - name: Update telegraf localhost config to default
-          # no_log: "{{ mylab_nolog | default(true) }}"
-          ansible.builtin.set_fact:
-            telgraf2influxdb_configs: "{{ telgraf2influxdb_configs |
-              combine({
-              'localhost': {
-              'token': 'damnitspoc'
-              }
-              }, recursive=True) }}"
-
-        - name: Influx not running on localhost
-          ansible.builtin.debug:
-            msg: "Setting localhost token to the var 'telegraf_localhost_token'. (non-issue for molecule testing)"
 
   rescue:
     - name: Handle any failures

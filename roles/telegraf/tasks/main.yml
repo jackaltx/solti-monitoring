@@ -36,6 +36,10 @@
       ansible.builtin.include_tasks:
         file: influxdb-localhost-operators-token.yml
 
+    - name: Edge case, when the influxd v3 url is localhost_v3, then set it up
+      ansible.builtin.include_tasks:
+        file: influxdb3-localhost-collector-token.yml
+
     - name: Configure /etc/default/telegraf file
       ansible.builtin.include_tasks:
         file: telegrafd-default-setup.yml

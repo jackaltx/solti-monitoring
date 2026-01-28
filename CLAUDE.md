@@ -18,7 +18,71 @@ Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Pr
 ./prepare-solti-env.sh && source solti-venv/bin/activate
 ```
 
-### 2. Development Testing (Podman - Fast)
+### 2. Testing Strategy: Unit vs Integration
+
+**Unit Testing (Single Role):**
+
+- Tests one role in isolation (e.g., influxdb3 deploy + verify)
+- Uses orchestrator scripts (`manage-svc.sh`, `svc-exec.sh`)
+- Fast iteration cycle
+- Single target host (Podman container or VM)
+
+**Integration Testing (Multiple Roles):**
+
+- Tests role interactions (e.g., telegraf → influxdb3 end-to-end)
+- Uses molecule scenarios
+- Tests across multiple distributions
+- Validates complete monitoring stack
+
+**Development Workflow:**
+
+```text
+Phase 1 (Unit):     influxdb3 role → deploy → verify → iterate
+Phase 2 (Integration): telegraf + influxdb3 → full stack test
+```
+
+### 3. Unit Testing with Orchestrator (Preferred for Role Development)
+
+**For developing individual roles, use the orchestrator scripts directly instead of molecule.**
+
+From the parent orchestrator directory (`/home/lavender/sandbox/ansible/jackaltx/mylab/`):
+
+```bash
+# Deploy a service role
+./manage-svc.sh -h <target_host> <service> deploy
+
+# Verify a service role
+./svc-exec.sh -h <target_host> <service> verify
+
+# Example: Test influxdb3 role on a Podman container or VM
+./manage-svc.sh -h test-container influxdb3 deploy
+./svc-exec.sh -h test-container influxdb3 verify
+```
+
+**Benefits of orchestrator-based unit testing:**
+
+- Tests in your actual deployment environment
+- Uses real inventory and secrets management
+- No molecule overhead
+- Same workflow you'll use in production
+- Faster iteration cycle
+- Single role focus (unit test)
+
+**Setup requirements:**
+
+1. Add service to `SUPPORTED_SERVICES` in `manage-svc.sh` and `svc-exec.sh`
+2. Add `<service>_svc` host group to `mylab/inventory.yml`
+3. Create role in `solti-monitoring/roles/<service>/`
+4. Role must have `tasks/verify.yml` for verification
+
+**When to use molecule instead:**
+
+- Integration testing (multiple roles working together)
+- Full stack testing (telegraf + influxdb + loki + alloy)
+- Multi-distribution testing (Debian + Rocky + Ubuntu)
+- CI/CD pipeline testing
+
+### 3. Development Testing (Podman - Fast)
 ```bash
 # All platforms (Debian, Rocky, Ubuntu)
 ./run-podman-tests.sh

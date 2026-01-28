@@ -1,6 +1,6 @@
 [[outputs.influxdb_v2]]
-  urls = ["{{ item.value.url }}:8086"]
-  token = "${{ item.key | upper }}"
+  urls = ["{{ item.value.url }}:{{ item.value.port | default('8086') }}"]
+  token = "${{ item.key | upper | replace('-', '_') }}"
   bucket =  "{{ item.value.bucket }}"
   organization =  "{{ item.value.org }}"
   namedrop = {{ item.value.namedrop }}
