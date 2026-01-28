@@ -131,7 +131,7 @@
 
     - name: Ensure verify output directory exists
       ansible.builtin.file:
-        path: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}"
+        path: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
@@ -140,7 +140,7 @@
     - name: Save collection verification report
       ansible.builtin.copy:
         content: "{{ collection_verify_results | to_nice_yaml }}"
-        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}/influxdb3-collecting-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
+        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/influxdb3-collecting-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
         mode: "0644"
       delegate_to: localhost
       become: false
