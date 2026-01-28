@@ -38,6 +38,7 @@ monitoring_capabilities:
   metrics:
     roles:
       - influxdb
+      - influxdb3
       - telegraf
     required_packages:
       Debian: &debian_metrics_deps
@@ -52,12 +53,18 @@ monitoring_capabilities:
         - procps-ng
       Rocky: *redhat_metrics_deps
     verify_role_tasks:
-      inflxudb:
+      influxdb:
         - verify.yml
+      influxdb3:
+        - verify.yml
+        - verify-collecting.yml
     verify_tasks:
       - verify-metrics.yml
+      - verify-metrics-v3.yml
     service_names:
       - influxdb
+      - influxdb3-core
       - telegraf
     service_ports:
       - 8086
+      - 8181
