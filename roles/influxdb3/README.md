@@ -66,11 +66,11 @@ ansible-playbook playbook.yml \
 
 **What gets removed:**
 
-| Removal Level | Package | Service | Config Files | Data Files | Admin Token |
-|---------------|---------|---------|--------------|------------|-------------|
-| Default (`absent` only) | ✓ | ✓ | ✗ | ✗ | ✗ |
-| + `delete_config` | ✓ | ✓ | ✓ | ✗ | ✓ |
-| + `delete_data` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Removal Level           | Package | Service | Config Files | Data Files | Admin Token |
+| ----------------------- | ------- | ------- | ------------ | ---------- | ----------- |
+| Default (`absent` only) | ✓       | ✓       | ✗            | ✗          | ✗           |
+| + `delete_config`       | ✓       | ✓       | ✓            | ✗          | ✓           |
+| + `delete_data`         | ✓       | ✓       | ✓            | ✓          | ✓           |
 
 **Security Note:** Admin tokens are stored in `/root/.influxdb3-credentials` with mode 0600. When `influxdb3_delete_config=true`, this file is removed. Local copies in the orchestrator's `data/` directory are NOT automatically removed.
 
