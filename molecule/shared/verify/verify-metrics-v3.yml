@@ -69,19 +69,23 @@
     # Data write and query tests
     - name: Test write capability (v3)
       ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_admin_token_verify }}"
         influxdb3 write --database telegraf "test,tag=molecule value=1.0"
       register: write_check_v3
       changed_when: false
       failed_when: write_check_v3.rc != 0
       ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
 
     - name: Test query capability (v3)
       ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_admin_token_verify }}"
         influxdb3 query --database telegraf "SELECT * FROM test WHERE time > now() - INTERVAL '1 minute'"
       register: query_check_v3
       changed_when: false
       failed_when: query_check_v3.rc != 0
       ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
 
     # ...............................................................................
     - name: Check recent logs for errors (v3)
