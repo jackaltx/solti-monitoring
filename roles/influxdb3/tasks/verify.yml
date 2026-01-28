@@ -121,10 +121,18 @@
           - "Port: {{ verify_results.port }}"
           - "Data Directory: {{ verify_results.data_dir }}"
 
+    - name: Create verification output directory
+      ansible.builtin.file:
+        path: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
     - name: Save verification report
       ansible.builtin.copy:
         content: "{{ verify_results | to_nice_yaml }}"
-        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}/influxdb3-verify-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
+        dest: "{{ report_root | default(playbook_dir + '/verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/influxdb3-verify-{{ ansible_hostname }}-{{ verify_timestamp | default(ansible_date_time.epoch) }}.yml"
         mode: "0644"
       delegate_to: localhost
       become: false
