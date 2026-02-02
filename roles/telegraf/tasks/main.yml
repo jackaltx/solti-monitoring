@@ -1,6 +1,15 @@
 ---
 # tasks file for telegraf
 
+- name: Ensure ansible temp directory exists with proper permissions
+  become: true
+  ansible.builtin.file:
+    path: /tmp/ansible-tmp
+    state: directory
+    owner: root
+    group: root
+    mode: "0777"
+
 - name: Intall telegraf from package
   when: telegraf_state == 'present'
   block:
