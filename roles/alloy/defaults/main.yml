@@ -27,6 +27,9 @@ alloy_monitor_bind9: false
 alloy_monitor_wg: false
 alloy_monitor_gitea: false
 alloy_monitor_ufw: false
+alloy_monitor_caddy: false              # File-based Caddy access logs
+alloy_monitor_caddy_journal: false      # Journald-based Caddy TLS/system logs
+alloy_monitor_matrix_synapse: false     # File-based Matrix Synapse logs
 
 # Filtering options - reduce journald noise
 alloy_filter_cron_noise: false
@@ -39,5 +42,6 @@ alloy_additional_groups: []
 # Example configuration for common services:
 # alloy_additional_groups:
 #   - git        # For gitea logs
+#   - caddy      # For caddy logs (if not world-readable)
 #   - syslog     # For system logs
 #   - adm        # For additional log access

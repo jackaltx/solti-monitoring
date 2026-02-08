@@ -1,0 +1,356 @@
+// =======================================================================================
+// Matrix Synapse homeserver log collection configuration for Alloy
+//
+// Monitors: /var/log/matrix-synapse/homeserver.log
+// Log format: Structured text (timestamp - module - line - level - request - message)
+//            OR JSON (if synapse.logging.TerseJsonFormatter is configured)
+// Cardinality control: Module grouping, request ID retention only for errors
+//
+// Labels (indexed in Loki):
+// - service_type: matrix_synapse
+// - module_group: storage | federation | handlers | http | api | auth | util | app | other
+// - level: DEBUG | INFO | WARNING | ERROR | CRITICAL
+// - is_error: true | false
+// - request_type: client | federation | background | startup | other
+// - error_category: federation_failure | auth_failure | database_error | timeout | ratelimit | validation | other
+//
+// Cardinality control:
+// - Full module names grouped into module_group
+// - Line numbers dropped (too high cardinality)
+// - Request IDs dropped except for errors
+// - Specific error messages kept in log line, not labels
+//
+// Example queries:
+// {service_type="matrix_synapse", is_error="true"}
+// {service_type="matrix_synapse", error_category="federation_failure"}
+// {service_type="matrix_synapse", module_group="storage", level="ERROR"}
+
+// =======================================================================================
+// File match pattern
+
+local.file_match "matrix_synapse" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/matrix-synapse/homeserver.log",
+    hostname    = "{{ ansible_fqdn }}",
+    job         = "matrix_synapse",
+    component   = "homeserver",
+  }]
+}
+
+// =======================================================================================
+// Processing pipeline
+
+loki.process "matrix_synapse" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Initialize service_type
+  stage.static_labels {
+    values = {
+      service_type = "matrix_synapse",
+    }
+  }
+
+  // =====================================================================================
+  // Parse structured text format
+  // Format: 2026-02-08 15:08:21,551 - synapse.storage.databases.main.event_push_actions - 1392 - INFO - rotate_notifs-7397 - Rotating notifications
+  stage.regex {
+    expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) - (?P<module>[\\w\\.]+) - (?P<lineno>\\d+) - (?P<level>\\w+) - (?P<request_id>[\\w\\-]+) - (?P<message>.*)$"
+  }
+
+  // =====================================================================================
+  // Timestamp handling
+  stage.timestamp {
+    source            = "timestamp"
+    format            = "2006-01-02 15:04:05"
+    action_on_failure = "fudge"
+  }
+
+  // =====================================================================================
+  // Label extraction for basic fields
+  stage.labels {
+    values = {
+      level      = null,
+      request_id = null,
+    }
+  }
+
+  // =====================================================================================
+  // Group modules into categories
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.storage\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "storage",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.federation\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "federation",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.handlers\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "handlers",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.http\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "http",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.api\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "api",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.rest\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "api",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.app\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "app",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module=~\"synapse\\\\.util\\\\..*\"}"
+    stage.static_labels {
+      values = {
+        module_group = "util",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{module_group=\"\"}"
+    stage.static_labels {
+      values = {
+        module_group = "other",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Error classification
+
+  stage.match {
+    selector = "{level=~\"ERROR|CRITICAL\"}"
+    stage.static_labels {
+      values = {
+        is_error = "true",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{level=~\"DEBUG|INFO\"}"
+    stage.static_labels {
+      values = {
+        is_error = "false",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Error category classification
+
+  stage.match {
+    selector = "{is_error=\"true\", message=~\".*federation.*|.*remote.*server.*|.*Unable to contact.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "federation_failure",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{is_error=\"true\", message=~\".*auth.*|.*login.*|.*token.*|.*unauthorized.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "auth_failure",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{is_error=\"true\", message=~\".*database.*|.*sql.*|.*sqlite.*|.*postgres.*|.*psycopg.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "database_error",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{message=~\".*timeout.*|.*took too long.*|.*slow.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "timeout",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{message=~\".*rate limit.*|.*throttled.*|.*ratelimit.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "ratelimit",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{is_error=\"true\", message=~\".*validation.*|.*invalid.*|.*malformed.*\"}"
+    stage.static_labels {
+      values = {
+        error_category = "validation",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Request type classification
+
+  stage.match {
+    selector = "{request_id=~\".*POST.*|.*GET.*|.*PUT.*|.*DELETE.*\"}"
+    stage.static_labels {
+      values = {
+        request_type = "client",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{request_id=~\".*federation.*|.*fed.*\"}"
+    stage.static_labels {
+      values = {
+        request_type = "federation",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{request_id=~\".*background.*|.*cleanup.*|.*rotate.*|.*expire.*\"}"
+    stage.static_labels {
+      values = {
+        request_type = "background",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{request_id=\"-\", module_group=\"app\"}"
+    stage.static_labels {
+      values = {
+        request_type = "startup",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{request_type=\"\"}"
+    stage.static_labels {
+      values = {
+        request_type = "other",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Noise reduction - drop low-value logs
+
+  // Drop routine background task info logs
+  stage.match {
+    selector = "{level=\"INFO\", request_type=\"background\"}"
+    action   = "drop"
+  }
+
+  // Drop routine storage maintenance logs
+  stage.match {
+    selector = "{level=\"INFO\", module_group=\"storage\", message=~\".*Rotating.*|.*Expiring.*|.*Pruning.*\"}"
+    action   = "drop"
+  }
+
+  // Drop debug logs unless error
+  stage.match {
+    selector = "{level=\"DEBUG\", is_error!=\"true\"}"
+    action   = "drop"
+  }
+
+  // Drop low-level connection logs
+  stage.match {
+    selector = "{level=\"INFO\", module_group=\"http\", message=~\".*Acquired connection.*|.*Released connection.*\"}"
+    action   = "drop"
+  }
+
+  // =====================================================================================
+  // Cardinality control - retain request IDs only for errors
+
+  stage.match {
+    selector = "{is_error=\"true\"}"
+    stage.static_labels {
+      values = {
+        track_request = "true",
+      }
+    }
+  }
+
+  // Keep request_id label for errors
+  stage.match {
+    selector = "{track_request!=\"true\"}"
+    stage.label_drop {
+      values = ["request_id"]
+    }
+  }
+
+  // =====================================================================================
+  // Final cleanup - drop high-cardinality labels
+
+  stage.label_drop {
+    values = [
+      "module",       // Grouped into module_group
+      "lineno",       // Too high cardinality
+      "message",      // Kept in log line, not as label
+      "timestamp",    // Already processed
+      "track_request", // Internal marker
+    ]
+  }
+}
+
+// =======================================================================================
+// Source definition
+
+loki.source.file "matrix_synapse" {
+  targets               = local.file_match.matrix_synapse.targets
+  forward_to            = [loki.process.matrix_synapse.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
