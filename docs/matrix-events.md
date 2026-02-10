@@ -20,7 +20,7 @@ Post custom events to Matrix rooms using the Client-Server API. Events are sent 
 
 ```yaml
 - name: Post verification failure to Matrix
-  jackaltx.solti_monitoring.matrix_event:
+  jackaltx.solti_matrix_mgr.matrix_event:
     homeserver_url: "https://matrix-web.jackaltx.com"
     access_token: "{{ matrix_bot_token }}"
     room_id: "#solti-verify:jackaltx.com"
@@ -211,7 +211,7 @@ The `matrix-notify.yml` playbook runs after `report.yml` and posts aggregated re
 
   tasks:
     - name: Post custom event
-      jackaltx.solti_monitoring.matrix_event:
+      jackaltx.solti_matrix_mgr.matrix_event:
         homeserver_url: "{{ matrix_homeserver_url }}"
         access_token: "{{ matrix_access_token }}"
         room_id: "{{ matrix_room_id }}"
