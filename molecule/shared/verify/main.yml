@@ -125,6 +125,13 @@
         file: report.yml
 
     # .......................................................................
+    # Post results to Matrix (optional, controlled by MATRIX_NOTIFY_ENABLED env var)
+    - name: Post verification results to Matrix
+      ansible.builtin.include_tasks:
+        file: matrix-notify.yml
+      when: lookup('env', 'MATRIX_NOTIFY_ENABLED') | default('false') | bool
+
+    # .......................................................................
     # TODO: review this.
     - name: Create verification status map
       set_fact:

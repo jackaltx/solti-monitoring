@@ -1,0 +1,106 @@
+---
+# Post verification results to Matrix
+#
+# This playbook posts aggregated verification results to a Matrix room
+# after molecule tests complete. It uses the jackaltx.solti_monitoring.matrix_event
+# module to send structured events.
+#
+# Environment Variables:
+#   MATRIX_NOTIFY_ENABLED - Set to 'true' to enable notifications (default: false)
+#   MATRIX_HOMESERVER_URL - Matrix homeserver URL (default: https://matrix-web.jackaltx.com)
+#   MATRIX_ROOM_ID - Target room ID or alias (default: #solti-verify:jackaltx.com)
+#   MATRIX_ACCESS_TOKEN - Bot access token (required if enabled)
+#
+# Facts Required:
+#   all_verify_results - Dict of service verification results
+#   all_verify_failed - Dict of services that failed verification
+
+- name: Post Verification Results to Matrix
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    # Matrix configuration from environment or defaults
+    matrix_enabled: "{{ lookup('env', 'MATRIX_NOTIFY_ENABLED') | default('false') | bool }}"
+    matrix_homeserver_url: "{{ lookup('env', 'MATRIX_HOMESERVER_URL') | default('https://matrix-web.jackaltx.com') }}"
+    matrix_room_id: "{{ lookup('env', 'MATRIX_ROOM_ID') | default('#solti-verify:jackaltx.com') }}"
+    matrix_access_token: "{{ lookup('env', 'MATRIX_ACCESS_TOKEN') | default('') }}"
+
+  tasks:
+    - name: Check if Matrix notification is enabled
+      ansible.builtin.debug:
+        msg: "Matrix notification is {{ 'enabled' if matrix_enabled else 'disabled' }}"
+
+    - name: Skip if disabled
+      ansible.builtin.meta: end_play
+      when: not matrix_enabled
+
+    - name: Validate Matrix configuration
+      block:
+        - name: Check if access token is provided
+          ansible.builtin.fail:
+            msg: "MATRIX_ACCESS_TOKEN environment variable is required when MATRIX_NOTIFY_ENABLED=true"
+          when: matrix_access_token == ''
+
+        - name: Check if verification results exist
+          ansible.builtin.fail:
+            msg: "all_verify_results fact not found. This playbook must run after report.yml"
+          when: all_verify_results is not defined
+
+    - name: Determine verification status
+      ansible.builtin.set_fact:
+        verify_status: "{{ 'FAILED' if all_verify_failed.values() | select('true') | list | length > 0 else 'PASSED' }}"
+        verify_event_type: "{{ 'com.solti.verify.fail' if all_verify_failed.values() | select('true') | list | length > 0 else 'com.solti.verify.pass' }}"
+        failed_services: "{{ all_verify_failed | dict2items | selectattr('value', 'equalto', true) | map(attribute='key') | list }}"
+
+    - name: Build event content
+      ansible.builtin.set_fact:
+        event_content:
+          status: "{{ verify_status }}"
+          distribution: "{{ ansible_distribution | default('unknown') }}_{{ ansible_distribution_version | default('unknown') }}"
+          hostname: "{{ ansible_hostname | default('unknown') }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          summary:
+            total_services: "{{ all_verify_results | length }}"
+            failed_services: "{{ failed_services | length }}"
+            passed_services: "{{ all_verify_results | length - failed_services | length }}"
+          services: "{{ all_verify_results }}"
+          failed_service_names: "{{ failed_services }}"
+          context:
+            collection: "solti-monitoring"
+            scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') | default('default') }}"
+            platform: "{{ lookup('env', 'MOLECULE_PLATFORM_NAME') | default('unknown') }}"
+
+    - name: Post verification event to Matrix
+      block:
+        - name: Send event to Matrix room
+          jackaltx.solti_monitoring.matrix_event:
+            homeserver_url: "{{ matrix_homeserver_url }}"
+            access_token: "{{ matrix_access_token }}"
+            room_id: "{{ matrix_room_id }}"
+            event_type: "{{ verify_event_type }}"
+            event_content: "{{ event_content }}"
+            state: present
+          register: matrix_result
+
+        - name: Display Matrix notification result
+          ansible.builtin.debug:
+            msg:
+              - "✓ Posted verification result to Matrix"
+              - "  Status: {{ verify_status }}"
+              - "  Event ID: {{ matrix_result.event_id }}"
+              - "  Room: {{ matrix_room_id }}"
+              - "  Failed services: {{ failed_services | join(', ') if failed_services | length > 0 else 'none' }}"
+
+      rescue:
+        - name: Log Matrix notification failure
+          ansible.builtin.debug:
+            msg:
+              - "⚠ Failed to post to Matrix, but continuing verification"
+              - "  Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+              - "  Verification status: {{ verify_status }}"
+
+        - name: Set failure flag but don't fail playbook
+          ansible.builtin.set_fact:
+            matrix_notification_failed: true
