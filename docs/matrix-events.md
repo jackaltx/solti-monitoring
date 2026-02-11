@@ -371,7 +371,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 ## References
 
 - **Matrix Specification:** https://spec.matrix.org/v1.10/client-server-api/
-- **Matrix Synapse Role:** [solti-ensemble/roles/matrix_synapse/](../solti-ensemble/roles/matrix_synapse/)
-- **Module Source:** [plugins/modules/matrix_event.py](../plugins/modules/matrix_event.py)
-- **API Wrapper:** [plugins/module_utils/matrix_client.py](../plugins/module_utils/matrix_client.py)
-- **Test Playbook:** [tests/test-matrix-event.yml](../tests/test-matrix-event.yml)
+- **Module Source:** [solti-matrix-mgr/plugins/modules/matrix_event.py](../../solti-matrix-mgr/plugins/modules/matrix_event.py)
+- **API Wrapper:** [solti-matrix-mgr/plugins/module_utils/matrix_client.py](../../solti-matrix-mgr/plugins/module_utils/matrix_client.py)
+- **Test Playbook:** [mylab/playbooks/test-matrix-event.yml](../../mylab/playbooks/test-matrix-event.yml)
+- **Matrix Synapse Deployment:** [solti-ensemble/roles/matrix_synapse/](../../solti-ensemble/roles/matrix_synapse/) (deprecated - manually deployed)
