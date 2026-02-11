@@ -50,17 +50,17 @@
 
     - name: Determine verification status
       ansible.builtin.set_fact:
-        verify_status: "{{ 'FAILED' if all_verify_failed.values() | select('true') | list | length > 0 else 'PASSED' }}"
-        verify_event_type: "{{ 'com.solti.verify.fail' if all_verify_failed.values() | select('true') | list | length > 0 else 'com.solti.verify.pass' }}"
+        verification_failed: "{{ all_verify_failed.values() | select('true') | list | length > 0 }}"
         failed_services: "{{ all_verify_failed | dict2items | selectattr('value', 'equalto', true) | map(attribute='key') | list }}"
 
-    - name: Build event content
+    - name: Build verification event data
       ansible.builtin.set_fact:
-        event_content:
-          status: "{{ verify_status }}"
+        verify_event:
+          schema: "verify.{{ 'fail' if verification_failed else 'pass' }}.v1"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          source: "molecule/{{ ansible_distribution | lower }}/{{ lookup('env', 'MOLECULE_SCENARIO_NAME') | default('default') }}"
           distribution: "{{ ansible_distribution | default('unknown') }}_{{ ansible_distribution_version | default('unknown') }}"
           hostname: "{{ ansible_hostname | default('unknown') }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
           summary:
             total_services: "{{ all_verify_results | length }}"
             failed_services: "{{ failed_services | length }}"
@@ -79,8 +79,7 @@
             homeserver_url: "{{ matrix_homeserver_url }}"
             access_token: "{{ matrix_access_token }}"
             room_id: "{{ matrix_room_id }}"
-            event_type: "{{ verify_event_type }}"
-            event_content: "{{ event_content }}"
+            event_data: "{{ verify_event }}"
             state: present
           register: matrix_result
 
@@ -88,7 +87,8 @@
           ansible.builtin.debug:
             msg:
               - "✓ Posted verification result to Matrix"
-              - "  Status: {{ verify_status }}"
+              - "  Schema: {{ verify_event.schema }}"
+              - "  Source: {{ verify_event.source }}"
               - "  Event ID: {{ matrix_result.event_id }}"
               - "  Room: {{ matrix_room_id }}"
               - "  Failed services: {{ failed_services | join(', ') if failed_services | length > 0 else 'none' }}"
@@ -99,7 +99,7 @@
             msg:
               - "⚠ Failed to post to Matrix, but continuing verification"
               - "  Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
-              - "  Verification status: {{ verify_status }}"
+              - "  Schema: {{ verify_event.schema }}"
 
         - name: Set failure flag but don't fail playbook
           ansible.builtin.set_fact:
