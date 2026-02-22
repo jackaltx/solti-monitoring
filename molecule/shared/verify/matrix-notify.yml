@@ -67,6 +67,9 @@
             passed_services: "{{ all_verify_results | length - failed_services | length }}"
           services: "{{ all_verify_results }}"
           failed_service_names: "{{ failed_services }}"
+          report_path: "{{ report_root | default('verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/consolidated-test-report.md"
+          failed_task: "{{ verify_error_task | default('') }}"
+          error_msg: "{{ verify_error_msg | default('') }}"
           context:
             collection: "solti-monitoring"
             scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') | default('default') }}"
@@ -79,8 +82,14 @@
             homeserver_url: "{{ matrix_homeserver_url }}"
             access_token: "{{ matrix_access_token }}"
             room_id: "{{ matrix_room_id }}"
-            event_data: "{{ verify_event }}"
-            state: present
+            content:
+              msgtype: "com.solti.event"
+              body: "SOLTI event: {{ verify_event.schema }}"
+              solti:
+                schema: "{{ verify_event.schema }}"
+                timestamp: "{{ verify_event.timestamp }}"
+                source: "{{ verify_event.source }}"
+                data: "{{ verify_event }}"
           register: matrix_result
 
         - name: Display Matrix notification result
@@ -89,7 +98,6 @@
               - "✓ Posted verification result to Matrix"
               - "  Schema: {{ verify_event.schema }}"
               - "  Source: {{ verify_event.source }}"
-              - "  Event ID: {{ matrix_result.event_id }}"
               - "  Room: {{ matrix_room_id }}"
               - "  Failed services: {{ failed_services | join(', ') if failed_services | length > 0 else 'none' }}"
 
