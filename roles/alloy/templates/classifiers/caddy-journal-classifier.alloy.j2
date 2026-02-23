@@ -1,0 +1,100 @@
+// ====================================================================
+// Caddy reverse proxy service classification and processing
+// Processes Caddy TLS and system logs from journald
+// File-based access logs handled separately in caddy.alloy.j2
+
+// ====================================================================
+// Primary service identification
+stage.match {
+  selector = "{service_name=\"caddy\"}"
+
+  stage.static_labels {
+    values = {
+      service_type = "caddy",
+      log_source   = "journald",
+    }
+  }
+}
+
+// ====================================================================
+// Parse JSON messages (Caddy logs to journald in JSON)
+stage.match {
+  selector = "{service_type=\"caddy\"}"
+
+  stage.json {
+    expressions = {
+      level   = "level",
+      logger  = "logger",
+      msg     = "msg",
+    }
+  }
+}
+
+// ====================================================================
+// Classify by event type
+
+// TLS certificate operations
+stage.match {
+  selector = "{service_type=\"caddy\", msg=~\".*certificate.*|.*ACME.*|.*renew.*\"}"
+
+  stage.static_labels {
+    values = {
+      event_type = "tls_certificate",
+    }
+  }
+}
+
+// TLS handshake errors
+stage.match {
+  selector = "{service_type=\"caddy\", msg=~\".*TLS.*handshake.*|.*tls.*error.*\"}"
+
+  stage.static_labels {
+    values = {
+      event_type = "tls_error",
+      is_error   = "true",
+    }
+  }
+}
+
+// Server startup/reload
+stage.match {
+  selector = "{service_type=\"caddy\", msg=~\".*starting.*|.*serving.*|.*reload.*\"}"
+
+  stage.static_labels {
+    values = {
+      event_type = "lifecycle",
+    }
+  }
+}
+
+// Configuration errors
+stage.match {
+  selector = "{service_type=\"caddy\", level=\"error\"}"
+
+  stage.static_labels {
+    values = {
+      event_type = "config_error",
+      is_error   = "true",
+    }
+  }
+}
+
+// ====================================================================
+// Noise reduction
+
+// Drop routine info messages
+stage.match {
+  selector = "{service_type=\"caddy\", level=\"info\", event_type=\"\"}"
+  action   = "drop"
+}
+
+// ====================================================================
+// Cardinality control
+
+stage.match {
+  selector = "{service_type=\"caddy\"}"
+
+  stage.label_drop {
+    values = ["logger", "msg"]
+  }
+}

@@ -17,13 +17,16 @@ Alloy streamlines the collection of logs, metrics, and traces with consistent co
 - Supports sending data to multiple Loki endpoints
 - Includes utility scripts for easy deployment and verification
 - Includes pre-configured templates for common applications:
-  - Apache web server
-  - Fail2ban
-  - Bind9 DNS server
-  - Mail services (Postfix/Dovecot)
-  - WireGuard VPN
-  - Gitea
-  - ISPConfig
+  - Apache web server (access + error logs)
+  - Fail2ban (file-based and journald)
+  - Bind9 DNS server (journald)
+  - Mail services - Postfix/Dovecot (journald)
+  - WireGuard VPN (journald)
+  - Gitea (file-based)
+  - ISPConfig (file-based)
+  - Caddy reverse proxy (file-based JSON access logs + journald TLS events)
+  - Matrix Synapse homeserver (file-based text logs)
+  - UFW firewall (journald)
 - Intelligent filtering to reduce journald noise:
   - **Cron noise**: Filters routine cron execution (ISPConfig, getmail, system cron) while preserving errors
   - **WireGuard**: Drops keepalives, preserves connection events
@@ -109,11 +112,20 @@ alloy_loki_endpoints:
 # Enable specific log collection modules
 alloy_monitor_apache: false           # Apache logs
 alloy_monitor_ispconfig: false        # ISPConfig logs
-alloy_monitor_fail2ban: false         # Fail2ban logs
+alloy_monitor_fail2ban: false         # Fail2ban file-based logs (deprecated)
+alloy_monitor_fail2ban_journal: false # Fail2ban journald logs (recommended)
 alloy_monitor_mail: false             # Mail server logs
 alloy_monitor_bind9: false            # Bind9 logs
 alloy_monitor_wg: false               # WireGuard logs
 alloy_monitor_gitea: false            # Gitea logs
+alloy_monitor_caddy: false            # Caddy access logs (file-based JSON)
+alloy_monitor_caddy_journal: false    # Caddy TLS/system logs (journald)
+alloy_monitor_matrix_synapse: false   # Matrix Synapse homeserver logs
+alloy_monitor_ufw: false              # UFW firewall logs
+
+# User groups for log file access
+alloy_additional_groups: []           # Groups to add alloy user to
+                                       # Example: [git, caddy, adm]
 
 # Filtering options (reduce log noise)
 alloy_filter_cron_noise: false        # Filter cron execution noise (default: false)
@@ -516,6 +528,125 @@ journalctl -u fail2ban --since '1 hour ago' --no-pager | grep -E '\[(Ban|Unban)\
 curl -G "http://loki-server:3100/loki/api/v1/query" \
   --data-urlencode 'query={service_type="fail2ban"}' \
   --data-urlencode 'limit=10'
+```
+
+### Matrix Synapse and Caddy Integration
+
+**Added:** 2026-02-08
+
+The role now supports collecting logs from Matrix Synapse homeserver and Caddy reverse proxy deployments. This is particularly useful for Matrix infrastructure where Caddy acts as a TLS-terminating reverse proxy.
+
+#### Configuration
+
+```yaml
+alloy_monitor_caddy: true              # File-based Caddy access logs (JSON)
+alloy_monitor_caddy_journal: true      # Journald Caddy TLS/system events
+alloy_monitor_matrix_synapse: true     # File-based Matrix Synapse logs
+alloy_additional_groups: [caddy, adm]  # Required for log file access
+```
+
+#### Caddy Log Collection
+
+**File-Based Access Logs** (`alloy_monitor_caddy: true`):
+
+- Monitors: `/var/log/caddy/external_access.log` and `/var/log/caddy/internal_access.log`
+- Format: JSON structured logs
+- Categorization:
+  - Path categories: matrix_client, matrix_federation, matrix_media, matrix_admin, static, wellknown
+  - Status classes: 2xx, 3xx, 4xx, 5xx
+  - Security event detection: scan_attempt, auth_failure
+- Cardinality control: URIs categorized (not stored as labels), IPs retained only for errors
+
+**Journald System Logs** (`alloy_monitor_caddy_journal: true`):
+
+- Monitors: systemd journald (`service_name="caddy"`)
+- Events: TLS certificate operations, handshake errors, server lifecycle, configuration errors
+- Format: JSON structured (Caddy logs to journald in JSON)
+
+#### Matrix Synapse Log Collection
+
+**File-Based Application Logs** (`alloy_monitor_matrix_synapse: true`):
+
+- Monitors: `/var/log/matrix-synapse/homeserver.log`
+- Format: Structured text (Python logging format)
+  - Pattern: `timestamp - module - lineno - level - request_id - message`
+- Categorization:
+  - Module grouping: storage, federation, handlers, http, api, auth, util, app
+  - Error classification: federation_failure, auth_failure, database_error, timeout, ratelimit, validation
+  - Request types: client, federation, background, startup
+- Noise reduction: Routine background tasks and maintenance logs dropped
+- Cardinality control: Request IDs retained only for errors
+
+**Note:** Matrix Synapse can be configured to use structured JSON logging (`synapse.logging.TerseJsonFormatter`) for easier parsing. The current implementation supports the default text format.
+
+#### Label Schema
+
+**Caddy labels:**
+
+```logql
+{
+  service_type="caddy",
+  log_source="external|internal",
+  method="GET|POST|...",
+  status_class="2xx|3xx|4xx|5xx",
+  path_category="matrix_client|matrix_federation|...",
+  is_error="true|false",
+  backend_type="synapse|static|redirect",
+  security_event="scan_attempt|auth_failure"  // optional
+}
+```
+
+**Matrix Synapse labels:**
+
+```logql
+{
+  service_type="matrix_synapse",
+  module_group="storage|federation|handlers|...",
+  level="DEBUG|INFO|WARNING|ERROR|CRITICAL",
+  is_error="true|false",
+  request_type="client|federation|background|startup",
+  error_category="federation_failure|auth_failure|..."  // for errors
+}
+```
+
+#### Example Queries
+
+```logql
+# Caddy errors
+{service_type="caddy", is_error="true"}
+
+# Matrix federation errors
+{service_type="matrix_synapse", error_category="federation_failure"}
+
+# Slow Caddy requests (duration kept in log content, not label)
+{service_type="caddy"} | json | duration > 1
+
+# Matrix storage operations with errors
+{service_type="matrix_synapse", module_group="storage", is_error="true"}
+```
+
+#### Known Issues
+
+**Matrix Synapse Module Grouping:**
+
+The module grouping regex patterns are not matching correctly in the initial deployment. All logs are currently classified as `module_group="other"` instead of the intended categories (storage, federation, handlers, etc.). This is tracked in GitHub issues and will be addressed in a future update. Core log collection is functional.
+
+#### Matrix/Caddy Verification
+
+```bash
+# Check Caddy logs
+curl -G "http://loki-server:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={service_type="caddy"}' \
+  --data-urlencode 'start=1h ago'
+
+# Check Matrix Synapse logs
+curl -G "http://loki-server:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={service_type="matrix_synapse"}' \
+  --data-urlencode 'start=1h ago'
+
+# Verify alloy user has file access
+sudo -u alloy head -1 /var/log/caddy/external_access.log
+sudo -u alloy head -1 /var/log/matrix-synapse/homeserver.log
 ```
 
 ## Directory Structure
