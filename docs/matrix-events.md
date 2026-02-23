@@ -34,7 +34,7 @@ Post custom events to Matrix rooms using the Client-Server API. Events are sent 
 ### Parameters
 
 | Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
+| --------- | ---- | -------- | ------- | ----------- |
 | `homeserver_url` | str | yes | - | Matrix homeserver URL (e.g., `https://matrix-web.jackaltx.com`) |
 | `access_token` | str | yes | - | Bot or user access token (marked `no_log`) |
 | `room_id` | str | yes | - | Room ID (`!xxx:server.com`) or alias (`#xxx:server.com`) |
