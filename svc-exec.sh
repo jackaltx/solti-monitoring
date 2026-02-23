@@ -26,6 +26,7 @@ SUPPORTED_SERVICES=(
     "loki"
     "alloy"
     "influxdb"
+    "influxdb3"
     "telegraf"
 )
 

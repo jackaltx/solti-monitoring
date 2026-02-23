@@ -1,7 +1,16 @@
 ---
-- name: Debian Linux install block
+# Shared install tasks for InfluxDB v3 Core on Debian-based systems
+# Called with: package variable (e.g., "influxdb3-core")
+#
+- name: Debian Linux install block for InfluxDB v2 and v3-core
   become: true
   block:
+    - name: Install gpg dependency
+      ansible.builtin.apt:
+        name: gpg
+        state: present
+        update_cache: yes
+
     - name: Ensure apt keyrings directory exists
       ansible.builtin.file:
         path: /etc/apt/keyrings

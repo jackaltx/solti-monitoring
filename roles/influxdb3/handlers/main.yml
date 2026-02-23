@@ -1,0 +1,9 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for influxdb3
+
+- name: Restart influxdb3-core
+  ansible.builtin.systemd_service:
+    name: influxdb3-core
+    state: restarted
+  become: true

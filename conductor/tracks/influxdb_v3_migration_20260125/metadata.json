@@ -1,0 +1,8 @@
+{
+  "track_id": "influxdb_v3_migration_20260125",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-25T12:00:00Z",
+  "updated_at": "2026-01-25T12:00:00Z",
+  "description": "Migrate InfluxDB role from OSS V2 to InfluxDB v3"
+}

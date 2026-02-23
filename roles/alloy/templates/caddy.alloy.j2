@@ -1,0 +1,333 @@
+// =======================================================================================
+// Caddy reverse proxy log collection configuration for Alloy
+//
+// Monitors:
+// - External access logs (public traffic via WireGuard/Apache)
+// - Internal access logs (direct HTTPS traffic)
+//
+// Log format: JSON structured
+// Cardinality control: Path categories, status classes, selective IP retention
+//
+// Labels (indexed in Loki):
+// - service_type: caddy
+// - log_source: external | internal
+// - method: HTTP method
+// - status_class: 2xx | 3xx | 4xx | 5xx
+// - path_category: matrix_client | matrix_federation | matrix_media | matrix_admin | static | wellknown | other
+// - is_error: true | false
+// - backend_type: synapse | static | redirect
+// - protocol: HTTP version
+// - tls_version: 1.2 | 1.3
+// - security_event: scan_attempt | auth_failure (optional)
+//
+// Cardinality control:
+// - Full URIs dropped (categorized instead)
+// - Client IPs retained only for errors/security events
+// - Request IDs dropped entirely
+// - TLS cipher suites dropped (tls_version kept)
+// - Duration kept in logs (not as label) - query with LogQL: | json | duration > 1
+//
+// Example queries:
+// {service_type="caddy", is_error="true"}
+// {service_type="caddy", path_category="matrix_federation"} | json | duration > 1
+// {service_type="caddy", security_event="scan_attempt"}
+
+// =======================================================================================
+// File match patterns
+
+local.file_match "caddy_external_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/caddy/external_access.log",
+    hostname    = "{{ ansible_fqdn }}",
+    job         = "caddy",
+    log_source  = "external",
+  }]
+}
+
+local.file_match "caddy_internal_access" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/caddy/internal_access.log",
+    hostname    = "{{ ansible_fqdn }}",
+    job         = "caddy",
+    log_source  = "internal",
+  }]
+}
+
+// =======================================================================================
+// Shared processing pipeline for Caddy logs
+loki.process "caddy_access" {
+  forward_to = [{{ alloy_loki_endpoints | map(attribute='label') | map('regex_replace', '^(.*)$', 'loki.write.\\1.receiver') | join(', ') }}]
+
+  // Initialize service_type
+  stage.static_labels {
+    values = {
+      service_type = "caddy",
+    }
+  }
+
+  // =====================================================================================
+  // Parse JSON structure
+  stage.json {
+    expressions = {
+      timestamp     = "ts",
+      method        = "request.method",
+      uri           = "request.uri",
+      host          = "request.host",
+      remote_ip     = "request.remote_ip",
+      client_ip     = "request.client_ip",
+      proto         = "request.proto",
+      status        = "status",
+      duration      = "duration",
+      size          = "size",
+      tls_version   = "tls.version",
+      tls_cipher    = "tls.cipher_suite",
+      tls_proto     = "tls.proto",
+    }
+  }
+
+  // =====================================================================================
+  // Timestamp handling
+  stage.timestamp {
+    source = "timestamp"
+    format = "Unix"
+  }
+
+  // =====================================================================================
+  // Label extraction for basic fields
+  stage.labels {
+    values = {
+      method      = null,
+      status      = null,
+      proto       = null,
+      tls_version = null,
+    }
+  }
+
+  // =====================================================================================
+  // Classify by HTTP status
+
+  stage.match {
+    selector = "{status=~\"2..\"}"
+    stage.static_labels {
+      values = {
+        status_class = "2xx",
+        is_error     = "false",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status=~\"3..\"}"
+    stage.static_labels {
+      values = {
+        status_class = "3xx",
+        is_error     = "false",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status=~\"4..\"}"
+    stage.static_labels {
+      values = {
+        status_class = "4xx",
+        is_error     = "true",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{status=~\"5..\"}"
+    stage.static_labels {
+      values = {
+        status_class = "5xx",
+        is_error     = "true",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Classify by Matrix API endpoint type
+
+  stage.match {
+    selector = "{uri=~\"/_matrix/client/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "matrix_client",
+        backend_type  = "synapse",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{uri=~\"/_matrix/federation/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "matrix_federation",
+        backend_type  = "synapse",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{uri=~\"/_matrix/media/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "matrix_media",
+        backend_type  = "synapse",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{uri=~\"/_synapse/admin/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "matrix_admin",
+        backend_type  = "synapse",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{uri=~\"/_matrix/static/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "static",
+        backend_type  = "static",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{uri=~\"/.well-known/.*\"}"
+    stage.static_labels {
+      values = {
+        path_category = "wellknown",
+        backend_type  = "static",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{path_category=\"\"}"
+    stage.static_labels {
+      values = {
+        path_category = "other",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Note: Performance classification removed - Loki selectors don't support numeric comparisons
+  // Duration is kept in logs for querying, but not as labels
+  // Use LogQL queries like: {service_type="caddy"} | json | duration > 1
+
+  // =====================================================================================
+  // Security event detection
+
+  // Scanning attempts (common exploit paths)
+  stage.match {
+    selector = "{uri=~\".*(\\\\.php|\\\\.env|wp-admin|phpmyadmin|xmlrpc\\\\.php).*\"}"
+    stage.static_labels {
+      values = {
+        security_event = "scan_attempt",
+      }
+    }
+  }
+
+  // Authentication failures
+  stage.match {
+    selector = "{status=~\"40[13]\"}"
+    stage.static_labels {
+      values = {
+        security_event = "auth_failure",
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Noise reduction - drop low-value logs
+
+  // Drop successful static file requests (huge cardinality)
+  stage.match {
+    selector = "{status_class=\"2xx\", path_category=\"static\"}"
+    action   = "drop"
+  }
+
+  // Drop successful health checks
+  stage.match {
+    selector = "{method=\"GET\", uri=~\".*(/health|/status).*\", status=~\"2..\"}"
+    action   = "drop"
+  }
+
+  // Drop successful well-known lookups
+  stage.match {
+    selector = "{status_class=\"2xx\", path_category=\"wellknown\"}"
+    action   = "drop"
+  }
+
+  // =====================================================================================
+  // Cardinality control - retain IPs only for errors/security events
+
+  stage.match {
+    selector = "{is_error=\"true\"}"
+    stage.static_labels {
+      values = {
+        track_client = "true",
+      }
+    }
+  }
+
+  stage.match {
+    selector = "{security_event!=\"\"}"
+    stage.static_labels {
+      values = {
+        track_client = "true",
+      }
+    }
+  }
+
+  // Keep client IP for tracked events
+  stage.match {
+    selector = "{track_client=\"true\", client_ip!=\"\"}"
+    stage.labels {
+      values = {
+        client_ip = null,
+      }
+    }
+  }
+
+  // =====================================================================================
+  // Final cleanup - drop high-cardinality labels
+
+  stage.label_drop {
+    values = [
+      "uri",           // Full paths are high cardinality
+      "host",          // Single host deployment
+      "remote_ip",     // Already have client_ip where needed
+      "duration",      // Converted to performance categories
+      "size",          // Not useful as label
+      "tls_cipher",    // Too high cardinality
+      "tls_proto",     // Redundant with tls_version
+      "track_client",  // Internal marker
+    ]
+  }
+}
+
+// =======================================================================================
+// Source definitions
+
+loki.source.file "caddy_external_access" {
+  targets               = local.file_match.caddy_external_access.targets
+  forward_to            = [loki.process.caddy_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.source.file "caddy_internal_access" {
+  targets               = local.file_match.caddy_internal_access.targets
+  forward_to            = [loki.process.caddy_access.receiver]
+  legacy_positions_file = "/tmp/positions.yaml"
+}

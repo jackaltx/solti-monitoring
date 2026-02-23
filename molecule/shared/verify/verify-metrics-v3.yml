@@ -1,0 +1,229 @@
+---
+# Verify InfluxDB v3 functionality
+#
+# Facts set by this task:
+# - metrics_v3_verify_failed: boolean indicating if any verification check failed
+# - metrics_v3_test_results: formatted string containing full test results and system status
+#
+# Required vars:
+# - verify_timestamp
+#
+- name: Verify InfluxDB v3 system components
+  block:
+    # ...............................................................................
+    # Basic service checks
+    - name: Check service statuses
+      ansible.builtin.service_facts:
+
+    - name: Verify InfluxDB v3 service status
+      ansible.builtin.assert:
+        that:
+          - "'influxdb3-core.service' in ansible_facts.services"
+          - "ansible_facts.services['influxdb3-core.service'].state == 'running'"
+          - "ansible_facts.services['influxdb3-core.service'].status == 'enabled'"
+        fail_msg: "InfluxDB v3 service is not running properly"
+      register: influxdb3_service_check
+      ignore_errors: true
+
+    # ...............................................................................
+    # Network connectivity checks
+    - name: Verify InfluxDB v3 port is listening
+      ansible.builtin.wait_for:
+        port: 8181
+        timeout: 30
+        state: started
+      register: port_check_v3
+      ignore_errors: true
+
+    - name: Verify Telegraf connection to InfluxDB v3
+      ansible.builtin.shell: "ss -tunp | grep ':8181.*telegraf'"
+      register: connection_check_v3
+      changed_when: false
+      failed_when: false
+
+    # ...............................................................................
+    # API Health check (requires auth token)
+    - name: Read admin token for health check
+      ansible.builtin.slurp:
+        path: "/root/.influxdb3-credentials"
+      register: admin_token_file_v3
+      no_log: "{{ secure_logging | default(true) }}"
+
+    - name: Extract admin token
+      ansible.builtin.set_fact:
+        influxdb3_admin_token_verify: "{{ (admin_token_file_v3.content | b64decode).strip() }}"
+      no_log: "{{ secure_logging | default(true) }}"
+
+    - name: Check InfluxDB v3 API health
+      ansible.builtin.uri:
+        url: "http://localhost:8181/health"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ influxdb3_admin_token_verify }}"
+        status_code: 200
+      register: health_check_v3
+      ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
+
+    # ...............................................................................
+    # Data write and query tests
+    - name: Test write capability (v3)
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_admin_token_verify }}"
+        influxdb3 write --database telegraf "test,tag=molecule value=1.0"
+      register: write_check_v3
+      changed_when: false
+      failed_when: write_check_v3.rc != 0
+      ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
+
+    - name: Test query capability (v3)
+      ansible.builtin.shell: |
+        export INFLUXDB3_AUTH_TOKEN="{{ influxdb3_admin_token_verify }}"
+        influxdb3 query --database telegraf "SELECT * FROM test WHERE time > now() - INTERVAL '1 minute'"
+      register: query_check_v3
+      changed_when: false
+      failed_when: query_check_v3.rc != 0
+      ignore_errors: true
+      no_log: "{{ secure_logging | default(true) }}"
+
+    # ...............................................................................
+    - name: Check recent logs for errors (v3)
+      ansible.builtin.shell: |
+        journalctl -u influxdb3-core --since "5 minutes ago" -p err
+      register: error_logs_v3
+      changed_when: false
+      failed_when: false
+
+    # ...............................................................................
+    - name: Get service versions (v3)
+      block:
+        - name: Get InfluxDB v3 version
+          command: influxdb3 --version
+          register: influxdb3_version
+          changed_when: false
+
+    # ######################################################################
+    # Reporting section
+    #   - set facts
+    #   - print log, if verify_test_print: true
+    #   - log fact to ES, if verify_es_log: true
+    #   - Add notice to mattermost, if verify_mm_log: true
+    # ......................................................................
+    #
+    - name: Set metrics v3 test results fact
+      no_log: "{{ secure_logging | default(true) }}"
+      ansible.builtin.set_fact:
+        metrics_v3_test_results: |
+          === InfluxDB v3 Integration Test Results ===
+          Timestamp: {{ verify_timestamp }}
+
+          Service Versions:
+          - InfluxDB v3: {{ influxdb3_version.stdout }}
+
+          Service Status:
+          - InfluxDB v3: {{ ansible_facts.services['influxdb3-core.service'].state }}
+
+          InfluxDB v3 Status:
+          - Version: {{ influxdb3_version.stdout }}
+          - Health Check: {{ health_check_v3.status | default('failed') }}
+          - Port 8181: {{ 'listening' if not port_check_v3.failed else 'failed' }}
+          - Write Test: {{ write_check_v3.rc | default(1) == 0 }}
+          - Query Test: {{ query_check_v3.rc | default(1) == 0 }}
+
+          Telegraf Integration:
+          - Connection Status: {{ 'Established' if not connection_check_v3.failed else 'Not Connected' }}
+          - Network Connections:
+          {{ connection_check_v3.stdout_lines | default([]) | to_nice_yaml | indent(8) }}
+
+          Recent Log Activity:
+          {% if error_logs_v3.stdout != "-- No entries --" %}
+          !!! ERRORS DETECTED IN LOGS !!!
+          Error Entries:
+          {{ error_logs_v3.stdout_lines | to_nice_yaml | indent(8) }}
+          {% else %}
+          ✓ No errors found in logs for influxdb3-core service
+          {% endif %}
+
+    # .........................................................................................................
+    # Add to all_verify_results using task name as key
+    - name: Add metrics v3 results to dictionary
+      set_fact:
+        all_verify_results: "{{ all_verify_results | combine({'metrics-v3': metrics_v3_test_results}) }}"
+
+    - name: set output location directory for test results (distro with major version)
+      ansible.builtin.set_fact:
+        distro_results_dir: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}{{ ansible_facts['distribution_major_version'] }}"
+
+    # Create output directory
+    - name: Create local data directory for test results (v3)
+      become: false
+      ansible.builtin.file:
+        path: "{{ distro_results_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+
+    # Save test results
+    - name: Save integration test results (v3)
+      become: false
+      ansible.builtin.copy:
+        content: "{{ metrics_v3_test_results }}"
+        dest: "{{ distro_results_dir }}/metrics-v3-collection-{{ ansible_date_time.epoch }}-1.yml"
+        mode: "0644"
+      delegate_to: localhost
+
+    # Set verification status
+    - name: Set verification status (v3)
+      set_fact:
+        metrics_v3_verify_failed: >-
+          {{
+            (port_check_v3.failed | default(false)) or
+            (influxdb3_service_check.failed | default(false)) or
+            (health_check_v3.failed | default(false)) or
+            (write_check_v3.failed | default(false)) or
+            (query_check_v3.failed | default(false))
+          }}
+
+    # Add to all_verify_failed using task name as key
+    - name: Add metrics v3 failed results to dictionary
+      set_fact:
+        all_verify_failed: "{{ all_verify_failed | combine({'metrics_v3': metrics_v3_verify_failed}) }}"
+
+    # Save verification results
+    - name: Record metrics v3 verification failed status
+      when: metrics_v3_verify_failed | bool
+      become: false
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          verify_result: {{ 'failed' if metrics_v3_verify_failed else 'passed' }}
+          failed_checks:
+            influxdb3_service: {{ influxdb3_service_check | to_json }}
+            port: {{ port_check_v3 | to_json }}
+            health: {{ health_check_v3 | to_json }}
+            write: {{ write_check_v3 | to_json }}
+            query: {{ query_check_v3 | to_json }}
+          error_logs:
+            {{ error_logs_v3.stdout_lines | to_nice_yaml | indent(2) }}
+          capability: metrics_v3
+          distribution: {{ distro_results_dir }}
+          timestamp: {{ verify_timestamp }}
+        dest: "{{ distro_results_dir }}/verify-metrics-v3-status-{{ ansible_date_time.epoch }}-1.yml"
+        mode: "0644"
+
+  rescue:
+    - name: Record v3 verification failure
+      set_fact:
+        metrics_v3_verify_failed: true
+
+    - name: Log verification failure details (v3)
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          verify_result: failed
+          error: Unexpected failure during InfluxDB v3 verification process
+          timestamp: {{ verify_timestamp }}
+          distribution: {{ distro_results_dir }}
+        dest: "{{ distro_results_dir }}/verify-metrics-v3-failure-{{ ansible_date_time.epoch }}-1.yml"
+        mode: "0644"

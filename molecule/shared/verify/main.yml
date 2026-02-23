@@ -91,38 +91,70 @@
       set_fact:
         all_verify_results: {}
         all_verify_failed: {}
+        verify_error_task: ""
+        verify_error_msg: ""
 
     # .......................................................................
-    - name: Run pre-verify container diagnostics
-      ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
-      vars:
-        report_suffix: "preverify"
+    - name: Run verification pipeline
+      block:
 
-    # .......................................................................
-    # Version 2
-    #
-    # This is a nested loop that iterates over the testing_capabilities
-    # The inner loop is a short included script to loop over a list of test tasks
-    #
-    - name: Run capability-specific verifications
-      loop: "{{ testing_capabilities }}"
-      include_tasks: verify-capability.yml
-      loop_control:
-        loop_var: capability
-        label: "Verifying {{ capability }} capability"
+        - name: Run pre-verify container diagnostics
+          ansible.builtin.include_tasks:
+            file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+          vars:
+            report_suffix: "preverify"
 
-    # .......................................................................
-    - name: Run post-verify container diagnostics
-      ansible.builtin.include_tasks:
-        file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
-      vars:
-        report_suffix: "postverify"
+        # .......................................................................
+        # Version 2
+        #
+        # This is a nested loop that iterates over the testing_capabilities
+        # The inner loop is a short included script to loop over a list of test tasks
+        #
+        - name: Run capability-specific verifications
+          loop: "{{ testing_capabilities }}"
+          include_tasks: verify-capability.yml
+          loop_control:
+            loop_var: capability
+            label: "Verifying {{ capability }} capability"
 
-    # .......................................................................
-    - name: Report Results
-      ansible.builtin.include_tasks:
-        file: report.yml
+        # .......................................................................
+        - name: Run post-verify container diagnostics
+          ansible.builtin.include_tasks:
+            file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"
+          vars:
+            report_suffix: "postverify"
+
+        # .......................................................................
+        - name: Report Results
+          ansible.builtin.include_tasks:
+            file: report.yml
+
+      rescue:
+        # Capture error context for Matrix event
+        - name: Capture error context
+          ansible.builtin.set_fact:
+            verify_error_task: "{{ ansible_failed_task.name | default('unknown') }}"
+            verify_error_msg: "{{ ansible_failed_result.msg | default('unknown error') }}"
+
+        - name: Log verification pipeline error
+          ansible.builtin.debug:
+            msg:
+              - "Verification pipeline failed"
+              - "  Task: {{ verify_error_task }}"
+              - "  Error: {{ verify_error_msg }}"
+              - "  Partial results collected: {{ all_verify_results.keys() | list }}"
+
+        # Mark all tested capabilities as failed if not already recorded
+        - name: Mark pipeline error in verify failed
+          ansible.builtin.set_fact:
+            all_verify_failed: "{{ all_verify_failed | combine({'pipeline_error': true}) }}"
+
+      always:
+        # Always post to Matrix — captures both normal completion and pipeline errors
+        - name: Post verification results to Matrix
+          ansible.builtin.include_tasks:
+            file: matrix-notify.yml
+          when: lookup('env', 'MATRIX_NOTIFY_ENABLED') | default('false') | bool
 
     # .......................................................................
     # TODO: review this.

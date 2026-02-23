@@ -18,7 +18,71 @@ Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Pr
 ./prepare-solti-env.sh && source solti-venv/bin/activate
 ```
 
-### 2. Development Testing (Podman - Fast)
+### 2. Testing Strategy: Unit vs Integration
+
+**Unit Testing (Single Role):**
+
+- Tests one role in isolation (e.g., influxdb3 deploy + verify)
+- Uses orchestrator scripts (`manage-svc.sh`, `svc-exec.sh`)
+- Fast iteration cycle
+- Single target host (Podman container or VM)
+
+**Integration Testing (Multiple Roles):**
+
+- Tests role interactions (e.g., telegraf → influxdb3 end-to-end)
+- Uses molecule scenarios
+- Tests across multiple distributions
+- Validates complete monitoring stack
+
+**Development Workflow:**
+
+```text
+Phase 1 (Unit):     influxdb3 role → deploy → verify → iterate
+Phase 2 (Integration): telegraf + influxdb3 → full stack test
+```
+
+### 3. Unit Testing with Orchestrator (Preferred for Role Development)
+
+**For developing individual roles, use the orchestrator scripts directly instead of molecule.**
+
+From the parent orchestrator directory (`/home/lavender/sandbox/ansible/jackaltx/mylab/`):
+
+```bash
+# Deploy a service role
+./manage-svc.sh -h <target_host> <service> deploy
+
+# Verify a service role
+./svc-exec.sh -h <target_host> <service> verify
+
+# Example: Test influxdb3 role on a Podman container or VM
+./manage-svc.sh -h test-container influxdb3 deploy
+./svc-exec.sh -h test-container influxdb3 verify
+```
+
+**Benefits of orchestrator-based unit testing:**
+
+- Tests in your actual deployment environment
+- Uses real inventory and secrets management
+- No molecule overhead
+- Same workflow you'll use in production
+- Faster iteration cycle
+- Single role focus (unit test)
+
+**Setup requirements:**
+
+1. Add service to `SUPPORTED_SERVICES` in `manage-svc.sh` and `svc-exec.sh`
+2. Add `<service>_svc` host group to `mylab/inventory.yml`
+3. Create role in `solti-monitoring/roles/<service>/`
+4. Role must have `tasks/verify.yml` for verification
+
+**When to use molecule instead:**
+
+- Integration testing (multiple roles working together)
+- Full stack testing (telegraf + influxdb + loki + alloy)
+- Multi-distribution testing (Debian + Rocky + Ubuntu)
+- CI/CD pipeline testing
+
+### 3. Development Testing (Podman - Fast)
 ```bash
 # All platforms (Debian, Rocky, Ubuntu)
 ./run-podman-tests.sh
@@ -161,6 +225,124 @@ Test playbooks set `alloy_test_mode: true` and include validation post-tasks:
 - No service disruption during testing
 - Safe rollback (test file in /tmp)
 - Confidence before production changes
+
+## Matrix Synapse and Caddy Log Collection (2026-02-08)
+
+**Deployment:** matrix-web.jackaltx.com (manually provisioned server)
+
+### Implementation
+
+Added Alloy collection for Matrix Synapse homeserver and Caddy reverse proxy logs:
+
+**Templates Created:**
+
+- `roles/alloy/templates/caddy.alloy.j2` - File-based JSON access log collection (external + internal)
+- `roles/alloy/templates/matrix-synapse.alloy.j2` - File-based text log collection with regex parsing
+- `roles/alloy/templates/classifiers/caddy-journal-classifier.alloy.j2` - Journald TLS event collection
+
+**Playbooks:**
+
+- `mylab/playbooks/matrix-web/91-matrix-web-alloy-test.yml` - Test mode validation
+- `mylab/playbooks/matrix-web/22-matrix-web-alloy.yml` - Production deployment
+
+**Configuration:**
+
+```yaml
+# mylab/inventory.yml (matrix-web host)
+alloy_monitor_caddy: true              # File-based Caddy access logs
+alloy_monitor_caddy_journal: true      # Journald Caddy TLS/system logs
+alloy_monitor_matrix_synapse: true     # File-based Matrix Synapse logs
+alloy_additional_groups: [caddy, adm]  # Required for log file access
+```
+
+### Issues Encountered and Fixed
+
+#### Issue 1: Loki Selector Syntax - Numeric Comparisons Not Supported
+
+Initial implementation attempted to use numeric comparisons in selectors:
+
+```hcl
+stage.match {
+  selector = "{duration>=1, duration<5}"  # ❌ Syntax error
+}
+```
+
+**Error:** `parse error at line 1, col 10: syntax error: unexpected IDENTIFIER, expecting = or != or =~ or !~`
+
+**Resolution:** Removed performance classification stages. Duration kept in logs for LogQL queries:
+
+```logql
+{service_type="caddy"} | json | duration > 1  # ✓ Works in query
+```
+
+#### Issue 2: Regex Escaping in Selectors
+
+Initial regex patterns used single-escaped dots:
+
+```hcl
+selector = "{module=~\"synapse\\.storage\\..*\"}"  # ❌ Invalid char escape
+```
+
+**Error:** `parse error at line 1, col 10: invalid char escape`
+
+**Resolution:** Double-escape backslashes in selectors:
+
+```hcl
+selector = "{module=~\"synapse\\\\.storage\\\\..*\"}"  # ✓ Correct escaping
+```
+
+**Lesson Learned:** Alloy selectors require different escaping than stage.regex expressions.
+
+### Current Status
+
+✅ **Working:**
+
+- Alloy service running on matrix-web
+- Tailing 3 log files: Caddy external, Caddy internal, Matrix Synapse homeserver
+- Logs appearing in Loki with labels:
+  - `service_type="caddy"`
+  - `service_type="matrix_synapse"`
+- Caddy path categorization working
+- Status classification working (2xx, 3xx, 4xx, 5xx)
+- Security event detection working
+
+⚠️ **Known Issue (Low Priority):**
+
+Matrix Synapse module grouping regexes not matching correctly - all logs classified as `module_group="other"` instead of proper categories (storage, federation, handlers, http, api, auth, util, app).
+
+**Tracking:** GitHub issue created in solti-monitoring repository
+
+**Priority:** Low - core log collection working, classification is enhancement
+
+**Future:** Will address after automated Matrix chat integration
+
+### Deployment Commands
+
+```bash
+cd /home/lavender/sandbox/ansible/jackaltx/mylab
+
+# Test configuration
+ansible-playbook --become-password-file ~/.secrets/lavender.pass \
+  playbooks/matrix-web/91-matrix-web-alloy-test.yml
+
+# Deploy to production
+ansible-playbook --become-password-file ~/.secrets/lavender.pass \
+  playbooks/matrix-web/22-matrix-web-alloy.yml
+```
+
+### Verification
+
+```bash
+# Check service status
+ssh matrix-web.jackaltx.com 'systemctl status alloy'
+
+# Verify labels in Loki
+curl -s "http://monitor11.a0a0.org:3100/loki/api/v1/label/service_type/values" | jq -r '.data[]'
+
+# Query logs
+{service_type="caddy", path_category="static"}
+{service_type="matrix_synapse", module_group="other"}
+```
 
 ## Components
 
