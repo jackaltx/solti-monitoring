@@ -44,6 +44,13 @@ Thumbs.db
 .envrc
 local_*
 
+# Python virtual environments
+solti-venv/
+venv/
+.venv/
+env/
+ENV/
+
 # Special Claude Folders
 .claude/sprint-notes/*
 
