@@ -74,7 +74,7 @@ loki.process "caddy_access" {
       timestamp     = "ts",
       method        = "request.method",
       uri           = "request.uri",
-      host          = "request.host",
+      vhost         = "request.host",
       remote_ip     = "request.remote_ip",
       client_ip     = "request.client_ip",
       proto         = "request.proto",
@@ -101,6 +101,7 @@ loki.process "caddy_access" {
       method      = null,
       status      = null,
       proto       = null,
+      vhost       = null,
       tls_version = null,
     }
   }
