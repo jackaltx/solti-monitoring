@@ -146,10 +146,42 @@
           {% endif %}
 
     # .........................................................................................................
-    # Add to all_verify_results using task name as key
-    - name: Add metrics v3 results to dictionary
+    # Write Obsidian file with frontmatter (memory-efficient pattern)
+    - name: Write Obsidian metrics-v3 capability file
+      become: false
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          ---
+          capability: metrics-v3
+          status: {{ 'FAILED' if metrics_v3_verify_failed else 'PASSED' }}
+          distribution: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+          timestamp: {{ verify_timestamp }}
+          tags:
+            - metrics-v3
+            - influxdb3
+            - telegraf
+            - {{ ansible_facts['distribution'] | lower }}
+          services:
+            - influxdb3-core.service
+            - telegraf.service
+          ---
+
+          # Metrics v3 Capability Verification
+
+          [[index|← Back to Test Run]]
+
+          {{ metrics_v3_test_results }}
+        dest: "{{ obsidian_run_dir }}/metrics-v3-capability.md"
+        mode: "0644"
+      when: metrics_v3_test_results is defined and metrics_v3_verify_failed is defined
+
+    # .........................................................................................................
+    # Add to all_verify_results using task name as key - store FILE PATH not content
+    - name: Add metrics v3 file path to results dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'metrics-v3': metrics_v3_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'metrics-v3': obsidian_run_dir + '/metrics-v3-capability.md'}) }}"
+      when: metrics_v3_test_results is defined and metrics_v3_verify_failed is defined
 
     - name: set output location directory for test results (distro with major version)
       ansible.builtin.set_fact:
