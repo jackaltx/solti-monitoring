@@ -163,10 +163,42 @@
           {% endif %}
 
     # .............................................................................................
-    # Add to all_verify_results using task name as key
-    - name: Add metrics results to dictionary
+    # Write Obsidian file with frontmatter (memory-efficient pattern)
+    - name: Write Obsidian logs capability file
+      become: false
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          ---
+          capability: logs
+          status: {{ 'FAILED' if logs_verify_failed else 'PASSED' }}
+          distribution: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+          timestamp: {{ verify_timestamp }}
+          tags:
+            - logs
+            - loki
+            - alloy
+            - {{ ansible_facts['distribution'] | lower }}
+          services:
+            - loki.service
+            - alloy.service
+          ---
+
+          # Logs Capability Verification
+
+          [[index|← Back to Test Run]]
+
+          {{ logs_test_results }}
+        dest: "{{ obsidian_run_dir }}/logs-capability.md"
+        mode: "0644"
+      when: logs_test_results is defined and logs_verify_failed is defined
+
+    # .............................................................................................
+    # Add to all_verify_results using task name as key - store FILE PATH not content
+    - name: Add logs file path to results dictionary
       ansible.builtin.set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'logs-shared': logs_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'logs-shared': obsidian_run_dir + '/logs-capability.md'}) }}"
+      when: logs_test_results is defined and logs_verify_failed is defined
 
     - name: set output location directory for test results (distro with major version)
       ansible.builtin.set_fact:

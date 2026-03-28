@@ -190,10 +190,42 @@
           {% endif %}
 
     # .........................................................................................................
-    # Add to all_verify_results using task name as key
-    - name: Add metrics results to dictionary
+    # Write Obsidian file with frontmatter (memory-efficient pattern)
+    - name: Write Obsidian metrics capability file
+      become: false
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          ---
+          capability: metrics
+          status: {{ 'FAILED' if metrics_verify_failed else 'PASSED' }}
+          distribution: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+          timestamp: {{ verify_timestamp }}
+          tags:
+            - metrics
+            - influxdb
+            - telegraf
+            - {{ ansible_facts['distribution'] | lower }}
+          services:
+            - influxdb.service
+            - telegraf.service
+          ---
+
+          # Metrics Capability Verification
+
+          [[index|← Back to Test Run]]
+
+          {{ metrics_test_results }}
+        dest: "{{ obsidian_run_dir }}/metrics-capability.md"
+        mode: "0644"
+      when: metrics_test_results is defined and metrics_verify_failed is defined
+
+    # .........................................................................................................
+    # Add to all_verify_results using task name as key - store FILE PATH not content
+    - name: Add metrics file path to results dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({'metrics-shared': metrics_test_results}) }}"
+        all_verify_results: "{{ all_verify_results | combine({'metrics-shared': obsidian_run_dir + '/metrics-capability.md'}) }}"
+      when: metrics_test_results is defined and metrics_verify_failed is defined
 
     - name: set output location directory for test results (distro with major version)
       ansible.builtin.set_fact:
