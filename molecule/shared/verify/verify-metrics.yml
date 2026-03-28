@@ -216,6 +216,19 @@
           [[index|← Back to Test Run]]
 
           {{ metrics_test_results }}
+
+          ---
+
+          ## Raw Verification Data
+
+          <details>
+          <summary>Expand to see full test results data</summary>
+
+          ```yaml
+          {{ metrics_test_results }}
+          ```
+
+          </details>
         dest: "{{ obsidian_run_dir }}/metrics-capability.md"
         mode: "0644"
       when: metrics_test_results is defined and metrics_verify_failed is defined

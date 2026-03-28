@@ -189,6 +189,19 @@
           [[index|← Back to Test Run]]
 
           {{ logs_test_results }}
+
+          ---
+
+          ## Raw Verification Data
+
+          <details>
+          <summary>Expand to see full test results data</summary>
+
+          ```yaml
+          {{ logs_test_results }}
+          ```
+
+          </details>
         dest: "{{ obsidian_run_dir }}/logs-capability.md"
         mode: "0644"
       when: logs_test_results is defined and logs_verify_failed is defined
