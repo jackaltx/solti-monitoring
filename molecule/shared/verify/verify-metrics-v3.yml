@@ -172,6 +172,19 @@
           [[index|← Back to Test Run]]
 
           {{ metrics_v3_test_results }}
+
+          ---
+
+          ## Raw Verification Data
+
+          <details>
+          <summary>Expand to see full test results data</summary>
+
+          ```yaml
+          {{ metrics_v3_test_results }}
+          ```
+
+          </details>
         dest: "{{ obsidian_run_dir }}/metrics-v3-capability.md"
         mode: "0644"
       when: metrics_v3_test_results is defined and metrics_v3_verify_failed is defined
