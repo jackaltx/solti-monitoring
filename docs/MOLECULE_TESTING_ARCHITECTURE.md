@@ -305,21 +305,30 @@ All verification results are saved to `verify_output/`:
 
 ```
 verify_output/
-├── debian12/
-│   ├── influxdb3-verify-uut-ct0-1234567890.yml
-│   ├── influxdb3-collecting-uut-ct0-1234567890.yml
-│   ├── verify-metrics-v3-status-1234567890.yml
-│   └── metrics-v3-collection-1234567890.yml
-├── rocky9/
-│   └── ...
-└── debian12-consolidated-test-report.md
+├── obsidian/                              # Obsidian vault structure
+│   ├── index.md                           # Chronological index (all runs)
+│   ├── Debian12-Index.md                  # Distribution-specific index
+│   ├── Rocky9-Index.md                    # Distribution-specific index
+│   └── runs/
+│       └── 2026-03-28-debian12-204137/    # Timestamped run directory
+│           ├── index.md                   # Run overview with navigation
+│           ├── preverify-diagnostics.md   # Pre-test state
+│           ├── logs-capability.md         # Logs capability results
+│           ├── metrics-capability.md      # Metrics capability results
+│           └── postverify-diagnostics.md  # Post-test state
+└── debian12/                              # Raw verification data (YAML)
+    ├── influxdb3-verify-uut-ct0-1234567890.yml
+    ├── influxdb3-collecting-uut-ct0-1234567890.yml
+    ├── verify-metrics-v3-status-1234567890.yml
+    └── metrics-v3-collection-1234567890.yml
 ```
 
 **Report Structure**:
-- Per-role verification results (YAML)
-- Integration test results (YAML)
-- Consolidated markdown report (generated)
-- Timestamped for test run tracking
+
+- **Obsidian Vault**: Structured markdown with YAML frontmatter, cross-linked navigation, and collapsible raw data sections
+- **Raw YAML Data**: Per-role and integration test results for programmatic access
+- **Distribution Indexes**: Quick access to all runs for each OS distribution
+- **Chronological Index**: Complete test history ordered by time
 
 ## Capability Selection
 

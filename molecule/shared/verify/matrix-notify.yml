@@ -67,7 +67,7 @@
             passed_services: "{{ all_verify_results | length - failed_services | length }}"
           services: "{{ all_verify_results }}"
           failed_service_names: "{{ failed_services }}"
-          report_path: "{{ report_root | default('verify_output') }}/{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}/consolidated-test-report.md"
+          report_path: "{{ report_root | default('verify_output') }}/obsidian/runs/{{ verify_timestamp }}/index.md"
           failed_task: "{{ verify_error_task | default('') }}"
           error_msg: "{{ verify_error_msg | default('') }}"
           context:
