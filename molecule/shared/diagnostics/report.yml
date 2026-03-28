@@ -20,15 +20,37 @@
           --------------
           {{ service_health | default({}) | to_nice_yaml | indent(2) }}
 
-        dest: "{{ report_root }}/{{ ansible_facts['distribution'] | lower }}/container-diagnostics-{{ report_suffix }}-{{ ansible_facts['date_time']['epoch'] }}.yml"
-        mode: "0644"
+    # .........................................................................................................
+    # Write Obsidian file with frontmatter (memory-efficient pattern)
+    - name: Write Obsidian diagnostics file
+      become: false
       delegate_to: localhost
+      ansible.builtin.copy:
+        content: |
+          ---
+          type: diagnostics
+          phase: {{ report_suffix }}
+          distribution: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+          timestamp: {{ ansible_facts['date_time']['iso8601'] }}
+          tags:
+            - diagnostics
+            - {{ report_suffix }}
+            - {{ ansible_facts['distribution'] | lower }}
+          ---
+
+          # {{ report_suffix | title }} Diagnostics
+
+          [[index|← Back to Test Run]]
+
+          {{ container_diagnostics }}
+        dest: "{{ obsidian_run_dir }}/{{ report_suffix }}-diagnostics.md"
+        mode: "0644"
 
     # .........................................................................................................
-    # Add to all_verify_results using task name as key
-    - name: Add diagnostics results to dictionary
+    # Add to all_verify_results using task name as key - store FILE PATH not content
+    - name: Add diagnostics file path to results dictionary
       set_fact:
-        all_verify_results: "{{ all_verify_results | combine({ report_suffix : container_diagnostics}) }}"
+        all_verify_results: "{{ all_verify_results | combine({ report_suffix : obsidian_run_dir + '/' + report_suffix + '-diagnostics.md'}) }}"
 
     # .........................................................................................................
     - name: set output location directory for test results (distro with major version)

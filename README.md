@@ -277,8 +277,57 @@ alloy_monitor_bind9: true
 Multiple test scenarios are available for comprehensive verification:
 
 - **GitHub**: CI-focused testing with Podman containers
-- **Podman**: Local container-based testing  
+- **Podman**: Local container-based testing
 - **Proxmox**: Full stack VM-based testing
+
+### Test Results as Obsidian Vault
+
+Test results are automatically organized into an Obsidian-compatible knowledge graph structure at `verify_output/obsidian/`. This provides:
+
+**Why Obsidian?**
+
+- **Cross-linked Navigation**: Jump between test runs, capabilities, and diagnostics
+- **Distribution Tracking**: Separate indexes for Debian, Rocky, Ubuntu test histories
+- **Chronological Index**: All test runs in time order with pass/fail status
+- **Rich Metadata**: YAML frontmatter enables filtering and searching in Obsidian
+- **Collapsible Details**: Full raw data preserved in expandable sections
+- **Version Control Ready**: Plain markdown files track in git
+
+**Structure:**
+
+```text
+verify_output/obsidian/
+├── index.md                              # Chronological index (all runs)
+├── Debian12-Index.md                     # Distribution-specific indexes
+├── Rocky9-Index.md
+└── runs/
+    └── 2026-03-28-debian12-204137/       # Each test run
+        ├── index.md                      # Run overview with links
+        ├── preverify-diagnostics.md      # Pre-test system state
+        ├── logs-capability.md            # Loki/Alloy results
+        ├── metrics-capability.md         # InfluxDB/Telegraf results
+        └── postverify-diagnostics.md     # Post-test system state
+```
+
+**Usage:**
+
+1. Open `verify_output/obsidian/` as an Obsidian vault
+2. Start at `index.md` for chronological view
+3. Or use distribution indexes (e.g., `Debian12-Index.md`)
+4. Click wiki-style links to navigate between related documents
+5. Use Obsidian's graph view to visualize test relationships
+
+**Optional TrueNAS Sync:**
+
+Enable automatic sync to a network Obsidian vault:
+
+```bash
+export OBSIDIAN_SYNC_ENABLED=true
+export OBSIDIAN_SYNC_TARGET=user@server:/path/to/vault/
+./run-podman-tests.sh
+```
+
+This allows team access to test results through a shared Obsidian vault.
 
 ### Running Tests
 

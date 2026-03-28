@@ -33,6 +33,30 @@
       delegate_to: localhost
       become: false
 
+    - name: Ensure Obsidian directory structure exists
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+      loop:
+        - "{{ report_root }}/obsidian"
+        - "{{ report_root }}/obsidian/runs"
+
+    - name: Generate Obsidian run directory name
+      ansible.builtin.set_fact:
+        obsidian_run_timestamp: "{{ ansible_date_time.date }}-{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}-{{ ansible_date_time.time | replace(':', '') }}"
+        obsidian_run_dir: "{{ report_root }}/obsidian/runs/{{ ansible_date_time.date }}-{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}-{{ ansible_date_time.time | replace(':', '') }}"
+
+    - name: Create Obsidian run directory
+      ansible.builtin.file:
+        path: "{{ obsidian_run_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
     # .....................................................................
     - name: Debug information
       debug:

@@ -131,6 +131,25 @@ rm -f "$TEMP_OUTPUT"
 # Create a symlink to latest log (use basename to avoid nested paths)
 ln -sf "$(basename "${LOG_FILE}")" "${OUTPUT_DIR}/latest_test.out"
 
+# Optional Obsidian sync to TrueNAS
+if [ "${OBSIDIAN_SYNC_ENABLED:-false}" = "true" ]; then
+    echo
+    echo "=== Syncing Obsidian files to TrueNAS ==="
+
+    # Default target if not specified
+    OBSIDIAN_SYNC_TARGET="${OBSIDIAN_SYNC_TARGET:-root@truenas.jackaltx.com:/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTesting/}"
+
+    # Rsync Obsidian directory to TrueNAS
+    if rsync -avz --progress "${OUTPUT_DIR}/obsidian/" "${OBSIDIAN_SYNC_TARGET}"; then
+        echo "Successfully synced Obsidian files to ${OBSIDIAN_SYNC_TARGET}"
+    else
+        echo "Warning: Failed to sync Obsidian files (exit code $?)"
+        echo "This does not affect test results."
+    fi
+
+    echo "==================================="
+fi
+
 # Exit with the correct status
 if [ "$TEST_EXIT_CODE" -eq 0 ]; then
     echo "Tests completed successfully. Log saved to $LOG_FILE"

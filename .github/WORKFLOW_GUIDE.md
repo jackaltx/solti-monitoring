@@ -120,7 +120,7 @@ See [Known Issues](#known-issues) below.
 - **Name**: monitoring-test-results
 - **Path**: verify_output/
 - **Retention**: 5 days
-- **Contains**: Test reports, verification output, consolidated reports
+- **Contains**: Test reports, verification output, Obsidian vault structure
 
 ### Container State (save-container.yml)
 - **Name**: container-{platform}-{timestamp}
@@ -175,7 +175,7 @@ Check the failing job in GitHub Actions, fix locally, push again.
 
 ### Molecule test failures
 1. Download artifacts from failed run
-2. Review verify_output/{distro}/consolidated_test_report.md
+2. Review verify_output/obsidian/runs/{timestamp}/index.md
 3. Option A: Fix issue locally and re-test
 4. Option B: Use save-container.yml to debug in container
 
