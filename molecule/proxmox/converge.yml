@@ -63,3 +63,9 @@
       loop_control:
         loop_var: role_name
         label: "Including role: {{ role_name }}"
+
+    - name: Wait for metrics collection to begin
+      ansible.builtin.pause:
+        seconds: 120
+        prompt: "Waiting 2 minutes for Telegraf to collect initial metrics..."
+      when: "'metrics' in testing_capabilities"
