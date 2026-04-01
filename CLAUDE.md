@@ -111,7 +111,22 @@ MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 # Single distro testing
 PROXMOX_DISTRO=debian12 ./run-proxmox-tests.sh
 PROXMOX_DISTRO=rocky9 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=rocky10 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=debian13 ./run-proxmox-tests.sh
 ```
+
+**Recent Fixes (2026-04-01):**
+
+- ✅ **Proxmox Obsidian Output:** Updated `molecule/proxmox/molecule.yml` to use shared verify playbook (`../shared/verify/main.yml`), enabling Obsidian vault output for Proxmox tests (matches podman behavior)
+- ✅ **Test Failure Detection:** Fixed verify pipeline to properly fail tests when fatal errors occur (was silently passing despite errors in rescue block)
+- ✅ **Template Selection:** Fixed `solti_platforms.proxmox_template` role to filter templates by name, ensuring correct OS version is cloned (e.g., debian12 now clones debian12-template, not debian13-template)
+- ✅ **Metrics Verification:** Fixed `cpu_metric_count` undefined error in InfluxDB3 verify tasks by adding `| default(0)` filter to success message
+
+**Architecture Notes:**
+
+- Proxmox scenario uses **local playbooks** (create.yml, converge.yml, prepare.yml, destroy.yml) with newer template discovery logic
+- **Shared verify playbook** used across all scenarios (podman, github, proxmox) for consistency
+- Template discovery uses **unified VMID range 9000-9999** for all distributions, filtered by template name pattern
 
 ### 4. Iterative Development Cycle
 ```bash
