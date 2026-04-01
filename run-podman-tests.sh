@@ -131,20 +131,59 @@ rm -f "$TEMP_OUTPUT"
 # Create a symlink to latest log (use basename to avoid nested paths)
 ln -sf "$(basename "${LOG_FILE}")" "${OUTPUT_DIR}/latest_test.out"
 
+# Regenerate Obsidian indices from immutable run records
+if [ -d "${OUTPUT_DIR}/obsidian/runs" ]; then
+    echo
+    echo "=== Regenerating Obsidian indices ==="
+    ./bin/regenerate-obsidian-indices.sh "${OUTPUT_DIR}/obsidian"
+    echo "==================================="
+fi
+
 # Optional Obsidian sync to TrueNAS
 if [ "${OBSIDIAN_SYNC_ENABLED:-false}" = "true" ]; then
     echo
     echo "=== Syncing Obsidian files to TrueNAS ==="
 
-    # Default target if not specified
-    OBSIDIAN_SYNC_TARGET="${OBSIDIAN_SYNC_TARGET:-root@truenas.jackaltx.com:/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTesting/}"
+    # Check if using NFS mount or SSH rsync
+    if [ -n "${OBSIDIAN_NFS_MOUNT:-}" ]; then
+        # NFS mount path provided (e.g., /mnt/SoltiMonitorTesting)
+        OBSIDIAN_NFS_UID="${OBSIDIAN_NFS_UID:-568}"
+        OBSIDIAN_NFS_GID="${OBSIDIAN_NFS_GID:-568}"
+        OBSIDIAN_SSH_HOST="${OBSIDIAN_SSH_HOST:-root@truenas.jackaltx.com}"
+        OBSIDIAN_REMOTE_PATH="${OBSIDIAN_REMOTE_PATH:-/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTesting}"
 
-    # Rsync Obsidian directory to TrueNAS
-    if rsync -avz --progress "${OUTPUT_DIR}/obsidian/" "${OBSIDIAN_SYNC_TARGET}"; then
-        echo "Successfully synced Obsidian files to ${OBSIDIAN_SYNC_TARGET}"
+        echo "Syncing to NFS mount: ${OBSIDIAN_NFS_MOUNT}"
+        echo "Target ownership: ${OBSIDIAN_NFS_UID}:${OBSIDIAN_NFS_GID}"
+
+        # Sync files normally (no sudo needed)
+        if rsync -av --delete "${OUTPUT_DIR}/obsidian/" "${OBSIDIAN_NFS_MOUNT}/"; then
+            echo "Files synced, fixing ownership via SSH..."
+
+            # Fix ownership remotely via SSH (two-hop: lavadmin -> sudo chown)
+            # This avoids needing root SSH access
+            if ssh "${OBSIDIAN_SSH_HOST}" "sudo chown -R ${OBSIDIAN_NFS_UID}:${OBSIDIAN_NFS_GID} ${OBSIDIAN_REMOTE_PATH}"; then
+                echo "Successfully synced and set ownership"
+            else
+                echo "Warning: Files synced but ownership fix failed (exit code $?)"
+                echo "Files may not be readable by Obsidian container."
+            fi
+        else
+            echo "Warning: Failed to sync Obsidian files to NFS (exit code $?)"
+            echo "This does not affect test results."
+        fi
     else
-        echo "Warning: Failed to sync Obsidian files (exit code $?)"
-        echo "This does not affect test results."
+        # SSH rsync to remote server (original behavior)
+        OBSIDIAN_SYNC_TARGET="${OBSIDIAN_SYNC_TARGET:-root@truenas.jackaltx.com:/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTesting/}"
+
+        echo "Syncing via SSH to: ${OBSIDIAN_SYNC_TARGET}"
+
+        # Rsync Obsidian directory to TrueNAS via SSH
+        if rsync -avz --progress "${OUTPUT_DIR}/obsidian/" "${OBSIDIAN_SYNC_TARGET}"; then
+            echo "Successfully synced Obsidian files to ${OBSIDIAN_SYNC_TARGET}"
+        else
+            echo "Warning: Failed to sync Obsidian files (exit code $?)"
+            echo "This does not affect test results."
+        fi
     fi
 
     echo "==================================="

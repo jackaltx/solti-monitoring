@@ -296,5 +296,5 @@
           error: Unexpected failure during verification process
           timestamp: {{ verify_timestamp }}
           distribution: {{ ansible_facts['distribution'] | lower }}
-        dest: "{{ report_root }}/{{ distro_results_dir }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ distro_results_dir }}/verify-logs-failure-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"

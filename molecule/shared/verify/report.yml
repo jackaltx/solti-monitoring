@@ -31,7 +31,7 @@
       **Time**: {{ ansible_date_time.time }}
       **Status**: {{ 'FAILED' if all_verify_failed.values() | select('true') | list | length > 0 else 'PASSED' }}
 
-      [[../../{{ ansible_distribution }}{{ ansible_distribution_major_version }}-Index|← Back to {{ ansible_distribution }} {{ ansible_distribution_major_version }} Index]]
+      [[../../{{ (ansible_distribution ~ ' ' ~ ansible_distribution_major_version) | replace(' ', '-') }}-Index|← Back to {{ ansible_distribution }} {{ ansible_distribution_major_version }} Index]]
       [[../../index|← Back to All Runs]]
 
       ## Capabilities Tested
@@ -47,86 +47,8 @@
       2. [[{{ capability }}-capability|{{ capability | upper }} Verification]]
       {% endfor %}
       {{ testing_capabilities | length + 2 }}. [[postverify-diagnostics|Post-Test Diagnostics]]
-    dest: "{{ obsidian_run_dir }}/index.md"
+    dest: "{{ obsidian_run_dir }}/run-{{ verify_timestamp | regex_replace(':', '') | regex_replace(' ', '-') }}.md"
     mode: "0644"
 
-- name: Update chronological Obsidian index
-  become: false
-  delegate_to: localhost
-  block:
-    - name: Check if chronological index exists
-      ansible.builtin.stat:
-        path: "{{ report_root }}/obsidian/index.md"
-      register: chrono_index_stat
-
-    - name: Read existing chronological index
-      ansible.builtin.slurp:
-        path: "{{ report_root }}/obsidian/index.md"
-      register: chrono_index_content
-      when: chrono_index_stat.stat.exists
-
-    - name: Create or update chronological index
-      ansible.builtin.copy:
-        content: |
-          {% if chrono_index_stat.stat.exists %}
-          {{ chrono_index_content.content | b64decode }}
-          {% else %}
-          ---
-          type: index
-          index_type: chronological
-          last_updated: {{ ansible_date_time.iso8601 }}
-          ---
-
-          # Test Run History
-
-          All test runs in chronological order (newest first).
-
-          ## Runs
-
-          {% endif %}
-          - {{ ansible_date_time.date }} {{ ansible_date_time.time }} - [[runs/{{ obsidian_run_timestamp }}/index|{{ ansible_distribution }} {{ ansible_distribution_major_version }}]] - {{ 'PASSED' if all_verify_failed.values() | select('true') | list | length == 0 else 'FAILED' }}
-        dest: "{{ report_root }}/obsidian/index.md"
-        mode: "0644"
-
-- name: Update distribution-specific index
-  become: false
-  delegate_to: localhost
-  block:
-    - name: Set distribution index filename
-      ansible.builtin.set_fact:
-        distro_index_path: "{{ report_root }}/obsidian/{{ ansible_distribution }}{{ ansible_distribution_major_version }}-Index.md"
-
-    - name: Check if distribution index exists
-      ansible.builtin.stat:
-        path: "{{ distro_index_path }}"
-      register: distro_index_stat
-
-    - name: Read existing distribution index
-      ansible.builtin.slurp:
-        path: "{{ distro_index_path }}"
-      register: distro_index_content
-      when: distro_index_stat.stat.exists
-
-    - name: Create or update distribution index
-      ansible.builtin.copy:
-        content: |
-          {% if distro_index_stat.stat.exists %}
-          {{ distro_index_content.content | b64decode }}
-          {% else %}
-          ---
-          type: index
-          index_type: distribution
-          distribution: {{ ansible_distribution }} {{ ansible_distribution_major_version }}
-          last_updated: {{ ansible_date_time.iso8601 }}
-          ---
-
-          # {{ ansible_distribution }} {{ ansible_distribution_major_version }} Test Runs
-
-          [[index|← Back to All Test Runs]]
-
-          ## Runs
-
-          {% endif %}
-          - {{ ansible_date_time.date }} {{ ansible_date_time.time }} - [[runs/{{ obsidian_run_timestamp }}/index|Test Run]] - {{ 'PASSED' if all_verify_failed.values() | select('true') | list | length == 0 else 'FAILED' }}
-        dest: "{{ distro_index_path }}"
-        mode: "0644"
+# Indices are generated post-test by bin/regenerate-obsidian-indices.sh
+# This avoids race conditions from parallel test execution

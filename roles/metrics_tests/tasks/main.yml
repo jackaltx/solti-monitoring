@@ -3,15 +3,22 @@
   become: true
   block:
     # ........................................................................................
-    - name: Verify InfluxDB is running
+    - name: Gather service facts
       ansible.builtin.service_facts:
+
+    - name: Detect InfluxDB version
+      ansible.builtin.set_fact:
+        influxdb_service_name: "{{ 'influxdb3-core.service' if 'influxdb3-core.service' in ansible_facts.services else 'influxdb.service' }}"
+        influxdb_version: "{{ '3' if 'influxdb3-core.service' in ansible_facts.services else '2' }}"
+        influxdb_port: "{{ 8181 if 'influxdb3-core.service' in ansible_facts.services else 8086 }}"
 
     - name: Assert InfluxDB service status
       ansible.builtin.assert:
         that:
-          - "'influxdb.service' in ansible_facts.services"
-          - "ansible_facts.services['influxdb.service'].state == 'running'"
-          - "ansible_facts.services['influxdb.service'].status == 'enabled'"
+          - "influxdb_service_name in ansible_facts.services"
+          - "ansible_facts.services[influxdb_service_name].state == 'running'"
+          - "ansible_facts.services[influxdb_service_name].status == 'enabled'"
+        fail_msg: "InfluxDB service {{ influxdb_service_name }} not running or not enabled"
 
     - name: Verify Telegraf is running
       ansible.builtin.assert:
@@ -23,12 +30,12 @@
     # ......................................................................................
     - name: Check InfluxDB port
       ansible.builtin.wait_for:
-        port: 8086
+        port: "{{ influxdb_port }}"
         timeout: 30
         state: started
 
     - name: Wait for Telegraf to establish connection
-      command: ss -tpn '( dst = :8086 )'
+      command: ss -tpn '( dst = :{{ influxdb_port }} )'
       register: ss_output
       until: "'telegraf' in ss_output.stdout"
       retries: 12 # Will try for 2 minutes
@@ -72,22 +79,47 @@
         fail_msg: "Found write errors in Telegraf logs"
 
     # ......................................................................
-    - name: Check InfluxDB write permissions
+    - name: Check InfluxDB write permissions (v2)
       command: influx write --bucket telegraf --precision s "test,tag=molecule value=1"
       register: write_test
       changed_when: false
+      when: influxdb_version == '2'
 
-    - name: Verify data can be queried
+    - name: Check InfluxDB write permissions (v3 - uses v2 API)
+      shell: >
+        curl -s -X POST "http://localhost:{{ influxdb_port }}/api/v2/write?bucket=telegraf&precision=s"
+        -H "Authorization: Token ${INFLUXDB_OPERATORS_TOKEN}"
+        --data-binary "test,tag=molecule value=1"
+      register: write_test
+      changed_when: false
+      when: influxdb_version == '3'
+      environment:
+        INFLUXDB_OPERATORS_TOKEN: "{{ lookup('env', 'INFLUXDB_OPERATORS_TOKEN') }}"
+
+    - name: Verify data can be queried (v2)
       command: >
         influx query 'from(bucket:"telegraf")
         |> range(start: -1m)
         |> filter(fn: (r) => r["_measurement"] == "test")'
       register: query_test
       changed_when: false
+      when: influxdb_version == '2'
+
+    - name: Verify data can be queried (v3 - uses v2 API with Flux)
+      shell: >
+        curl -s -X POST "http://localhost:{{ influxdb_port }}/api/v2/query?org="
+        -H "Authorization: Token ${INFLUXDB_OPERATORS_TOKEN}"
+        -H "Content-Type: application/json"
+        --data '{"query":"from(bucket:\"telegraf\") |> range(start: -1m) |> filter(fn: (r) => r._measurement == \"test\")"}'
+      register: query_test
+      changed_when: false
+      when: influxdb_version == '3'
+      environment:
+        INFLUXDB_OPERATORS_TOKEN: "{{ lookup('env', 'INFLUXDB_OPERATORS_TOKEN') }}"
 
     # ......................................................................
     - name: Check InfluxDB logs
-      ansible.builtin.shell: 'journalctl -u influxdb --since "2 minute ago" -n 12 --no-pager'
+      ansible.builtin.shell: 'journalctl -u {{ influxdb_service_name }} --since "2 minute ago" -n 12 --no-pager'
       register: influxdb_logs
       changed_when: false
 
@@ -98,52 +130,73 @@
         fail_msg: "Found errors in InfluxDB logs"
 
     # ......................................................................................
-    - name: Check InfluxDB health
+    - name: Check InfluxDB health (v2)
       uri:
-        url: "http://localhost:8086/health"
+        url: "http://localhost:{{ influxdb_port }}/health"
         method: GET
         status_code: 200
       register: health_check
       failed_when: health_check.json.status != "pass"
+      when: influxdb_version == '2'
 
-    - name: Verify InfluxDB API is ready
+    - name: Check InfluxDB health (v3) - requires auth, just verify port responds
       uri:
-        url: "http://localhost:8086/ping"
+        url: "http://localhost:{{ influxdb_port }}/health"
+        method: GET
+        status_code: [200, 401]  # 401 is expected without auth
+      register: health_check
+      when: influxdb_version == '3'
+
+    - name: Verify InfluxDB API is ready (v2)
+      uri:
+        url: "http://localhost:{{ influxdb_port }}/ping"
         method: GET
         status_code: 204
       register: ping_check
+      when: influxdb_version == '2'
 
-    - name: Get InfluxDB version
+    - name: Verify InfluxDB API is ready (v3) - requires auth
+      uri:
+        url: "http://localhost:{{ influxdb_port }}/ping"
+        method: GET
+        status_code: [204, 401]  # 401 is expected without auth
+      register: ping_check
+      when: influxdb_version == '3'
+
+    - name: Get InfluxDB version (v2)
       command: influx version
       register: influx_version
       changed_when: false
+      when: influxdb_version == '2'
 
-    - name: Get bucket information
+    - name: Get InfluxDB version (v3)
+      command: influxdb3 --version
+      register: influx_version
+      changed_when: false
+      when: influxdb_version == '3'
+
+    - name: Get bucket information (v2)
       command: influx bucket list --name telegraf -json
       register: bucket_info
       changed_when: false
+      when: influxdb_version == '2'
 
-    - name: Parse bucket information
+    - name: Get bucket information (v3 - placeholder, Core doesn't expose bucket API)
+      ansible.builtin.set_fact:
+        bucket_info_parsed:
+          - name: "telegraf"
+            id: "N/A (InfluxDB3 Core)"
+      when: influxdb_version == '3'
+
+    - name: Parse bucket information (v2)
       ansible.builtin.set_fact:
         bucket_info_parsed: "{{ bucket_info.stdout | from_json }}"
+      when: influxdb_version == '2'
 
-    - name: Check InfluxDB write permissions
-      command: influx write --bucket telegraf --precision s "test,tag=molecule value=1"
-      register: write_test
-      changed_when: false
-
-    - name: Verify data can be queried
-      command: >
-        influx query 'from(bucket:"telegraf")
-        |> range(start: -1m)
-        |> filter(fn: (r) => r["_measurement"] == "test")'
-      register: query_test
-      changed_when: false
-
-    - name: Display InfluxDB status
+    - name: Display InfluxDB status (v2)
       debug:
         msg:
-          - "InfluxDB Version: {{ influx_version.stdout }}"
+          - "InfluxDB Version: {{ influxdb_version }} ({{ influx_version.stdout }})"
           - "Bucket Info:"
           - "  Name: {{ bucket_info_parsed[0].name }}"
           - "  ID: {{ bucket_info_parsed[0].id }}"
@@ -151,6 +204,18 @@
           - "  Organization ID: {{ bucket_info_parsed[0].orgID }}"
           - "Write Test: {{ write_test.rc == 0 }}"
           - "Query Test: {{ query_test.rc == 0 }}"
+      when: influxdb_version == '2'
+
+    - name: Display InfluxDB status (v3)
+      debug:
+        msg:
+          - "InfluxDB Version: {{ influxdb_version }} ({{ influx_version.stdout }})"
+          - "Database Info:"
+          - "  Name: {{ bucket_info_parsed[0].name if bucket_info_parsed | length > 0 else 'telegraf' }}"
+          - "  ID: {{ bucket_info_parsed[0].id if bucket_info_parsed | length > 0 else 'N/A' }}"
+          - "Write Test: {{ write_test.rc == 0 }}"
+          - "Query Test: {{ query_test.rc == 0 }}"
+      when: influxdb_version == '3'
 
     # ......................................................................
     - name: Create local data directory for test results
@@ -161,7 +226,7 @@
         mode: "0755"
       delegate_to: localhost
 
-    - name: Save integration test results
+    - name: Save integration test results (v2)
       become: false
       ansible.builtin.copy:
         content: |
@@ -169,11 +234,11 @@
           Timestamp: {{ ansible_date_time.iso8601 }}
 
           Service Status:
-          - InfluxDB: {{ ansible_facts.services['influxdb.service'].state }}
+          - InfluxDB: {{ ansible_facts.services[influxdb_service_name].state }} ({{ influxdb_service_name }})
           - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
 
           InfluxDB Status:
-          - Version: {{ influx_version.stdout }}
+          - Version: InfluxDB v{{ influxdb_version }} - {{ influx_version.stdout }}
           - Health Check: {{ health_check.json.status }}
           - API Status: {{ ping_check.status == 204 }}
           - Write Test Success: {{ write_test.rc == 0 }}
@@ -203,3 +268,46 @@
         dest: "{{ report_root }}/{{ ansible_host | lower }}_{{ ansible_distribution | lower }}/metrics_collection_integration_results.yml"
         mode: "0644"
       delegate_to: localhost
+      when: influxdb_version == '2'
+
+    - name: Save integration test results (v3)
+      become: false
+      ansible.builtin.copy:
+        content: |
+          === Monitor Stack Integration Test Results ===
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+          Service Status:
+          - InfluxDB: {{ ansible_facts.services[influxdb_service_name].state }} ({{ influxdb_service_name }})
+          - Telegraf: {{ ansible_facts.services['telegraf.service'].state }}
+
+          InfluxDB Status:
+          - Version: InfluxDB v{{ influxdb_version }} - {{ influx_version.stdout }}
+          - Health Check: {{ 'pass' if health_check.status == 200 else 'fail' }}
+          - API Status: {{ ping_check.status == 204 }}
+          - Write Test Success: {{ write_test.rc == 0 }}
+          - Query Test Success: {{ query_test.rc == 0 }}
+          - Database Configuration:
+              Name: {{ bucket_info_parsed[0].name if bucket_info_parsed | length > 0 else 'telegraf' }}
+              ID: {{ bucket_info_parsed[0].id if bucket_info_parsed | length > 0 else 'N/A' }}
+
+          Recent InfluxDB Logs:
+            {{ influxdb_logs.stdout_lines | to_nice_yaml | indent(8) }}
+
+          Telegraf Integration:
+          - Connection Status: Established
+          - Network Connections:
+            {{ ss_output.stdout_lines | to_nice_yaml | indent(8) }}
+          - Process Information:
+            {{ lsof_output.stdout_lines | to_nice_yaml | indent(8) }}
+
+          Recent Log Activity:
+          {% if 'error writing' in telegraf_logs.stdout %}
+          !!! ERRORS DETECTED IN LOGS !!!
+          {% endif %}
+          Last 50 log entries:
+            {{ telegraf_logs.stdout_lines | to_nice_yaml | indent(8) }}
+        dest: "{{ report_root }}/{{ ansible_host | lower }}_{{ ansible_distribution | lower }}/metrics_collection_integration_results.yml"
+        mode: "0644"
+      delegate_to: localhost
+      when: influxdb_version == '3'
