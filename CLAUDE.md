@@ -420,6 +420,191 @@ Example orchestrator playbook:
 
 **Verification results:** Molecule tests store results in `verify_output/<distribution>/`
 
+## Test Results as Obsidian Vault (Event-Sourced Architecture)
+
+### Overview
+
+Test results are automatically published to an Obsidian-compatible knowledge vault. This creates a browsable wiki of test history with cross-linked navigation by time, distribution, and capability.
+
+**Architecture Pattern: Event Sourcing**
+
+- **Test runs are immutable events** (source of truth)
+- **Indices are derived views** (regenerated post-test)
+- **No concurrent writes** (eliminates race conditions)
+- **Self-healing** (indices always reflect actual runs)
+
+### File Structure
+
+```text
+verify_output/obsidian/
+├── README.md                    # Map of Content (navigation hub)
+├── index.md                     # Chronological index (newest first)
+├── Debian-12-Index.md           # Distribution-specific index
+├── Rocky-9-Index.md             # Distribution-specific index
+├── Ubuntu-24-Index.md           # Distribution-specific index
+├── Logs-Capability.md           # Capability-specific index
+├── Metrics-Capability.md        # Capability-specific index
+└── runs/                        # Immutable test run records
+    ├── 2026-03-29-debian12-190008/
+    │   ├── run-2026-03-29T190008Z.md       # Test run overview
+    │   ├── logs-capability.md               # Logs verification detail
+    │   ├── metrics-capability.md            # Metrics verification detail
+    │   ├── preverify-diagnostics.md         # Pre-test system state
+    │   └── postverify-diagnostics.md        # Post-test system state
+    └── 2026-03-29-rocky9-190008/
+        └── ...
+```
+
+### Navigation Patterns
+
+**From README.md:**
+- [[index|Chronological Index]] - All runs by time
+- [[Debian-12-Index|Debian 12 Tests]] - Debian 12 history
+- [[Logs-Capability|Logs Verification]] - Logs test history
+
+**From index.md:**
+- Links to individual test runs: [[runs/2026-03-29-debian12-190008/run-2026-03-29T190008Z|Debian 12]]
+
+**From test run:**
+- Links back to indices and to capability details
+
+### How It Works (Event Sourcing)
+
+**Step 1: Test Execution Creates Immutable Run Records**
+
+During molecule verify phase, each test creates:
+- `runs/{timestamp}/run-{timestamp}.md` - Test run metadata in YAML frontmatter
+- `runs/{timestamp}/{capability}-capability.md` - Capability verification details
+- `runs/{timestamp}/preverify-diagnostics.md` - Pre-test diagnostics
+- `runs/{timestamp}/postverify-diagnostics.md` - Post-test diagnostics
+
+**Step 2: Post-Test Index Regeneration**
+
+After all tests complete, `bin/regenerate-obsidian-indices.sh` scans run records and generates:
+- Chronological index (sorted by timestamp, newest first)
+- Distribution-specific indices (grouped by distro)
+- Capability-specific indices (grouped by capability, then by distro)
+
+**Key Principle:** If an index file gets corrupted or out of sync, just regenerate from runs/.
+
+### Integration with Test Runners
+
+**Podman Tests (run-podman-tests.sh):**
+
+```bash
+./run-podman-tests.sh  # Runs 4 parallel containers
+
+# After molecule completes:
+# 1. Regenerates Obsidian indices from runs/
+# 2. Optionally syncs to NFS mount for Obsidian server
+```
+
+**Proxmox Tests (run-proxmox-tests.sh):**
+
+```bash
+./run-proxmox-tests.sh  # Runs distros sequentially
+
+# After all distros complete:
+# 1. Regenerates Obsidian indices from runs/
+```
+
+**GitHub CI (.github/workflows/ci.yml):**
+
+After test matrix completes, workflow regenerates indices before uploading artifacts.
+
+### NFS Sync Configuration (Optional)
+
+To sync results to an Obsidian vault on NFS:
+
+```bash
+# Configure NFS sync environment
+source bin/setup-nfs-sync.sh
+
+# Variables set:
+export OBSIDIAN_SYNC_ENABLED=true
+export OBSIDIAN_NFS_MOUNT=/mnt/SoltiMonitorTesting
+export OBSIDIAN_NFS_UID=568
+export OBSIDIAN_NFS_GID=568
+export OBSIDIAN_SSH_HOST=lavadmin@truenas.jackaltx.com
+export OBSIDIAN_REMOTE_PATH=/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTesting
+
+# Run tests with sync
+./run-podman-tests.sh
+```
+
+**How sync works:**
+1. Tests run and write to local `verify_output/obsidian/`
+2. Indices regenerated via `bin/regenerate-obsidian-indices.sh`
+3. Files synced to NFS mount via rsync (no sudo needed)
+4. Ownership fixed remotely via SSH: `ssh lavadmin@truenas "sudo chown -R 568:568 ..."`
+
+**Benefits:**
+- No local sudo required
+- NFS-safe atomic writes (temp file + mv)
+- Obsidian server sees complete indices instantly
+- Works with TrueNAS or any NFS share
+
+### Manual Index Regeneration
+
+If indices become corrupted or you prune old test runs:
+
+```bash
+# Regenerate all indices from immutable run records
+./bin/regenerate-obsidian-indices.sh verify_output/obsidian
+
+# Indices rebuilt from source of truth (runs/ directories)
+```
+
+**This is safe and idempotent.** Run it anytime to fix indices.
+
+### Why Event Sourcing Eliminates Race Conditions
+
+**Old Approach (Had Race Conditions):**
+- 4 parallel tests all write to shared `index.md` during verify phase
+- Used `flock` for locking, but still saw corruption
+- Indices could get out of sync with reality
+
+**New Approach (Event Sourced):**
+- Each test writes only its own `runs/{timestamp}/` directory (no conflicts)
+- Single writer regenerates indices **after** all tests complete (no races)
+- Indices are views derived from immutable events
+
+**Result:** Works reliably with 4+ parallel test executions.
+
+### Viewing Results in Obsidian
+
+1. Open Obsidian vault pointing to `verify_output/obsidian/`
+2. Start with README.md (Map of Content)
+3. Follow wiki-links to navigate by time, distribution, or capability
+4. All test runs cross-linked with YAML frontmatter for Dataview queries
+
+**Example Dataview Query (Future):**
+
+```dataview
+TABLE overall_status, duration_seconds
+FROM "runs"
+WHERE distribution = "Rocky 9"
+SORT timestamp DESC
+LIMIT 10
+```
+
+### Future Enhancements
+
+**Pre-Event Metadata (Planned):**
+- Capture CLI invocation (command line, environment vars)
+- Record test parameters (MOLECULE_CAPABILITIES, MOLECULE_PLATFORM_NAME)
+- Store start timestamp in YAML frontmatter
+
+**Post-Event Metrics (Planned):**
+- Test duration (total, converge, verify phases)
+- Resource usage (peak memory, CPU)
+- Exit codes and error counts
+
+**Analytics (Future):**
+- Success rate trends by distribution
+- Performance regression detection
+- Duration analysis and outlier identification
+
 ## Key Directories
 
 - `roles/` - Service roles and shared components

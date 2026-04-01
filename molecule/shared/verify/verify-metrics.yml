@@ -300,7 +300,7 @@
           capability: metrics
           distribution: {{ distro_results_dir }}
           timestamp: {{ verify_timestamp }}
-        dest: "{{ report_root }}/{{ distro_results_dir }}/verify-metrics-status-{{ ansible_date_time.epoch }}-1.yml"
+        dest: "{{ distro_results_dir }}/verify-metrics-status-{{ ansible_date_time.epoch }}-1.yml"
         mode: "0644"
 
   rescue:
