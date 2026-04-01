@@ -15,10 +15,7 @@ platforms:
 provisioner:
   name: ansible
   playbooks:
-    create: "../shared/proxmox/create.yml"
-    prepare: "../shared/proxmox/prepare.yml"
     verify: "../shared/verify/main.yml"
-    destroy: "../shared/proxmox/destroy.yml"
   log: true
   config_options:
     defaults:

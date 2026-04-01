@@ -195,6 +195,13 @@
         loop_var: capability
 
     # .......................................................................
+    # Check for pipeline errors from rescue block
+    - name: Include pipeline errors in verification status
+      set_fact:
+        verification_status: "{{ verification_status | combine(all_verify_failed) }}"
+      when: all_verify_failed is defined and all_verify_failed.keys() | list | length > 0
+
+    # .......................................................................
     - name: Final verification check
       fail:
         msg: "Verifications failed: {{ verification_status | dict2items | selectattr('value', 'true') | map(attribute='key') | list | join(', ') }}"

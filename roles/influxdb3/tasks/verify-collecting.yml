@@ -93,7 +93,7 @@
           - tables_list | length > 0
           - cpu_metric_count | default(0) | int > 0
         fail_msg: "No data is being collected! Tables: {{ tables_list | length }}, CPU metrics: {{ cpu_metric_count | default(0) }}"
-        success_msg: "Data collection verified: {{ tables_list | length }} tables, {{ cpu_metric_count }} CPU metrics in last 5 minutes"
+        success_msg: "Data collection verified: {{ tables_list | length }} tables, {{ cpu_metric_count | default(0) }} CPU metrics in last 5 minutes"
 
     - name: Gather collection verification results
       ansible.builtin.set_fact:
