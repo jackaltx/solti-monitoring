@@ -91,14 +91,14 @@
                   ansible.builtin.copy:
                     content: |
                       # InfluxDB v3 Telegraf Collector Token
-                      # Generated: {{ ansible_date_time.iso8601 }}
-                      # Host: {{ ansible_hostname }}
+                      # Generated: {{ ansible_facts['date_time']['iso8601'] }}
+                      # Host: {{ ansible_facts['hostname'] }}
                       influxdb3_collector_token: "{{ influxdb3_collector_token }}"
                       influxdb3_endpoint: "http://127.0.0.1:{{ telgraf2influxdb_configs.localhost_v3.port | default('8181') }}"
                       influxdb3_database: "{{ telgraf2influxdb_configs.localhost_v3.bucket | default('telegraf') }}"
                       influxdb3_token_name: "telegraf-collector"
                       influxdb3_permissions: "*:*:* (admin)"
-                    dest: "{{ project_root }}/data/influxdb3-collector-{{ ansible_hostname }}.yml"
+                    dest: "{{ project_root }}/data/influxdb3-collector-{{ ansible_facts['hostname'] }}.yml"
                     mode: "0600"
                   delegate_to: localhost
                   no_log: "{{ mylab_nolog | default(true) }}"

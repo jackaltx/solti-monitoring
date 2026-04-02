@@ -54,13 +54,82 @@
           become: true
           notify: Restart influxdb3-core
 
-    # Start and enable service
+    # Start and enable service (may fail on Rocky due to systemd issue)
     - name: Ensure influxdb3-core is started and enabled
       ansible.builtin.systemd_service:
         name: influxdb3-core
         state: started
         enabled: true
       become: true
+      register: influxdb3_start
+      failed_when: false  # Don't fail yet - check status below
+
+    # Wait for service to stabilize (it may crash-loop on Rocky)
+    - name: Wait for service to stabilize
+      ansible.builtin.pause:
+        seconds: 3
+
+    # Check journal for actual startup issues
+    - name: Check influxdb3-core journal for errors
+      ansible.builtin.command:
+        cmd: journalctl -u influxdb3-core -n 10 --no-pager
+      become: true
+      register: influxdb3_journal
+      changed_when: false
+
+    - name: Display journal output if service appears unhealthy
+      ansible.builtin.debug:
+        var: influxdb3_journal.stdout_lines
+      when: "'Failed' in influxdb3_journal.stdout or 'failed' in influxdb3_journal.stdout"
+
+    # Check actual service status
+    - name: Check influxdb3-core service status
+      ansible.builtin.service_facts:
+      become: true
+
+    - name: Set service status fact
+      ansible.builtin.set_fact:
+        influxdb3_is_running: "{{ ansible_facts.services['influxdb3-core.service'].state == 'running' }}"
+
+    - name: Check for namespace errors in journal
+      ansible.builtin.set_fact:
+        influxdb3_has_namespace_error: "{{ 'NAMESPACE' in influxdb3_journal.stdout }}"
+
+    # Fix Rocky 9/10 systemd mount namespace issue
+    - name: Apply Rocky systemd fix if service has namespace errors
+      when:
+        - (not influxdb3_is_running or influxdb3_has_namespace_error)
+        - ansible_facts['distribution'] in ['Rocky', 'AlmaLinux', 'RedHat']
+      become: true
+      block:
+        - name: Create systemd override directory
+          ansible.builtin.file:
+            path: /etc/systemd/system/influxdb3-core.service.d
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+
+        - name: Apply systemd override for mount namespace fix
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/influxdb3-core.service.d/rocky-fix.conf
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Service]
+              # Completely override InaccessiblePaths to fix Rocky 9/10 mount namespace issue
+              # Rocky 9 (systemd 252) and Rocky 10 (systemd 257) both fail with dbus socket
+              # Removing ALL InaccessiblePaths to prevent "Permission denied" errors
+              InaccessiblePaths=
+          notify: Restart influxdb3-core
+
+        - name: Reload systemd and restart service
+          ansible.builtin.systemd_service:
+            daemon_reload: true
+            name: influxdb3-core
+            state: restarted
+          failed_when: false
 
     - name: Wait for InfluxDB v3 API to be available
       ansible.builtin.wait_for:
