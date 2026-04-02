@@ -1,6 +1,15 @@
 ---
 extends: default
 
+# Ignore test output and generated files
+ignore: |
+  verify_output/
+  .ansible/
+  data/
+  .tox/
+  .venv/
+  solti-venv/
+
 rules:
   line-length: disable
   trailing-spaces: disable
