@@ -175,7 +175,13 @@ main() {
             fi
         done
     done
-    
+
+    # Regenerate Obsidian indices from immutable run records
+    if [[ -d "${OUTPUT_DIR}/obsidian/runs" ]]; then
+        log "\n${YELLOW}Regenerating Obsidian indices${NC}"
+        ./bin/regenerate-obsidian-indices.sh "${OUTPUT_DIR}/obsidian"
+    fi
+
     log "\nTest Summary:"
     if [[ ${#failed_tests[@]} -eq 0 ]]; then
         log "${GREEN}All tests passed successfully${NC}"
