@@ -114,23 +114,44 @@ provisioner:
         # SMELL hard coded for now
         testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
 
-        # metrics
+        # "metrics" capability
         influxdb_test: true
         influxdb_configure: true
+        telegraf_outputs: ["localhost", "localhost_v3"]
+        telegraf_testing: true
         telgraf2influxdb_configs:
-          localhost:
-            url: "http://127.0.0.1"
-            token: ""
-            bucket: "telegraf"
-            org: "lavnet"
-            namedrop: '["influxdb_oss"]'
-            bucket_tag: ""
-            exclude_bucket_tag: ""
-            ping_timeout: "0s"
-            read_idle_timeout: "0s"
-            insecure_skip_verify: false
+          {
+            "localhost":
+              {
+                "url": "http://127.0.0.1",
+                "token": "",
+                "bucket": "telegraf",
+                "org": "lavnet",
+                "namedrop": ["influxdb_oss"],
+                "bucket_tag": "",
+                "exclude_bucket_tag": "",
+                "ping_timeout": "0s",
+                "read_idle_timeout": "0s",
+                "insecure_skip_verify": false,
+                "port": 8086,
+              },
+            "localhost_v3":
+              {
+                "url": "http://127.0.0.1",
+                "token": "",
+                "bucket": "telegraf",
+                "org": "lavnet",
+                "namedrop": ["influxdb_oss"],
+                "bucket_tag": "",
+                "exclude_bucket_tag": "",
+                "ping_timeout": "0s",
+                "read_idle_timeout": "0s",
+                "insecure_skip_verify": false,
+                "port": 8181,
+              },
+          }
 
-        # logs
+        # "logs" capability
         loki_local_storage: true
         alloy_loki_endpoint: "127.0.0.1"
 
