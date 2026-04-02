@@ -12,6 +12,7 @@ exclude_paths:
   - grafana_dashboards/  # Generated dashboard JSON/YAML files
   - playbooks/test-monitor-all-logs.yml  # Old test playbook with missing role
   - tasks/create-fail.yml  # Non-existent file reference
+  - molecule/shared/verify/matrix-notify.yml  # Requires unpublished solti_matrix_mgr collection
 
 # Skip specific rules that are acceptable in this project
 skip_list:
