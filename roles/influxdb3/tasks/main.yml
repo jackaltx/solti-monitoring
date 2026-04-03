@@ -118,9 +118,11 @@
             mode: "0644"
             content: |
               [Service]
-              # Completely override InaccessiblePaths to fix Rocky 9/10 mount namespace issue
-              # Rocky 9 (systemd 252) and Rocky 10 (systemd 257) both fail with dbus socket
-              # Removing ALL InaccessiblePaths to prevent "Permission denied" errors
+              # Disable mount namespace isolation to fix Rocky 9/10 systemd issue
+              # Rocky 9 (systemd 252) and Rocky 10 (systemd 257) fail with dbus socket mount
+              # This is a workaround for upstream systemd namespace handling in RHEL derivatives
+              PrivateMounts=no
+              MountAPIVFS=no
               InaccessiblePaths=
           notify: Restart influxdb3-core
 
@@ -130,6 +132,33 @@
             name: influxdb3-core
             state: restarted
           failed_when: false
+
+        # Check if fix worked
+        - name: Wait for service to stabilize after fix
+          ansible.builtin.pause:
+            seconds: 3
+
+        - name: Check journal after applying fix
+          ansible.builtin.command:
+            cmd: journalctl -u influxdb3-core -n 15 --no-pager
+          become: true
+          register: influxdb3_journal_after_fix
+          changed_when: false
+
+        - name: Display post-fix journal output
+          ansible.builtin.debug:
+            var: influxdb3_journal_after_fix.stdout_lines
+            verbosity: 1
+
+        - name: Check if service is now running
+          ansible.builtin.service_facts:
+
+        - name: Fail if service still not running after fix
+          ansible.builtin.fail:
+            msg: |
+              InfluxDB3 service failed to start even after applying Rocky systemd fix.
+              Journal output: {{ influxdb3_journal_after_fix.stdout_lines }}
+          when: ansible_facts.services['influxdb3-core.service'].state != 'running'
 
     - name: Wait for InfluxDB v3 API to be available
       ansible.builtin.wait_for:

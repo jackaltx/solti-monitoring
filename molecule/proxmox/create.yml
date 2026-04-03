@@ -44,8 +44,8 @@
     distribution_map:
       "rocky9-template": "rocky9"
       "rocky10-template": "rocky10"
-      "debian12-template": "debian12"
-      "debian13-template": "debian13"
+      "debian-12-template": "debian12"
+      "debian-13-template": "debian13"
     template_distribution: "{{ distribution_map[hostvars['localhost']['proxmox_template']] }}"
 
   tasks:
