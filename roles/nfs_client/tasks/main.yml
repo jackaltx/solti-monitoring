@@ -1,5 +1,5 @@
 ---
-# tasks file for nfs-client
+# tasks file for nfs_client
 
 - name: NFS client block
   when: mount_nfs_share

@@ -70,7 +70,7 @@
 
             - name: Mount NFS data directory if required
               ansible.builtin.include_role:
-                name: nfs-client
+                name: nfs_client
 
         ##################
         # Configure
