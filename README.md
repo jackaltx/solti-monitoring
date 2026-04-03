@@ -1,15 +1,17 @@
 # Ansible Collection - jackaltx.solti_monitoring
 
-A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki. It adds in fail2ban for stand-alone detection/response. There is preliminary work on a WAZUH client for cluster monitoring.
+A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki.  This an Ansible project organized to be tested via molecule using containers and virtual machines.  This supports
+provided a tested, deployment-ready set of roles within a testing framwork
 
-This goal of this collection is to provided tested, deployment-ready roles with advanced testing frameworks and utility scripts for seamless operations.
+Developers Note:  These roles are intended to be used in a separate set of playbooks.  I have kept a few in here to show
+how thes might be used.  An inventory for basic configuration and a couple of playbooks.
 
-Developers Note:  I developed in this folder initially. I have left some of the development
-artifacts to help anyone interested.  A sanitized set of reference files: inventory.yml, group_vars, and playbooks.
+These roles are tested three places on RHEL and Debian distributions. This is being developed on a RHEL based linux,
+which makes used podman containers a good choice for local testing. Second, this tested on virtual machine on a
+Proxmox server. Lastly, using Github CI engine. Github CI is slow and time restricted, so that will fail sometimes.
 
-The github molecule testing is too slow to be useful. Proxmox is ok for thoroughness.
-Podman works ok.   This is an example of how to reuse your molecule code on multiple testing
-platforms.
+This project demonstrates how reuse your molecule code on multiple testing platforms.  The output demonstrates how to build a
+dynamic playbooks using bash scripts, howto integrate reusable testing inside of a role for,  how to build and navigate a testing dictionary, and many other ideas on how to use ansible to manage services in a lab.
 
 ## What is SOLTI?
 
@@ -60,15 +62,6 @@ Recently the project started to focus on "active response" technologies.
   - `manage-svc.sh`: Service lifecycle management
   - `svc-exec.sh`: Task-oriented service operations
   - Integration test runners and reporting tools
-
-### Active Response
-
-- ** Fail2Ban
-  - xxx
-  -
-
-- ** Wazuh Client
-  - xxx
 
 ## Getting Started
 
@@ -127,19 +120,17 @@ ansible-galaxy collection install jackaltx.solti_monitoring
 
 **Metrics Pipeline Verification** - Integration testing for the InfluxDB-Telegraf metrics collection stack. Verifies data ingestion, query functionality, bucket configuration, and health status.
 
-### Security & Configuration Management
+### Services
 
-#### [Fail2Ban Config](roles/fail2ban_config/README.md)
+#### [NFS Client Mount]((roles/nfs-client/README.md))
 
-**Fail2Ban with Git Versioning** - Manages Fail2Ban with integrated Git-based configuration tracking. Provides complete version control of security configurations with automatic commits, rollback capabilities, and compliance audit trails.
-
-#### [Wazuh Agent](roles/wazuh_agent/README.md)
-
-**Security Monitoring Agent** - Comprehensive Wazuh agent management with deployment profiles (isolated, internal, internet_facing, ispconfig), intelligent service detection, Git-based configuration versioning, and container environment support.
+**NFS Client Mount** - This is deprecated.  An artifact from influxdb v1 and v2.  V3 has S3 capability.
 
 ## Deployment Patterns
 
 ### Quick Deploy with Utility Scripts
+
+This builds a dynamic playbook to manage a service.
 
 ```bash
 $ ./manage-svc.sh 
@@ -317,18 +308,6 @@ verify_output/obsidian/
 4. Click wiki-style links to navigate between related documents
 5. Use Obsidian's graph view to visualize test relationships
 
-**Optional TrueNAS Sync:**
-
-Enable automatic sync to a network Obsidian vault:
-
-```bash
-export OBSIDIAN_SYNC_ENABLED=true
-export OBSIDIAN_SYNC_TARGET=user@server:/path/to/vault/
-./run-podman-tests.sh
-```
-
-This allows team access to test results through a shared Obsidian vault.
-
 ### Running Tests
 
 #### Podman Tests (Fast, Local)
@@ -356,19 +335,14 @@ MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 - Note: Cloning process does not modify template resource allocation
 
 ```bash
-# All distros (Rocky9, Debian12)
+# All distros (Rocky9, Rocky10, Debian12, Debian13)
 ./run-proxmox-tests.sh
 
 # Single distro testing
-PROXMOX_DISTRO=debian12 ./run-proxmox-tests.sh
 PROXMOX_DISTRO=rocky9 ./run-proxmox-tests.sh
-```
-
-#### Integration Tests
-
-```bash
-# Integration tests across components
-./run-integration-tests.sh
+PROXMOX_DISTRO=rocky10 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=debian12 ./run-proxmox-tests.sh
+PROXMOX_DISTRO=debian13 ./run-proxmox-tests.sh
 ```
 
 ### Verification System
