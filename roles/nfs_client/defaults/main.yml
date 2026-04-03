@@ -1,5 +1,5 @@
 ---
-# defaults file for nfs-client
+# defaults file for nfs_client
 
 mount_nfs_share: false
 
