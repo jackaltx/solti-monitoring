@@ -376,7 +376,7 @@ curl -s "http://monitor11.a0a0.org:3100/loki/api/v1/label/service_type/values" |
 ## Key Environment Variables
 
 **Testing Control:**
-- `LAB_DOMAIN` - Container registry domain (set in `~/.secrets/LabProvision`)
+- `LAB_TLD` - Container registry domain (set in `~/.secrets/LabProvision`)
 - `MOLECULE_CAPABILITIES` - Test scope: `logs`, `metrics`, or `logs,metrics` (default)
 - `MOLECULE_PLATFORM_NAME` - Single platform: `uut-ct0` (Debian), `uut-ct1` (Rocky), `uut-ct2` (Ubuntu)
 - `PROXMOX_DISTRO` - Single distro: `rocky` or `debian`

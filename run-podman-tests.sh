@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Source lab secrets if available (for LAB_DOMAIN, etc.)
+# Source lab secrets if available (for LAB_TLD, etc.)
 if [ -f ~/.secrets/LabProvision ]; then
     source ~/.secrets/LabProvision
 fi
