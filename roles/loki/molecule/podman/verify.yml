@@ -10,6 +10,15 @@
     on_github: "{{ lookup('env', 'IN_GITHUB_CI', default=false) }}"
 
   tasks:
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    #
+    - name: Load shared test configuration
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+      delegate_to: localhost
+      run_once: true
+
     #
     # .....................................................................
     #
@@ -22,7 +31,7 @@
       become: false
 
     # .....................................................................
-    - name: Debug information
+    - name: Verify Stage Debug information
       debug:
         msg:
           - "GithubCi: {{ on_github }}"

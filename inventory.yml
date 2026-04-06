@@ -1,17 +1,19 @@
 ---
 # .........................................
-# This will need changes for local testing
+# This is a sample inventory. I set the LAB_TLD to a valid domain and manage it.
+# For fancy, see solti-container on how to control remote LINOE dns.
 #
 all:
   vars:
-    domain: example.com
+    domain: "{{ lookup('env', 'LAB_TLD') | default('example.com', true) }}"
     secure_logging: "{{ cluster_secure_log | bool | default(true) }}"
     mylab_nolog: false
 
     # Customize to your configuration user
+    # This is a required variable, to allow different remote users (with a ssh key)
     ansible_user: da_configurator_account
 
-    # Customnize this
+    # Customize this (or omit) as desired
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
 
     # SMELL: this is a wrong level
@@ -29,7 +31,7 @@ all:
         monitor11:
           ansible_host: "monitor11.{{ domain }}"
 
-        # linode script testing
+        # linode vm for testing
         linode_test:
           ansible_host: "linode.example.com"
 

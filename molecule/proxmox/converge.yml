@@ -10,7 +10,16 @@
         verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
         cacheable: yes
 
-    - name: Debug information
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    #
+    - name: Load shared test configuration
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Converge Debug information
       debug:
         msg:
           - "Playbook dir: {{ playbook_dir }}"
@@ -20,11 +29,20 @@
           - "Testing capability: {{ testing_capabilities }}"
           - "Test timestamp: {{ verify_timestamp }}"
 
+    # This is a very useful pattern!!
+    # This parses a capabilities dictionary of tasks, roles and distributions
+    # The goal to build list of service roles to install, then a list of verifications on that role
+    # There are some roles that are integration test of the services.
+    # The verification system collects that data and published results into a set of runs to be used by obsidian
+    #
     - name: Load capability role definitions
       include_vars:
         file: "{{ project_root }}/molecule/vars/capabilities.yml"
+      delegate_to: localhost
+      run_once: true
 
-    - debug:
+    - name: Debug monitoring_capabilities
+      debug:
         var: monitoring_capabilities
         verbosity: 1
 

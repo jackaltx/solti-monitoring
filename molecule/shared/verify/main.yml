@@ -17,6 +17,15 @@
         verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
       when: verify_timestamp is not defined
 
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    #
+    - name: Load shared test configuration
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+      delegate_to: localhost
+      run_once: true
+
     - name: Ensure verify_output directory exists
       ansible.builtin.file:
         path: "{{ report_root }}"
@@ -74,6 +83,10 @@
     # ................................................................
     # note this has to be loaded in each phase playbook!
     # This sets monitoring_capabilities variable. This is a hard-coded for now
+    - name: Load shared test configuration
+      include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+
     - name: Load capability role definitions
       include_vars:
         file: "{{ project_root }}/molecule/vars/capabilities.yml"
@@ -121,7 +134,6 @@
     # .......................................................................
     - name: Run verification pipeline
       block:
-
         - name: Run pre-verify container diagnostics
           ansible.builtin.include_tasks:
             file: "{{ project_root }}/molecule/shared/diagnostics/main.yml"

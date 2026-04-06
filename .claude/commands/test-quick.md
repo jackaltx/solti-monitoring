@@ -1,15 +1,19 @@
 # /test-quick - Rapid Smoke Testing
 
 ## Purpose
+
 Ultra-fast smoke testing for rapid development. Only runs converge (install/configure) on Podman/Debian - skips verification phase. Perfect for quick "does it install?" checks during active development.
 
 ## Parameters
+
 None - uses sensible defaults for rapid iteration
 
 ## Process
 
 ### 1. Offer Checkpoint Commit
+
 Before running tests, ask if the user wants to create a checkpoint commit:
+
 ```
 Create checkpoint commit before testing? (recommended)
 - Yes: git add -A && git commit -m "checkpoint: [description]"
@@ -19,18 +23,23 @@ Create checkpoint commit before testing? (recommended)
 If yes, prompt for brief description of changes.
 
 ### 2. Check Container State
+
 Verify if Podman containers already exist:
+
 ```bash
 molecule list -s podman
 ```
 
 If containers don't exist or are not created:
+
 - Activate venv: `source solti-venv/bin/activate`
 - Run: `MOLECULE_PLATFORM_NAME=uut-ct0 molecule create -s podman`
 - Inform user containers are being created (one-time setup)
 
 ### 3. Display Test Configuration
+
 Show fixed configuration:
+
 ```
 Running quick smoke test:
 - Platform: Podman (Debian uut-ct0)
@@ -40,17 +49,21 @@ Running quick smoke test:
 ```
 
 ### 4. Activate Virtual Environment
+
 ```bash
 source solti-venv/bin/activate
 ```
 
 ### 5. Run Converge Only
+
 Apply current changes (install and configure):
+
 ```bash
 MOLECULE_PLATFORM_NAME=uut-ct0 molecule converge -s podman
 ```
 
 Show converge output summary. This tests:
+
 - Ansible syntax is valid
 - Roles install successfully
 - Configuration is applied
@@ -59,14 +72,17 @@ Show converge output summary. This tests:
 ### 6. Handle Results with Smart Cleanup
 
 **On Success:**
+
 - Display: "✓ Code installs and configures successfully"
 - Auto-cleanup: Run `MOLECULE_PLATFORM_NAME=uut-ct0 molecule destroy -s podman`
 - Clean exit, ready for next iteration
 
 **On Failure:**
+
 - Display error details from converge
 - **Keep container running for troubleshooting**
 - Show troubleshooting commands:
+
   ```bash
   # Shell into container for debugging
   podman exec -it uut-ct0 /bin/bash
@@ -80,6 +96,7 @@ Show converge output summary. This tests:
   # When done debugging, clean up manually:
   molecule destroy -s podman
   ```
+
 - Suggest fixes based on error
 - Offer to run again after changes
 - Remind about checkpoint commits for tracking attempts
@@ -100,12 +117,14 @@ Show converge output summary. This tests:
 ```
 
 ## Prerequisites
+
 - Python virtual environment (solti-venv) with molecule installed
-- LAB_DOMAIN set in `~/.secrets/LabProvision`
+- LAB_TLD set in `~/.secrets/LabProvision`
 - Podman installed and accessible
 - Testing container images available in registry
 
 ## Expected Behavior
+
 - First run: Creates containers (~2 min), then converge (~30-60 sec)
 - Subsequent runs: Only converge (~30-60 sec)
 - Skips all verification tests for maximum speed
@@ -113,9 +132,11 @@ Show converge output summary. This tests:
 - **Failure**: Keeps container running for debugging
 
 ## Cleanup
+
 **Automatic**: On success, container is destroyed automatically
 
 **Manual** (only needed after failures):
+
 ```bash
 molecule destroy -s podman
 ```
@@ -123,6 +144,7 @@ molecule destroy -s podman
 For full test cycle with verification, use `/test-podman` in full mode.
 
 ## Notes
+
 - Hardcoded to Debian (uut-ct0) for consistency and speed
 - **Skips verification phase entirely** - only tests installation/configuration
 - Skips idempotence check for faster iteration

@@ -1,0 +1,55 @@
+---
+# Shared group_vars for all molecule scenarios
+# This file contains test configuration common to podman, proxmox, and github scenarios
+
+# Core Ansible settings
+ansible_managed: "Ansible managed"
+project_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+report_root: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/verify_output"
+
+# Secure logging control (set to false for debugging credential issues)
+secure_logging: "{{ lookup('env', 'MOLECULE_SECURE_LOGGING', default='true') | bool }}"
+
+# Test configuration
+testing_capabilities: "{{ lookup('env', 'MOLECULE_CAPABILITIES', default='logs,metrics') | split(',') }}"
+
+# "metrics" capability
+influxdb_test: true
+influxdb_configure: true
+telegraf_outputs: ["localhost", "localhost_v3"]
+telegraf_testing: true
+telgraf2influxdb_configs:
+  {
+    "localhost":
+      {
+        "url": "http://127.0.0.1",
+        "token": "",
+        "bucket": "telegraf",
+        "org": "lavnet",
+        "namedrop": ["influxdb_oss"],
+        "bucket_tag": "",
+        "exclude_bucket_tag": "",
+        "ping_timeout": "0s",
+        "read_idle_timeout": "0s",
+        "insecure_skip_verify": false,
+        "port": 8086,
+      },
+    "localhost_v3":
+      {
+        "url": "http://127.0.0.1",
+        "token": "",
+        "bucket": "telegraf",
+        "org": "lavnet",
+        "namedrop": ["influxdb_oss"],
+        "bucket_tag": "",
+        "exclude_bucket_tag": "",
+        "ping_timeout": "0s",
+        "read_idle_timeout": "0s",
+        "insecure_skip_verify": false,
+        "port": 8181,
+      },
+  }
+
+# "logs" capability
+loki_local_storage: true
+alloy_loki_endpoint: "127.0.0.1"

@@ -5,6 +5,7 @@ Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Pr
 ## Repository Structure
 
 **Nested Git Repository:** This is a standalone git repository within the parent jackaltx/ coordination repo.
+
 - Parent: `/home/lavender/sandbox/ansible/jackaltx/` (multi-collection suite)
 - This repo: `/home/lavender/sandbox/ansible/jackaltx/solti-monitoring/` (independent git history)
 - Git operations here only affect solti-monitoring, not the parent coordination layer
@@ -13,6 +14,7 @@ Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Pr
 ## Quick Start Workflow
 
 ### 1. Environment Setup
+
 ```bash
 # Create and activate Python virtual environment
 ./prepare-solti-env.sh && source solti-venv/bin/activate
@@ -83,6 +85,7 @@ From the parent orchestrator directory (`/home/lavender/sandbox/ansible/jackaltx
 - CI/CD pipeline testing
 
 ### 3. Development Testing (Podman - Fast)
+
 ```bash
 # All platforms (Debian, Rocky, Ubuntu)
 ./run-podman-tests.sh
@@ -100,6 +103,7 @@ MOLECULE_CAPABILITIES=metrics ./run-podman-tests.sh   # InfluxDB/Telegraf only
 ### 3. Integration Testing (Proxmox - Full VMs)
 
 **VM Template Requirements:**
+
 - Minimum 8 CPU cores
 - Minimum 16GB RAM
 - Note: Cloning process does not modify template resource allocation
@@ -129,6 +133,7 @@ PROXMOX_DISTRO=debian13 ./run-proxmox-tests.sh
 - Template discovery uses **unified VMID range 9000-9999** for all distributions, filtered by template name pattern
 
 ### 4. Iterative Development Cycle
+
 ```bash
 source solti-venv/bin/activate
 
@@ -143,6 +148,7 @@ molecule destroy -s podman       # Clean up when done
 **Create checkpoint commits before every test run.** This creates an audit trail of your debugging process and allows easy rollback to any working state.
 
 ### Recommended: Keep Checkpoints, Squash Before PR
+
 ```bash
 # Development cycle - commit freely before each test
 git add -A && git commit -m "checkpoint: add telegraf output config"
@@ -160,6 +166,7 @@ git rebase -i HEAD~3
 ```
 
 **Why this approach:**
+
 - Complete audit trail of what failed and why
 - Easy rollback to any checkpoint: `git checkout HEAD~2`
 - No pressure to get it right before committing
@@ -167,6 +174,7 @@ git rebase -i HEAD~3
 - Natural for complex molecule integration debugging
 
 **Alternative (cleanup as you go):**
+
 ```bash
 git commit -m "checkpoint: change"
 ./run-podman-tests.sh
@@ -362,26 +370,31 @@ curl -s "http://monitor11.a0a0.org:3100/loki/api/v1/label/service_type/values" |
 ## Components
 
 **Server Roles:**
+
 - `influxdb` - Time-series database for metrics (S3/NFS support)
 - `loki` - Log aggregation with label-based indexing
 
 **Client Roles:**
+
 - `telegraf` - Metrics collection agent (multi-output support)
 - `alloy` - Log collector with systemd journal integration
 
 **Security Roles:**
+
 - `fail2ban_config` - Intrusion detection (Git-based config)
 - `wazuh_agent` - Security monitoring
 
 ## Key Environment Variables
 
 **Testing Control:**
-- `LAB_DOMAIN` - Container registry domain (set in `~/.secrets/LabProvision`)
+
+- `LAB_TLD` - Container registry domain (set in `~/.secrets/LabProvision`)
 - `MOLECULE_CAPABILITIES` - Test scope: `logs`, `metrics`, or `logs,metrics` (default)
 - `MOLECULE_PLATFORM_NAME` - Single platform: `uut-ct0` (Debian), `uut-ct1` (Rocky), `uut-ct2` (Ubuntu)
 - `PROXMOX_DISTRO` - Single distro: `rocky` or `debian`
 
 **Proxmox Requirements:**
+
 - `PROXMOX_URL`, `PROXMOX_USER`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`, `PROXMOX_NODE`
 
 ## Molecule Scenarios
@@ -393,6 +406,7 @@ curl -s "http://monitor11.a0a0.org:3100/loki/api/v1/label/service_type/values" |
 ## State Management Pattern
 
 All roles support consistent state control:
+
 - `<service>_state: present|absent` - Install/remove service
 - `<service>_delete_config: true|false` - Remove config on removal
 - `<service>_delete_data: true|false` - Remove data on removal
@@ -418,6 +432,7 @@ This verification tests the collection itself during development.
 **Runs on:** Live production systems
 
 Example orchestrator playbook:
+
 ```yaml
 - name: Verify alloy deployment
   hosts: monitoring_servers
@@ -428,6 +443,7 @@ Example orchestrator playbook:
 ```
 
 **Roles with operational verification:**
+
 - `alloy`: verify.yml - Service status, Loki connectivity
 - `loki`: verify.yml, verify1.yml - API health, storage checks
 - `influxdb`: verify.yml - Database connectivity, bucket checks
@@ -473,14 +489,17 @@ verify_output/obsidian/
 ### Navigation Patterns
 
 **From README.md:**
+
 - [[index|Chronological Index]] - All runs by time
 - [[Debian-12-Index|Debian 12 Tests]] - Debian 12 history
 - [[Logs-Capability|Logs Verification]] - Logs test history
 
 **From index.md:**
+
 - Links to individual test runs: [[runs/2026-03-29-debian12-190008/run-2026-03-29T190008Z|Debian 12]]
 
 **From test run:**
+
 - Links back to indices and to capability details
 
 ### How It Works (Event Sourcing)
@@ -488,6 +507,7 @@ verify_output/obsidian/
 **Step 1: Test Execution Creates Immutable Run Records**
 
 During molecule verify phase, each test creates:
+
 - `runs/{timestamp}/run-{timestamp}.md` - Test run metadata in YAML frontmatter
 - `runs/{timestamp}/{capability}-capability.md` - Capability verification details
 - `runs/{timestamp}/preverify-diagnostics.md` - Pre-test diagnostics
@@ -496,6 +516,7 @@ During molecule verify phase, each test creates:
 **Step 2: Post-Test Index Regeneration**
 
 After all tests complete, `bin/regenerate-obsidian-indices.sh` scans run records and generates:
+
 - Chronological index (sorted by timestamp, newest first)
 - Distribution-specific indices (grouped by distro)
 - Capability-specific indices (grouped by capability, then by distro)
@@ -548,12 +569,14 @@ export OBSIDIAN_REMOTE_PATH=/mnt/zpool/Docker/Stacks/obsidian/SoltiMonitorTestin
 ```
 
 **How sync works:**
+
 1. Tests run and write to local `verify_output/obsidian/`
 2. Indices regenerated via `bin/regenerate-obsidian-indices.sh`
 3. Files synced to NFS mount via rsync (no sudo needed)
 4. Ownership fixed remotely via SSH: `ssh lavadmin@truenas "sudo chown -R 568:568 ..."`
 
 **Benefits:**
+
 - No local sudo required
 - NFS-safe atomic writes (temp file + mv)
 - Obsidian server sees complete indices instantly
@@ -575,11 +598,13 @@ If indices become corrupted or you prune old test runs:
 ### Why Event Sourcing Eliminates Race Conditions
 
 **Old Approach (Had Race Conditions):**
+
 - 4 parallel tests all write to shared `index.md` during verify phase
 - Used `flock` for locking, but still saw corruption
 - Indices could get out of sync with reality
 
 **New Approach (Event Sourced):**
+
 - Each test writes only its own `runs/{timestamp}/` directory (no conflicts)
 - Single writer regenerates indices **after** all tests complete (no races)
 - Indices are views derived from immutable events
@@ -606,16 +631,19 @@ LIMIT 10
 ### Future Enhancements
 
 **Pre-Event Metadata (Planned):**
+
 - Capture CLI invocation (command line, environment vars)
 - Record test parameters (MOLECULE_CAPABILITIES, MOLECULE_PLATFORM_NAME)
 - Store start timestamp in YAML frontmatter
 
 **Post-Event Metrics (Planned):**
+
 - Test duration (total, converge, verify phases)
 - Resource usage (peak memory, CPU)
 - Exit codes and error counts
 
 **Analytics (Future):**
+
 - Success rate trends by distribution
 - Performance regression detection
 - Duration analysis and outlier identification

@@ -1,6 +1,6 @@
 ---
 # Domain configuration
-# Can be overridden by setting LAB_DOMAIN environment variable
+# Can be overridden by setting LAB_TLD environment variable
 # Default: example.com for generic/portable repository usage
 
-domain: "{{ lookup('env', 'LAB_DOMAIN') | default('example.com', true) }}"
+domain: "{{ lookup('env', 'LAB_TLD') | default('example.com', true) }}"
