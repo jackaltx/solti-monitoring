@@ -3,15 +3,20 @@
 A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki.  This an Ansible project organized to be tested via molecule using containers and virtual machines.  This supports
 provided a tested, deployment-ready set of roles within a testing framwork
 
-Developers Note:  These roles are intended to be used in a separate set of playbooks.  I have kept a few in here to show
-how thes might be used.  An inventory for basic configuration and a couple of playbooks.
+Developers Note:  These roles are intended to be used in a separate set of playbooks to create a common monitoring fabric. There are sample playbooks.  There is a
+harness in place to allow basic integration testing.
 
+One of my goals was to explore molecule testing on a variety of hosts.
 These roles are tested three places on RHEL and Debian distributions. This is being developed on a RHEL based linux,
-which makes used podman containers a good choice for local testing. Second, this tested on virtual machine on a
-Proxmox server. Lastly, using Github CI engine. Github CI is slow and time restricted, so that will fail sometimes.
+which makes using podman containers a viable choice for local testing. Second, this is tested on Proxmox hosted virtual machine.
+Lastly, using Github CI engine. Free Github CI is slow and time restricted, so that will fail sometimes.
 
-This project demonstrates how reuse your molecule code on multiple testing platforms.  The output demonstrates how to build a
-dynamic playbooks using bash scripts, howto integrate reusable testing inside of a role for,  how to build and navigate a testing dictionary, and many other ideas on how to use ansible to manage services in a lab.
+This project demonstrates how to:
+
+- reuse molecule framework for multiple distribution on containers and VMs
+- build a dynamic ansible playbooks using bash scripts
+- integrate reusable testing inside of a role  during development
+- build and navigate a testing dictionary which can be used inside of a mind-map tool
 
 ## What is SOLTI?
 
