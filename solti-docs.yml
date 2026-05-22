@@ -12,6 +12,10 @@ sources:
       - "State Management Pattern"
       - "Verification Systems"
       - "Supported Platforms"
+  - file: docs/METRICS_COLLECTION_STRATEGY.md
+    title: "Metrics Collection Strategy"
+  - file: docs/matrix-events.md
+    title: "Matrix Integration"
   - file: docs/HISTORY.md
     title: "Development History"
   - file: galaxy.yml
