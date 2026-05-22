@@ -4,6 +4,12 @@ Ansible collection for monitoring infrastructure (jackaltx.solti_monitoring). Pr
 
 ## Repository Structure
 
+> **Surfacing to unified docs:** Update `solti-docs.yml` at the collection root
+> to declare which files and CLAUDE.md sections should appear on solti.jackaltx.com.
+> Local `docs/` detail stays local — only declare what matters to the suite-wide audience.
+> See [solti-docs/HARVEST.md](https://github.com/jackaltx/solti-docs/blob/main/HARVEST.md).
+
+
 **Nested Git Repository:** This is a standalone git repository within the parent jackaltx/ coordination repo.
 
 - Parent: `/home/lavender/sandbox/ansible/jackaltx/` (multi-collection suite)

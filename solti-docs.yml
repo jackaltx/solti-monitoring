@@ -1,0 +1,16 @@
+title: "Monitoring Stack"
+section: "Monitoring"
+nav_order: 1
+description: "Metrics collection and log aggregation — Telegraf, InfluxDB3, Loki, Alloy, Grafana"
+
+sources:
+  - file: CLAUDE.md
+    sections:
+      - "Components"
+      - "Quick Start Workflow"
+      - "Test-Then-Deploy Workflow"
+      - "State Management Pattern"
+      - "Verification Systems"
+      - "Supported Platforms"
+  - file: galaxy.yml
+    type: metadata
