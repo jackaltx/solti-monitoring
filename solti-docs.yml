@@ -12,5 +12,7 @@ sources:
       - "State Management Pattern"
       - "Verification Systems"
       - "Supported Platforms"
+  - file: docs/HISTORY.md
+    title: "Development History"
   - file: galaxy.yml
     type: metadata
