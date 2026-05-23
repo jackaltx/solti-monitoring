@@ -53,7 +53,7 @@ Phase 2 (Integration): telegraf + influxdb3 → full stack test
 
 **For developing individual roles, use the orchestrator scripts directly instead of molecule.**
 
-From the parent orchestrator directory (`/home/lavender/sandbox/ansible/jackaltx/mylab/`):
+From the parent orchestrator directory (`~/mylab/`):
 
 ```bash
 # Deploy a service role
@@ -348,7 +348,7 @@ Matrix Synapse module grouping regexes not matching correctly - all logs classif
 ### Deployment Commands
 
 ```bash
-cd /home/lavender/sandbox/ansible/jackaltx/mylab
+cd ~/mylab
 
 # Test configuration
 ansible-playbook --become-password-file ~/.secrets/lavender.pass \
