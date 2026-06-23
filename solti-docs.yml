@@ -1,0 +1,30 @@
+title: "Monitoring Stack"
+section: "Monitoring"
+nav_order: 1
+description: "Metrics collection and log aggregation — Telegraf, InfluxDB3, Loki, Alloy, Grafana"
+
+sources:
+  - file: CLAUDE.md
+    sections:
+      - "Components"
+      - "Quick Start Workflow"
+      - "Test-Then-Deploy Workflow"
+      - "State Management Pattern"
+      - "Verification Systems"
+      - "Supported Platforms"
+  - file: docs/METRICS_COLLECTION_STRATEGY.md
+    title: "Metrics Collection Strategy"
+  - file: docs/matrix-events.md
+    title: "Matrix Integration"
+  - file: docs/HISTORY.md
+    title: "Development History"
+  - file: galaxy.yml
+    type: metadata
+
+# Seed concepts — documented when git history shows enough weight
+concepts:
+  - "obsidian vault test results"
+  - "proxmox molecule testing"
+  - "alloy journald classifiers"
+  - "fail2ban alloy integration"
+  - "event sourced reporting"

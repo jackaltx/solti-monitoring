@@ -13,7 +13,17 @@
         verify_timestamp: "{{ ansible_facts['date_time']['iso8601'] }}"
         cacheable: yes
 
-    - name: Debug information
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    - name: Load shared test configuration
+      include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+
+    - name: Load capability role definitions
+      include_vars:
+        file: "{{ project_root }}/molecule/vars/capabilities.yml"
+
+    - name: Converge Debug information
       debug:
         msg:
           - "GithubCi: {{ on_github }}"
@@ -26,12 +36,6 @@
           - "Distribution version: {{ ansible_facts['distribution_version'] }}"
           - "Testing capability: {{ testing_capabilities }}"
           - "Test timestamp: {{ verify_timestamp }}"
-
-    # ................................................................
-    # note this has to be loaded in each phase playbook!
-    - name: Load capability role definitions
-      include_vars:
-        file: "{{ project_root }}/molecule/vars/capabilities.yml"
 
     # ................................................................
     - name: Validate testing capabilities

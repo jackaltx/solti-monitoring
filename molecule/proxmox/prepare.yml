@@ -5,7 +5,17 @@
 
 - name: Prepare VM
   hosts: localhost
+
   tasks:
+    # ................................................................
+    # note this has to be loaded in each phase playbook!
+    #
+    - name: Load shared test configuration
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+      delegate_to: localhost
+      run_once: true
+
     - name: Start the VM
       community.general.proxmox_kvm:
         api_host: "{{ lookup('env', 'PROXMOX_URL') }}"
@@ -34,9 +44,11 @@
 #
 #
 # ========================================================================
-
+# The pkg installs could have been done when I created the VMS,
+#   but I wanted an way to dynamically add packages
+#
 - name: Install prerequisites
-  hosts: all # all hosts?  should be the one that just started. why does this work?
+  hosts: all # This is all the VMs that were created (we are currently serial)
   become: true
   tasks:
     - name: Wait for cloud-init to finish

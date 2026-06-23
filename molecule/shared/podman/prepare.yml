@@ -9,6 +9,12 @@
 
   tasks:
     #
+    - name: Load shared test configuration
+      ansible.builtin.include_vars:
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/shared/vars/test-config.yml"
+      delegate_to: localhost
+      run_once: true
+    #
     # First confirm localhost information and directories
     # ..................................................................................
     - name: Connection information from localhost

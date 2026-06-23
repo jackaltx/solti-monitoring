@@ -1,16 +1,20 @@
 # /test-proxmox - Full VM Integration Testing
 
 ## Purpose
+
 Run integration tests using Proxmox VMs for full integration testing. Tests the solti-monitoring collection roles in actual virtual machines on Proxmox infrastructure.
 
 ## Parameters
+
 The command accepts up to 2 parameters:
+
 1. **Distro** (optional): `all` (default), `debian`, `rocky`
 2. **Capabilities** (optional): `all` (default), `logs`, `metrics`
 
 ## Process
 
 ### 1. Parse Parameters
+
 - Extract distro and capabilities from user input
 - Set defaults: distro=all, capabilities=all
 - Map distro names:
@@ -23,7 +27,9 @@ The command accepts up to 2 parameters:
   - `all` → `MOLECULE_CAPABILITIES=logs,metrics`
 
 ### 2. Validate Proxmox Environment
+
 Check for required Proxmox environment variables:
+
 - `PROXMOX_URL` - Proxmox API endpoint
 - `PROXMOX_USER` - API user
 - `PROXMOX_TOKEN_ID` - API token ID
@@ -31,12 +37,15 @@ Check for required Proxmox environment variables:
 - `PROXMOX_NODE` - Target Proxmox node
 
 If any are missing:
+
 - Show clear error message listing missing variables
 - Suggest sourcing: `source ~/.secrets/proxmox-exports`
 - Exit without running tests
 
 ### 3. Display Test Configuration
+
 Show the user what will be tested:
+
 ```
 Running Proxmox integration tests:
 - Distro: [debian/rocky/all]
@@ -46,7 +55,9 @@ Running Proxmox integration tests:
 ```
 
 ### 4. Execute Tests
+
 Run: `./run-proxmox-tests.sh` with environment variables set
+
 - Script automatically activates venv
 - Creates VM from template
 - Runs `molecule test -s proxmox`
@@ -54,6 +65,7 @@ Run: `./run-proxmox-tests.sh` with environment variables set
 - For `all` distros: runs both debian and rocky sequentially
 
 ### 5. Report Results
+
 - Show test output summary for each distro
 - Report log file locations: `verify_output/integration_{distro}_{timestamp}.log`
 - On failure: suggest examining the log file and checking Proxmox console
@@ -76,9 +88,10 @@ Run: `./run-proxmox-tests.sh` with environment variables set
 ```
 
 ## Prerequisites
+
 - Python virtual environment (solti-venv) with molecule installed
 - Proxmox environment variables configured (see step 2)
-- LAB_DOMAIN set in `~/.secrets/LabProvision`
+- LAB_TLD set in `~/.secrets/LabProvision`
 - Proxmox templates available:
   - `debian-12-template`
   - `rocky9-template`
@@ -86,12 +99,14 @@ Run: `./run-proxmox-tests.sh` with environment variables set
 - Sufficient resources on target Proxmox node
 
 ## Expected Behavior
+
 - Full test cycle per distro: 10-20 minutes
 - Creates VMs, runs tests, destroys VMs
 - Creates detailed logs per distro in `verify_output/` directory
 - Returns success/failure status
 
 ## Notes
+
 - VMs are created with name `uut-vm` (destroyed between distros)
 - Default VM IP: `192.168.101.90` (configurable via `MOLECULE_IP`)
 - The script `run-proxmox-tests.sh` handles venv activation and template selection

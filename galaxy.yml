@@ -20,7 +20,7 @@ dependencies:
   "community.general": ">=10.0.0"
 
 repository: http://github.com/jackaltx/solti_monitoring_collection
-documentation: http://docs.jackaltx.com
+documentation: http://solti.jackaltx.com
 homepage: http://github.com/jackaltx/solti_monitoring_collection
 issues: http://github.com/jackaltx/solti_monitoring_collection/issue/tracker
 

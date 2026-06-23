@@ -8,6 +8,7 @@
 
   vars:
     proxmox_host: "{{ lookup('env', 'PROXMOX_NODE') | default('magic', true) }}"
+    proxmox_vmid: 9100  # Default VMID for molecule tests
 
   tasks:
     - name: Add proxmox host to in-memory inventory

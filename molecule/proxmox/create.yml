@@ -11,8 +11,20 @@
   vars:
     # Proxmox host configuration
     proxmox_host: "{{ lookup('env', 'PROXMOX_NODE') | default('magic', true) }}"
+    # Molecule test configuration (matches molecule.yml group_vars)
+    proxmox_vmid: 9100
+    proxmox_template: "{{ lookup('env', 'PROXMOX_TEMPLATE') }}"
+    proxmox_vm_name: "uut-vm"
+    molecule_ip: "192.168.101.90"
 
   tasks:
+    - name: Store config as facts for later plays
+      ansible.builtin.set_fact:
+        proxmox_template: "{{ proxmox_template }}"
+        proxmox_vmid: "{{ proxmox_vmid }}"
+        proxmox_vm_name: "{{ proxmox_vm_name }}"
+        molecule_ip: "{{ molecule_ip }}"
+
     - name: Debug molecule configuration
       ansible.builtin.debug:
         msg:
