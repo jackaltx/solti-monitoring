@@ -20,3 +20,11 @@ sources:
     title: "Development History"
   - file: galaxy.yml
     type: metadata
+
+# Seed concepts — documented when git history shows enough weight
+concepts:
+  - "obsidian vault test results"
+  - "proxmox molecule testing"
+  - "alloy journald classifiers"
+  - "fail2ban alloy integration"
+  - "event sourced reporting"
