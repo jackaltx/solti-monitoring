@@ -4,4 +4,4 @@ collections:
   - name: community.proxmox
   - name: containers.podman
   - name: ansible.posix
-  - name: jackal.solti_platforms # for molecule testing only ???  CLAUDE confirm this
+  - name: jackaltx.solti_platforms # for molecule testing only
