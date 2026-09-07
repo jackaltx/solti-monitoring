@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # manage-svc.sh - Manage services using dynamically generated Ansible playbooks
 #
