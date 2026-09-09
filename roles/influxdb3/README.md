@@ -201,6 +201,32 @@ Admin tokens are automatically generated on first installation and stored in:
 
 **Important:** Store this token securely. It provides full administrative access.
 
+## Grafana Integration
+
+InfluxDB3 has no user/password accounts — only tokens. Two Grafana datasource types behave differently:
+
+### SQL datasource (Flight SQL, recommended)
+
+Handles token auth natively. Set Database to the InfluxDB3 database name (e.g. `telegraf`) and paste the token into the datasource's token field.
+
+**Template variable queries must be time-bounded.** An unbounded `SELECT DISTINCT host FROM system` will scan every Parquet file ever written and hit InfluxDB3 Core's file-scan limit (`Query would scan N Parquet files, exceeding the file limit`), which Grafana shows as an empty variable dropdown rather than an error. Always include `$__timeFilter(time)`:
+
+```sql
+SELECT DISTINCT host FROM system WHERE $__timeFilter(time) ORDER BY host
+```
+
+### InfluxQL datasource (legacy v1-compat)
+
+- URL must point at the InfluxDB3 HTTP port (`8181`), not the old v1/v2 default (`8086`).
+- The datasource's **Database Access** User/Password fields don't work — InfluxDB3's v1-compat API doesn't accept Basic Auth or query-string credentials, only a bearer-style token header. Leave User/Password blank and instead add a **Custom HTTP Header**:
+  - Header: `Authorization`
+  - Value: `Token <your-token>`
+- `SHOW TAG VALUES` may not honor `WHERE time` clauses against InfluxDB3 (no separate tag index), so it can also hit the file-scan limit. Prefer a bounded `SELECT ... GROUP BY` for template variables:
+
+```sql
+SELECT last("uptime") FROM "system" WHERE time > now() - 7d GROUP BY "host"
+```
+
 ## Dependencies
 
 None
