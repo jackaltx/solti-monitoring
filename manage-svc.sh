@@ -10,7 +10,7 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INVENTORY="${SCRIPT_DIR}/inventory.yml"
+INVENTORY="${SOLTI_INVENTORY:-${SCRIPT_DIR}/inventory/hosts}"
 TEMP_DIR="${SCRIPT_DIR}/tmp"
 HOST=""
 
