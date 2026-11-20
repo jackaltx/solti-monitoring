@@ -75,6 +75,11 @@
         # clone_disk_size: "20G"  # Disabled - use template default size
         clone_full: 0 # Linked clone for fast molecule testing
 
+        # Cloud-init auth — inject at clone time so molecule doesn't depend on
+        # whatever key was baked into the template at build time.
+        clone_ci_user: "{{ lookup('env', 'USER') }}"
+        clone_sshkeys: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+
         # SMELL: Today this is in this space, it will dhcp so I am not sure we need to preset a gateway.
         # SMELL:  I will move this space later, so TODO  test networking
 
