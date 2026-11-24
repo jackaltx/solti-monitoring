@@ -1,0 +1,116 @@
+---
+name: Analyze CI Failure
+
+on:
+  workflow_run:
+    workflows: ["CI", "Lint and Syntax Check"]
+    types: [completed]
+
+jobs:
+  analyze:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+
+    steps:
+      - name: Fetch failure logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run view ${{ github.event.workflow_run.id }} \
+            --repo ${{ github.repository }} \
+            --log-failed 2>&1 | head -c 8000 > failure-logs.txt
+          echo "Log size: $(wc -c < failure-logs.txt) bytes"
+
+      - name: Analyze with Claude
+        if: ${{ github.event.workflow_run.event != 'pull_request' || github.event.workflow_run.head_repository.full_name == github.repository }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, sys, urllib.request, urllib.error
+
+          logs = open("failure-logs.txt").read().strip()
+          if not logs:
+              open("analysis.txt", "w").write("No failure log output captured.")
+              sys.exit(0)
+
+          payload = {
+              "model": "claude-haiku-4-5-20251001",
+              "max_tokens": 400,
+              "messages": [{
+                  "role": "user",
+                  "content": (
+                      "These are CI failure logs from an Ansible collection. "
+                      "Identify the root cause in 2-3 sentences and suggest a specific fix. "
+                      "Be concise — this will be posted as a GitHub comment.\n\n"
+                      f"```\n{logs}\n```"
+                  )
+              }]
+          }
+
+          req = urllib.request.Request(
+              "https://api.anthropic.com/v1/messages",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                  "anthropic-version": "2023-06-01",
+                  "content-type": "application/json",
+              }
+          )
+
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  result = json.load(resp)
+              analysis = result["content"][0]["text"]
+          except urllib.error.HTTPError as e:
+              analysis = f"Claude API error {e.code}: {e.read().decode()}"
+
+          open("analysis.txt", "w").write(analysis)
+          print(analysis)
+          PYEOF
+
+      - name: Post analysis comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_JSON: ${{ toJSON(github.event.workflow_run.pull_requests) }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 << 'PYEOF'
+          import os, subprocess, sys
+
+          analysis = open("analysis.txt").read().strip()
+          workflow_name = os.environ["WORKFLOW_NAME"]
+          workflow_url = os.environ["WORKFLOW_URL"]
+          sha = os.environ["SHA"]
+          repo = os.environ["REPO"]
+          import json
+          prs = json.loads(os.environ.get("PR_JSON", "[]") or "[]")
+          pr_number = str(prs[0]["number"]) if prs else ""
+
+          body = (
+              f"**CI Analysis** — `{workflow_name}` failed\n\n"
+              f"{analysis}\n\n"
+              f"[View workflow run]({workflow_url})"
+          )
+
+          if pr_number and pr_number not in ("", "null"):
+              subprocess.run(
+                  ["gh", "pr", "comment", pr_number, "--repo", repo, "--body", body],
+                  check=True
+              )
+              print(f"Posted to PR #{pr_number}")
+          else:
+              subprocess.run(
+                  ["gh", "api", f"/repos/{repo}/commits/{sha}/comments",
+                   "-f", f"body={body}"],
+                  check=True
+              )
+              print(f"Posted to commit {sha[:8]}")
+          PYEOF
