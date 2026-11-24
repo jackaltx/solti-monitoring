@@ -1,6 +1,6 @@
 # Private inventory — nested private git repo (jackaltx/solti-monitoring-inventory on Gitea)
 # Public template: inventory/_example.yml
-inventory/hosts/
+inventory/hosts
 
 # Python bytecode
 __pycache__/
