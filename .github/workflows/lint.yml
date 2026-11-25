@@ -113,33 +113,14 @@ jobs:
 
   notify-matrix:
     name: Notify Matrix
-    runs-on: ubuntu-latest
     needs: [yaml-lint, markdown-lint, ansible-lint, syntax-check]
     if: always()
-    steps:
-      - name: Send CI result to Matrix
-        env:
-          MATRIX_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
-          MATRIX_TOKEN: ${{ secrets.MATRIX_CI_TOKEN }}
-          MATRIX_ROOM: ${{ secrets.MATRIX_CI_ROOM_ID }}
-          COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title }}
-        run: |
-          STATUS="${{ needs.yaml-lint.result }}/${{ needs.markdown-lint.result }}/${{ needs.ansible-lint.result }}/${{ needs.syntax-check.result }}"
-          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
-            ICON="❌"
-          elif [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
-            ICON="⚠️"
-          else
-            ICON="✅"
-          fi
-          COMMIT_FIRST=$(echo "${COMMIT_MSG}" | head -1)
-          ROOM_ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${MATRIX_ROOM}'))")
-          TXN_ID="ci-$(date +%s%N)"
-          BODY="${ICON} ${{ github.repository }} lint — ${STATUS} (${{ github.ref_name }} @ ${GITHUB_SHA::7})"
-          if [[ -n "${COMMIT_FIRST}" ]]; then
-            BODY="${BODY}\n${COMMIT_FIRST}"
-          fi
-          curl -sf --max-time 15 -X PUT "${MATRIX_URL}/_matrix/client/v3/rooms/${ROOM_ENCODED}/send/m.room.message/${TXN_ID}" \
-            -H "Authorization: Bearer ${MATRIX_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"msgtype\":\"m.text\",\"body\":\"${BODY}\"}" || true
+    uses: jackaltx/solti-matrix-mgr/.github/workflows/notify-matrix.yml@main
+    with:
+      status: "${{ needs.yaml-lint.result }}/${{ needs.markdown-lint.result }}/${{ needs.ansible-lint.result }}/${{ needs.syntax-check.result }}"
+      failed: ${{ contains(needs.*.result, 'failure') }}
+      cancelled: ${{ contains(needs.*.result, 'cancelled') }}
+    secrets:
+      MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+      MATRIX_CI_TOKEN: ${{ secrets.MATRIX_CI_TOKEN }}
+      MATRIX_CI_ROOM_ID: ${{ secrets.MATRIX_CI_ROOM_ID }}
