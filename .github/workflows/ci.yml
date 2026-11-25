@@ -1,19 +1,15 @@
 ---
 name: CI
 
-#  Developer notes:
-#   Phasing out github wiki, move to mattermost?
-#   Builds in main branch are flakey.
-
 on:
   push:
-    branches: [main, master] # Only trigger when code is MERGED into main
+    branches: [main, master]
     paths:
       - "roles/**"
       - "molecule/**"
       - ".github/**"
   pull_request:
-    branches: [main, master] # Trigger when a PR is opened/updated targeting main
+    branches: [main, master]
     paths:
       - "roles/**"
       - "molecule/**"
@@ -38,12 +34,11 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      packages: read # Required to pull from GHCR
+      packages: read
     strategy:
       matrix:
-        platform: ["uut-ct0", "uut-ct1", "uut-ct2"] # uut-ct3, uut-ct4 disabled - see testing-containers issues #2, #3, #4
+        platform: ["uut-ct0", "uut-ct1", "uut-ct2"]
       fail-fast: false
-      # max-parallel: 1
     env:
       MOLECULE_PLATFORM_NAME: ${{ matrix.platform }}
       ANSIBLE_LOCALHOST_WARNING: false
@@ -61,14 +56,6 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      # - name: Check out wiki repository
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ${{ github.repository }}.wiki
-      #     path: main/.wiki
-      #     token: ${{ secrets.WIKI_TOKEN }}
-
-      # ------------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -85,17 +72,11 @@ jobs:
             yamllint==1.35.1 \
             jmespath
 
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
       - name: Docker Info
         run: |
           docker version
           docker info
 
-      # ------------------------------------------------------
-      # ------------------------------------------------------
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -107,56 +88,28 @@ jobs:
       - name: Pull container images
         run: |
           case ${{ matrix.platform }} in
-            uut-ct0)
-              docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:12
-              ;;
-            uut-ct1)
-              docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:9
-              ;;
-            uut-ct2)
-              docker pull ghcr.io/jackaltx/testing-containers/ubuntu-ssh:24
-              ;;
-            uut-ct3)
-              docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:13
-              ;;
-            uut-ct4)
-              docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:10
-              ;;
+            uut-ct0) docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:12 ;;
+            uut-ct1) docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:9 ;;
+            uut-ct2) docker pull ghcr.io/jackaltx/testing-containers/ubuntu-ssh:24 ;;
+            uut-ct3) docker pull ghcr.io/jackaltx/testing-containers/debian-ssh:13 ;;
+            uut-ct4) docker pull ghcr.io/jackaltx/testing-containers/rocky-ssh:10 ;;
           esac
 
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      - name: Create ansible verify_output and log directories
+      - name: Create verify_output and log directories
         run: |
-          mkdir -p log
-          mkdir -p verify_output
+          mkdir -p log verify_output
           chmod -R 755 verify_output
-
-      # - name: Install Ansible collections
-      #   run: ansible-galaxy collection install -r requirements.yml community.general
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
       - name: Run Molecule tests
         run: molecule test -s github
         continue-on-error: ${{ env.DEBUG_MODE != 'none' }}
         env:
           IN_GITHUB_CI: true
           LOG_DURATION: "5m"
-          GITHUB_WORKSPACE: ${{ github.workspace }}/main
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
 
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,114 +118,3 @@ jobs:
           path: verify_output
           retention-days: 5
           if-no-files-found: warn
-
-      # ------------------------------------------------------
-      # these need to be run after ????
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # ------------------------------------------------------
-      # - name: Aggregate and publish results
-      #   if: always()
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GIST_TOKEN }}
-      #   run: |
-      #     echo "Processing test results..."
-      #     for distro in verify_output/*/; do
-      #       if [ -f "${distro}/gist-content.md" ]; then
-      #         distro_name=$(basename $distro)
-      #         echo "Processing ${distro_name} results..."
-      #         {
-      #           echo "## Build Context"
-      #           echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      #           echo "- Branch: ${{ github.ref_name }}"
-      #           echo "- Commit: ${{ github.sha }}"
-      #           echo "- Triggered by: ${{ github.event_name }}"
-      #         } >> "${distro}/gist-content.md"
-
-      #         if ! gh gist create "${distro}/gist-content.md" \
-      #           --public \
-      #           --desc "Test Results for ${distro_name} (${GITHUB_SHA:0:7})"; then
-      #           echo "Failed to create gist for ${distro_name}"
-      #           exit 1
-      #         fi
-      #       else
-      #         echo "Warning: No gist content found for ${distro_name}"
-      #       fi
-      #     done
-
-      # # ------------------------------------------------------
-      # # ------------------------------------------------------
-      # - name: Update Wiki with Results
-      #   if: always()
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.WIKI_TOKEN }}
-      #   run: |
-      #     # Set Git configuration
-      #     cd main/.wiki
-      #     git config user.name "github-actions[bot]"
-      #     git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      #     # Get branch name and create clean version for path
-      #     BRANCH_NAME="${{ github.ref_name }}"
-      #     BRANCH_PATH="${BRANCH_NAME//\//-}"
-
-      #     # Create results directory structure
-      #     mkdir -p "Results/${BRANCH_PATH}"
-
-      #     # Copy results for each OS
-      #     for distro in ../../verify_output/*/; do
-      #       distro_name=$(basename $distro)
-
-      #       # Create OS directory
-      #       results_dir="Results/${BRANCH_PATH}/${distro_name}"
-      #       mkdir -p "$results_dir"
-
-      #       # Copy wiki content if it exists
-      #       if [ -f "${distro}/wiki-content.md" ]; then
-      #         cp "${distro}/wiki-content.md" "${results_dir}/$(date +%Y%m%d-%H%M%S)-results.md"
-      #       fi
-      #     done
-
-      #     # Clean up old results (keep only last 3) for non-main branches
-      #     if [ "$BRANCH_NAME" != "main" ] && [ "$BRANCH_NAME" != "master" ]; then
-      #       for distro in Results/${BRANCH_PATH}/*/; do
-      #         if [ -d "$distro" ]; then
-      #           cd "$distro"
-      #           # Keep only the 3 most recent files
-      #           ls -t | tail -n +4 | xargs -r rm
-      #           cd - > /dev/null
-      #         fi
-      #       done
-      #     fi
-
-      #     # Commit and push changes
-      #     git add Results/
-      #     git commit -m "Update test results for ${BRANCH_NAME} [skip ci]"
-      #     git push origin master
-
-      # # ------------------------------------------------------
-      # # ------------------------------------------------------
-      # - name: Create job summary
-      #   if: always()
-      #   run: |
-      #     {
-      #       echo "# Test Run Summary"
-      #       echo "- Status: success"
-      #       echo "- Duration: "
-      #       echo "## Distribution Results"
-      #       for d in verify_output/*/; do
-      #         distro_name=$(basename $d)
-      #         echo -n "- ${distro_name}: "
-      #         if [ -f "${d}/gist-content.md" ] && [ -f "${d}/wiki-content.md" ]; then
-      #           echo "✅"
-      #           echo "  - Gist Content: ✓"
-      #           echo "  - Wiki Content: ✓"
-      #         else
-      #           echo "❌"
-      #           [ -f "${d}/gist-content.md" ] && echo "  - Gist Content: ✓" || echo "  - Gist Content: ✗"
-      #           [ -f "${d}/wiki-content.md" ] && echo "  - Wiki Content: ✓" || echo "  - Wiki Content: ✗"
-      #         fi
-      #       done
-      #       echo "## File Structure"
-      #       tree verify_output/
-      #     } >> $GITHUB_STEP_SUMMARY
