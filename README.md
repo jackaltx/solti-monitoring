@@ -271,6 +271,11 @@ Multiple test scenarios are available for comprehensive verification:
 - **Podman**: Local container-based testing
 - **Proxmox**: Full stack VM-based testing (4 distributions: Debian 12/13, Rocky 9/10)
 
+Container images are factory-default SSH containers sourced from the
+[`testing-containers`](https://github.com/jackaltx/testing-containers) repo
+(Debian 12/13, Rocky 9/10, Ubuntu 24) and published to GHCR. They are minimal
+by design — just enough for Ansible to connect and test against.
+
 ### CI Notifications
 
 Lint and syntax check results post to the `#solti-ci` Matrix room via the shared
