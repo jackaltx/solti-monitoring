@@ -1,3 +1,12 @@
+# solti-docs.yml — harvest manifest for the solti-docs unified documentation site
+#
+# harvest.py (solti-docs repo) reads this file to know which sections from this
+# collection to pull into solti.jackaltx.com. Each collection declares what it
+# wants to surface publicly; everything else stays local.
+#
+# NOTE: CLAUDE.md is now private (removed from git tracking) — update sources
+# when the CLAUDE.md → collection-docs/ pattern is wired into the harvester.
+
 title: "Monitoring Stack"
 section: "Monitoring"
 nav_order: 1
