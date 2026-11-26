@@ -94,7 +94,7 @@ ansible-galaxy collection install jackaltx.solti_monitoring
 
 #### [InfluxDB](roles/influxdb/README.md)
 
-**Time Series Database (v2.x, legacy)** - InfluxDB v2.x installation with local disk and NFS storage options. Retained for existing deployments; new installations should use `influxdb3`.
+**Time Series Database (v2.x, legacy)** - InfluxDB v2.x installation with local disk and NFS storage options. Not actively maintained; new installations should use `influxdb3`.
 
 #### [Loki](roles/loki/README.md)
 
