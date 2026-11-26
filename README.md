@@ -21,6 +21,7 @@ solti/
 ├── solti-conductor/    # Proxmox management and orchestration
 ├── solti-ensemble/     # Security and service hardening
 ├── solti-podman/       # Rootless Podman service deployment
+├── solti-docker/       # Docker Compose service deployment
 ├── solti-platforms/    # Proxmox VM and template management
 ├── solti-matrix-mgr/   # Matrix user/room provisioning
 └── solti-matrix-bots/  # Matrix bot deployment
