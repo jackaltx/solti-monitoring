@@ -1,15 +1,8 @@
 # Ansible Collection - jackaltx.solti_monitoring
 
-A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB, Alloy, and Loki.  This an Ansible project organized to be tested via molecule using containers and virtual machines.  This supports
-provided a tested, deployment-ready set of roles within a testing framwork
+A comprehensive monitoring ecosystem for modern infrastructure, integrating metrics and log collection using Telegraf, InfluxDB3, Alloy, and Loki. This collection is organized to be tested via Molecule using containers and virtual machines.
 
-Developers Note:  These roles are intended to be used in a separate set of playbooks to create a common monitoring fabric. There are sample playbooks.  There is a
-harness in place to allow basic integration testing.
-
-One of my goals was to explore molecule testing on a variety of hosts.
-These roles are tested three places on RHEL and Debian distributions. This is being developed on a RHEL based linux,
-which makes using podman containers a viable choice for local testing. Second, this is tested on Proxmox hosted virtual machine.
-Lastly, using Github CI engine. Free Github CI is slow and time restricted, so that will fail sometimes.
+Roles are tested in three environments on RHEL and Debian distributions: locally with Podman containers for fast iteration, on Proxmox-hosted virtual machines for full-stack validation, and via GitHub Actions CI for automated regression testing.
 
 This project demonstrates how to:
 
@@ -24,11 +17,13 @@ This project demonstrates how to:
 
 ```
 solti/
-├── solti-monitor/      # System monitoring and metrics collection (this project)
+├── solti-monitoring/   # System monitoring and metrics collection (this project)
 ├── solti-conductor/    # Proxmox management and orchestration
-├── solti-ensemble/     # Support tools and shared utilities
-├── solti-containers/   # Support containers for testing (Minio, Vault, Mattermost, ...)
-└── solti-score/        # Documentation and playbooks (private only for now)
+├── solti-ensemble/     # Security and service hardening
+├── solti-podman/       # Rootless Podman service deployment
+├── solti-platforms/    # Proxmox VM and template management
+├── solti-matrix-mgr/   # Matrix user/room provisioning
+└── solti-matrix-bots/  # Matrix bot deployment
 ```
 
 ## Architecture Overview
@@ -42,7 +37,7 @@ Recently the project started to focus on "active response" technologies.
 #### Metrics Pipeline
 
 - **[Telegraf](roles/telegraf/README.md)** (Client): Collects system and application metrics
-- **[InfluxDB](roles/influxdb/README.md)** (Server): Stores time-series metrics data
+- **[InfluxDB3](roles/influxdb3/README.md)** (Server): Stores time-series metrics data
 - Supports customizable input plugins and multiple output configurations
 
 #### Logging Pipeline
@@ -72,14 +67,15 @@ Recently the project started to focus on "active response" technologies.
 
 ### Prerequisites
 
-- Ansible 2.9 or higher
-- Python 3.6 or higher
+- Ansible 2.15 or higher
+- Python 3.9 or higher
 - For local testing:
-  - Podman or Docker (for container-based testing)
+  - Podman (primary) or Docker (for container-based testing)
   - Proxmox environment (for VM-based testing)
 - Supported platforms:
-  - Debian 11/12 (primary support)
-  - Rocky Linux 9 (experimental support)
+  - Debian 12/13 (primary support)
+  - Rocky Linux 9/10 (supported)
+  - Ubuntu 24.04 (supported)
 
 ### Installation
 
@@ -91,9 +87,13 @@ ansible-galaxy collection install jackaltx.solti_monitoring
 
 ### Server Components
 
+#### [InfluxDB3](roles/influxdb3/README.md)
+
+**Time Series Database for Metrics Storage** - Automated InfluxDB v3.x installation with bucket management, token-based authentication, and S3-compatible object storage backend. The active metrics server role; supersedes the v2.x `influxdb` role.
+
 #### [InfluxDB](roles/influxdb/README.md)
 
-**Time Series Database for Metrics Storage** - Automated InfluxDB v2.x installation with bucket management, token-based authentication, and support for both local disk and S3-compatible storage. Includes initial setup, organization configuration, and integration preparation for Telegraf clients.
+**Time Series Database (v2.x, legacy)** - InfluxDB v2.x installation with local disk and NFS storage options. Retained for existing deployments; new installations should use `influxdb3`.
 
 #### [Loki](roles/loki/README.md)
 
@@ -124,12 +124,6 @@ ansible-galaxy collection install jackaltx.solti_monitoring
 #### [Metrics Tests](roles/metrics_tests/README.md)
 
 **Metrics Pipeline Verification** - Integration testing for the InfluxDB-Telegraf metrics collection stack. Verifies data ingestion, query functionality, bucket configuration, and health status.
-
-### Services
-
-#### [NFS Client Mount]((roles/nfs-client/README.md))
-
-**NFS Client Mount** - This is deprecated.  An artifact from influxdb v1 and v2.  V3 has S3 capability.
 
 ## Deployment Patterns
 
@@ -272,9 +266,16 @@ alloy_monitor_bind9: true
 
 Multiple test scenarios are available for comprehensive verification:
 
-- **GitHub**: CI-focused testing with Podman containers
+- **GitHub**: CI-focused testing with Docker containers (3-platform matrix: Debian 12, Rocky 9, Ubuntu 24)
 - **Podman**: Local container-based testing
-- **Proxmox**: Full stack VM-based testing
+- **Proxmox**: Full stack VM-based testing (4 distributions: Debian 12/13, Rocky 9/10)
+
+### CI Notifications
+
+Lint and syntax check results post to the `#solti-ci` Matrix room via the shared
+`notify-matrix` workflow from `solti-matrix-mgr`. On main-branch CI failures, an
+`analyze-failure` workflow sends logs to Claude for root-cause analysis and posts
+the result to Matrix.
 
 ### Test Results as Obsidian Vault
 
@@ -380,26 +381,6 @@ Service lifecycle management with dynamically generated playbooks.
 Task-oriented service operations for verification and maintenance.
 
 Both scripts provide convenient ways to manage the monitoring stack without manually creating playbooks.
-
-## Installation
-
-```bash
-ansible-galaxy collection install jackaltx.solti_monitoring
-```
-
-## Usage
-
-```yaml
-- hosts: monitoring_servers
-  roles:
-    - jackaltx.solti_monitoring.influxdb
-    - jackaltx.solti_monitoring.loki
-
-- hosts: monitored_servers  
-  roles:
-    - jackaltx.solti_monitoring.telegraf
-    - jackaltx.solti_monitoring.alloy
-```
 
 ## License
 
