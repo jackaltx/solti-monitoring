@@ -285,40 +285,14 @@ the result to Matrix.
 
 ### Test Results as Obsidian Vault
 
-Test results are automatically organized into an Obsidian-compatible knowledge graph structure at `verify_output/obsidian/`. This provides:
+Test results are automatically collected into an Obsidian-compatible vault at
+`verify_output/obsidian/`. Each test run writes immutable records (run overview,
+capability results, pre/post diagnostics); a post-test script regenerates
+cross-linked indexes by distribution and capability. Open the directory as an
+Obsidian vault to navigate test history via wiki-style links and graph view.
 
-**Why Obsidian?**
-
-- **Cross-linked Navigation**: Jump between test runs, capabilities, and diagnostics
-- **Distribution Tracking**: Separate indexes for Debian, Rocky, Ubuntu test histories
-- **Chronological Index**: All test runs in time order with pass/fail status
-- **Rich Metadata**: YAML frontmatter enables filtering and searching in Obsidian
-- **Collapsible Details**: Full raw data preserved in expandable sections
-- **Version Control Ready**: Plain markdown files track in git
-
-**Structure:**
-
-```text
-verify_output/obsidian/
-├── index.md                              # Chronological index (all runs)
-├── Debian12-Index.md                     # Distribution-specific indexes
-├── Rocky9-Index.md
-└── runs/
-    └── 2026-03-28-debian12-204137/       # Each test run
-        ├── index.md                      # Run overview with links
-        ├── preverify-diagnostics.md      # Pre-test system state
-        ├── logs-capability.md            # Loki/Alloy results
-        ├── metrics-capability.md         # InfluxDB/Telegraf results
-        └── postverify-diagnostics.md     # Post-test system state
-```
-
-**Usage:**
-
-1. Open `verify_output/obsidian/` as an Obsidian vault
-2. Start at `index.md` for chronological view
-3. Or use distribution indexes (e.g., `Debian12-Index.md`)
-4. Click wiki-style links to navigate between related documents
-5. Use Obsidian's graph view to visualize test relationships
+See [docs/OBSIDIAN_OUTPUT.md](docs/OBSIDIAN_OUTPUT.md) for structure, NFS sync,
+and index regeneration details.
 
 ### Running Tests
 
