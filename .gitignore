@@ -60,3 +60,5 @@ ENV/
 
 # Galaxy install version!
 .ansible
+# Developer architecture notes — stay local, not shipped
+CLAUDE.md
